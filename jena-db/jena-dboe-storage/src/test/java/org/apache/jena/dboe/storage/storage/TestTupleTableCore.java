@@ -36,6 +36,13 @@ public class TestTupleTableCore {
         Node s2 = q3.getSubject();
 
         // lr = lookup result
+        List<Quad> lr0a = table.newFinder().stream().collect(Collectors.toList());
+        Assert.assertEquals(Arrays.asList(q1, q2, q3, q4), lr0a);
+
+
+        List<Quad> lr0b = table.newFinder().eq(0, s1).stream().collect(Collectors.toList());
+        Assert.assertEquals(Arrays.asList(q1, q2), lr0b);
+
         List<Node> lr1 = table.newFinder().projectOnly(3).distinct().stream().collect(Collectors.toList());
         Assert.assertEquals(Arrays.asList(g1, g2), lr1);
 
