@@ -34,4 +34,23 @@ public class SimpleDB {
             super(new StorageMem(), new StoragePrefixesMem(), TransactionalLock.createMRSW());
         }
     }
+    public static DatasetGraph createOrderPreserving() {
+        return createOrderPreserving(false, false);
+    }
+
+    public static DatasetGraph createOrderPreserving(boolean strictOrderOnQuads, boolean strictOrderOnTriples) {
+        Supplier<TripleTableCore> tripleTableSupplier = strictOrderOnTriples
+                ? () -> new TripleTableCore2(new TripleTableCoreFromNestedMapsImpl(), new TripleTableCoreFromSet())
+                : () -> new TripleTableCoreFromNestedMapsImpl();
+
+        QuadTableCore quadTable = new QuadTableCoreFromMapOfTripleTableCore(tripleTableSupplier);
+
+        if (strictOrderOnQuads) {
+            quadTable = new QuadTableCore2(quadTable, new QuadTableCoreFromSet());
+        }
+
+        StorageRDF storage = StorageRDFTriplesQuads.createWithQuadsOnly(quadTable);
+        DatasetGraph result = new DatasetGraphStorage(storage, new StoragePrefixesMem(), TransactionalLock.createMRSW());
+        return result;
+    }
 }

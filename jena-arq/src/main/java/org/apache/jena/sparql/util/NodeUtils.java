@@ -305,4 +305,10 @@ public class NodeUtils
             return false; 
         }
     };
+
+    /** Test if the given node is null or equal to {@link Node.ANY} */
+    public static boolean isNullOrAny(Node node) {
+        return node == null || Node.ANY.equals(node);
+    }
+
 }
