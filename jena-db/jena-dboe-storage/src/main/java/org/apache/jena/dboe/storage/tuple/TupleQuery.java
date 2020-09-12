@@ -1,5 +1,7 @@
 package org.apache.jena.dboe.storage.tuple;
 
+import java.util.List;
+
 public interface TupleQuery<ComponentType> {
     /**
      * The rank of the conceptual tuple table this query is intended for
@@ -14,7 +16,7 @@ public interface TupleQuery<ComponentType> {
     void setConstraint(int idx, ComponentType value);
     ComponentType getConstraint(int idx);
 
-    ComponentType[] getPattern();
+    List<ComponentType> getPattern();
 
     /**
      * Baseline tuple query execution on a tuple table.

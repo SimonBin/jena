@@ -18,8 +18,20 @@
 
 package org.apache.jena.dboe.storage.simple;
 
+import java.util.function.Supplier;
+
 import org.apache.jena.dboe.storage.DatabaseRDF;
+import org.apache.jena.dboe.storage.StorageRDF;
+import org.apache.jena.dboe.storage.quad.QuadTableCore;
+import org.apache.jena.dboe.storage.quad.QuadTableCore2;
+import org.apache.jena.dboe.storage.quad.QuadTableCoreFromMapOfTripleTableCore;
+import org.apache.jena.dboe.storage.quad.QuadTableCoreFromSet;
+import org.apache.jena.dboe.storage.quad.StorageRDFTriplesQuads;
 import org.apache.jena.dboe.storage.system.DatasetGraphStorage;
+import org.apache.jena.dboe.storage.triple.TripleTableCore;
+import org.apache.jena.dboe.storage.triple.TripleTableCore2;
+import org.apache.jena.dboe.storage.triple.TripleTableCoreFromNestedMapsImpl;
+import org.apache.jena.dboe.storage.triple.TripleTableCoreFromSet;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.TransactionalLock;
 

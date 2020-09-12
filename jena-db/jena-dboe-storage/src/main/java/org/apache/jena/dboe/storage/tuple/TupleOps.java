@@ -10,7 +10,7 @@ public class TupleOps {
     createProjector(int[] project, TupleAccessor<? super DomainType, ? extends ComponentType> accessor) {
         Function<DomainType, Tuple<ComponentType>> result;
 
-        int len = accessor.getRank();
+        int len = project.length;
         switch(len) {
         case 1: result = domain -> TupleFactory.create1(
                 accessor.get(domain, project[0])); break;

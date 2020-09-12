@@ -17,6 +17,7 @@
 
 package org.apache.jena.dboe.storage.tuple;
 
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -61,7 +62,7 @@ public interface TupleTableCore<TupleType, ComponentType> {
      * @return
      */
     @SuppressWarnings("unchecked")
-    Stream<TupleType> findTuples(ComponentType... pattern);
+    Stream<TupleType> findTuples(List<ComponentType> pattern);
 
     Stream<TupleType> findTuples();
 //    default Stream<TupleType> findTuples() {
@@ -74,7 +75,7 @@ public interface TupleTableCore<TupleType, ComponentType> {
      * @return
      */
     default Stream<Tuple<ComponentType>> find(TupleQuery<ComponentType> tupleQuery) {
-        ComponentType[] pattern = tupleQuery.getPattern();
+        List<ComponentType> pattern = tupleQuery.getPattern();
 
         // The projector is the function that projects a domain object into an appropriate tuple w.r.t.
         // the given projection indices

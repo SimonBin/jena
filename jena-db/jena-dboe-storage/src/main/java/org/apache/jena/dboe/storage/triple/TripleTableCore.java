@@ -17,6 +17,7 @@
 
 package org.apache.jena.dboe.storage.triple;
 
+import java.util.List;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.tuple.TupleAccessor;
@@ -42,11 +43,11 @@ public interface TripleTableCore
     }
 
     @Override
-    default Stream<Triple> findTuples(Node... pattern) {
+    default Stream<Triple> findTuples(List<Node> pattern) {
         return find(
-                TupleTableCore.nullToAny(pattern[0]),
-                TupleTableCore.nullToAny(pattern[1]),
-                TupleTableCore.nullToAny(pattern[2]));
+                TupleTableCore.nullToAny(pattern.get(0)),
+                TupleTableCore.nullToAny(pattern.get(1)),
+                TupleTableCore.nullToAny(pattern.get(2)));
     }
 
 //    public static Node anyToNull(Node n) {

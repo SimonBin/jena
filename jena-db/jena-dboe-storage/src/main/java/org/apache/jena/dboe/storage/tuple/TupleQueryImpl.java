@@ -1,18 +1,26 @@
 package org.apache.jena.dboe.storage.tuple;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class TupleQueryImpl<ComponentType>
     implements TupleQuery<ComponentType>
 {
     protected int rank;
-    protected ComponentType[] pattern;
+    protected List<ComponentType> pattern;
     protected boolean distinct = false;
     protected int[] projection = null;
 
-    @SuppressWarnings("unchecked")
+    public static <T> List<T> listOfNulls(int size) {
+        List<T> result = new ArrayList<>();
+        for (int i = 0; i < size; ++i) { result.add(null); }
+        return result;
+    }
+
     public TupleQueryImpl(int rank) {
         super();
         this.rank = rank;
-        this.pattern = (ComponentType[])new Object[rank];
+        this.pattern = listOfNulls(rank);
     }
 
     @Override
@@ -32,12 +40,12 @@ public class TupleQueryImpl<ComponentType>
 
     @Override
     public void setConstraint(int idx, ComponentType value) {
-        pattern[idx] = value;
+        pattern.set(idx, value);
     }
 
     @Override
     public ComponentType getConstraint(int idx) {
-        return pattern[idx];
+        return pattern.get(idx);
     }
     @Override
     public int[] getProject() {
@@ -45,7 +53,7 @@ public class TupleQueryImpl<ComponentType>
     }
 
     @Override
-    public ComponentType[] getPattern() {
+    public List<ComponentType> getPattern() {
         return pattern;
     }
 

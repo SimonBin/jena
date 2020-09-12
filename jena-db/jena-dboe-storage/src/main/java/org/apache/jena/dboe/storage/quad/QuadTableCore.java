@@ -53,12 +53,12 @@ public interface QuadTableCore
     }
 
     @Override
-    default Stream<Quad> findTuples(Node... pattern) {
+    default Stream<Quad> findTuples(List<Node> pattern) {
         return find(
-                TupleTableCore.nullToAny(pattern[0]),
-                TupleTableCore.nullToAny(pattern[1]),
-                TupleTableCore.nullToAny(pattern[2]),
-                TupleTableCore.nullToAny(pattern[3]));
+                TupleTableCore.nullToAny(pattern.get(3)),
+                TupleTableCore.nullToAny(pattern.get(0)),
+                TupleTableCore.nullToAny(pattern.get(1)),
+                TupleTableCore.nullToAny(pattern.get(2)));
     }
 
 //    default <T> Stream<Quad> find(T obj, TupleAccessor<? super T, ? extends Node> accessor) {

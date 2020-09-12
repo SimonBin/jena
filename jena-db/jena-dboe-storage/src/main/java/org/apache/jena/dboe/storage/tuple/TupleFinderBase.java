@@ -97,7 +97,7 @@ public class TupleFinderBase<ExposedType, DomainType, ComponentType>
                     new TupleQueryImpl<>(tupleTable.getRank()),
                     // Default strategy with a fresh TupleQueryImpl is to pass a null-value-filled
                     // pattern to the findTuple methods
-                    (table, query) -> table.findTuples((ComponentType[])new Object[tupleTable.getRank()]));
+                    (table, query) -> table.findTuples(TupleQueryImpl.listOfNulls(tupleTable.getRank())));
     }
 
     public TupleFinderBase(
