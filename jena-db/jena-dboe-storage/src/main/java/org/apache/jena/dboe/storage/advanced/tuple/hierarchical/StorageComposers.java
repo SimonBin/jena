@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 
 /**
@@ -66,51 +65,31 @@ public class StorageComposers {
     }
 
 
-//    public static <C, L, D> Meta2Node<Tuple<C>, D, C> parentMap(Meta2Node<L, D, C> child, int... tupleIdxs) {
-//
-//    }
-
-
     /**
-     * A collection of tuples; corresponds to a Multimap<T, Void>
+     * Generic construction for composition from multiple composers
+     * Breaks strong typing in contrast to static alternatives{1, 2, ...} constructions that
+     * could e.g. yield Map<Foo, Alternatives3<Bar, Baz, Bax>> types
      *
-     * @param <T>
+     * @param <D>
      * @param <C>
-     * @param accessor
+     * @param <V>
+     * @param tupleIdx
+     * @param mapSupplier
+     * @param child
      * @return
      */
-    public static <T, C> Meta2Node<T, Void, C> collection(TupleAccessor<T, C> accessor) {
-        return null;
+    public static <D, C> Meta2NodeCompound<D, C, ?> altN(
+            List<? extends Meta2NodeCompound<D, C, ?>> children
+            ) {
+
+        if (children.isEmpty()) {
+            throw new IllegalArgumentException("At least one alternative must be provided");
+        }
+
+        // TODO Validate that all children use the same tuple acessor
+        TupleAccessor<D, C> tupleAccessor = children.get(0).getTupleAccessor();
+        return new Meta2NodeAlt<D, C>(tupleAccessor, children);
     }
-
-    /**
-     * A single tuple; corresponds to Map<T, Void>
-     *
-     * @param <T>
-     * @param <C>
-     * @param accessor
-     * @return
-     */
-    public static <T, C> Meta2Node<T, Void, C> singleton(TupleAccessor<T, C> accessor) {
-        return null;
-    }
-
-    public static <V, C> Meta2Node<C, V, C> mapKeyComponent(int tupleIdx, Meta2Node<?, V, C>  child) {
-        return null;
-    }
-
-    public static <V, C> Meta2Node<Tuple<C>, V, C> mapKeyTuple(Meta2Node<?, V, C>  child, int... tupleIdxs) {
-        return null;
-    }
-
-
-    // If we had methods for factory mtehods for different arity we might even do type-safe forking
-    // e.g. Map<Node, ForkPair2<Map<Node, Quad>, Map<Node, Map<...>>>>
-    public static <C> Meta2Node<Tuple<C>, ?, C> fork(List<Meta2Node<?, ?, C>>  children) {
-        return null;
-    }
-
-
 }
 
 

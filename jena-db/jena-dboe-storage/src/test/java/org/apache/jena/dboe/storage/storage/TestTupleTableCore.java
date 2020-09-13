@@ -191,4 +191,44 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
             System.out.println(entry);
         }
     }
+
+
+    @Test
+    public void testAlternatives() {
+        TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
+
+        Meta2NodeCompound<Quad, Node, ?> storage = StorageComposers.altN(Arrays.asList(
+                StorageComposers.innerMap(3, LinkedHashMap::new,
+                        StorageComposers.leafSet(accessor, LinkedHashSet::new)),
+                StorageComposers.innerMap(0, LinkedHashMap::new,
+                        StorageComposers.leafSet(accessor, LinkedHashSet::new))));
+
+
+        System.out.println("Storage structure: " + storage);
+        Object root = storage.newStore();
+
+        Quad q1 = SSE.parseQuad("(:g1 :s1 :g1p1 :g1o1)");
+        Quad q2 = SSE.parseQuad("(:g1 :s1 :g1p2 :g1o2)");
+        Quad q3 = SSE.parseQuad("(:g2 :s2 :g2p1 :g2o1)");
+        Quad q4 = SSE.parseQuad("(:g2 :s2 :g2p2 :g2o2)");
+
+        System.out.println("Performing inserts");
+        storage.add(root, q1);
+        storage.add(root, q2);
+        storage.add(root, q3);
+        storage.add(root, q4);
+
+        List<?> entries1 = storage.streamEntries(root).collect(Collectors.toList());
+        for(Object entry : entries1) {
+            System.out.println(entry);
+        }
+
+        System.out.println("Performing removals");
+        storage.remove(root, q1);
+        storage.remove(root, q2);
+        List<?> entries2 = storage.streamEntries(root).collect(Collectors.toList());
+        for(Object entry : entries2) {
+            System.out.println(entry);
+        }
+    }
 }

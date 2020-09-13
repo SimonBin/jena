@@ -1,6 +1,6 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
@@ -26,7 +26,7 @@ public interface Meta2Node<D, C, V> {
      *
      * @return
      */
-    Collection<Meta2Node<D, C, ?>> getChildren();
+    List<? extends Meta2Node<D, C, ?>> getChildren();
     int[] getKeyTupleIdxs();
 
     TupleAccessor<D, C> getTupleAccessor();

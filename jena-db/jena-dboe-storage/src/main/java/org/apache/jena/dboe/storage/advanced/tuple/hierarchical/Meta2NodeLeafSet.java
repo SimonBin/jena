@@ -1,8 +1,8 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -31,8 +31,8 @@ public class Meta2NodeLeafSet<D, C, V>
 
 
     @Override
-    public Collection<Meta2Node<D, C, ?>> getChildren() {
-        return Collections.emptySet();
+    public List<Meta2Node<D, C, ?>> getChildren() {
+        return Collections.emptyList();
     }
 
     @Override

@@ -2,8 +2,8 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -29,8 +29,8 @@ public class Meta2NodeInnerMap<D, C, K, V>
 
 
     @Override
-    public Collection<Meta2Node<D, C, ?>> getChildren() {
-        return Collections.singleton(child);
+    public List<Meta2Node<D, C, ?>> getChildren() {
+        return Collections.singletonList(child);
     }
 
     @Override
