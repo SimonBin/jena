@@ -1,7 +1,6 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.Map;
-import java.util.function.Function;
 
 import org.apache.jena.dboe.storage.advanced.tuple.MapSupplier;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
@@ -12,14 +11,20 @@ abstract class Meta2NodeMapBase<D, C, K, V>
 {
     protected MapSupplier mapSupplier;
     // protected TupleToKey<? extends K, C> keyFunction;
-    Function<? super D, ? extends K> keyFunction;
+    TupleValueFunction<C, K> keyFunction;
+
+    public K tupleToKey(D tupleLike) {
+        K result = keyFunction.map(tupleLike, (d, i) -> tupleAccessor.get(d, tupleIdxs[i]));
+        return result;
+    }
 
     public Meta2NodeMapBase(
             int[] tupleIdxs,
             TupleAccessor<D, C> tupleAccessor,
             MapSupplier mapSupplier,
             //TupleToKey<? extends K, C> keyFunction
-            Function<? super D, ? extends K> keyFunction
+            //Function<? super D, ? extends K> keyFunction
+            TupleValueFunction<C, K> keyFunction
             ) {
         super(tupleIdxs, tupleAccessor);
         this.mapSupplier = mapSupplier;

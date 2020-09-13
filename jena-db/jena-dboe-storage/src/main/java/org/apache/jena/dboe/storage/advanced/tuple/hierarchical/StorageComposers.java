@@ -22,13 +22,16 @@ public class StorageComposers {
             int tupleIdx,
             TupleAccessor<D, C> tupleAccessor,
             MapSupplier mapSupplier) {
-        return new Meta2NodeLeafMap<>(
+        return new Meta2NodeLeafMap<D, C, C, D>(
                 new int[] {tupleIdx},
                 tupleAccessor,
                 mapSupplier,
-                d -> tupleAccessor.get(d, tupleIdx),
-                d -> d);
+                TupleValueFunction::component0,
+                // Ugly identity mapping of domain tuples to themselves as values - can we do better?
+                TupleValueFunction.newIdentity()
+                );
     }
+
 
     public static <D, C, V> Meta2NodeCompound<D, C, Map<C, V>> innerMap(
             int tupleIdx,
@@ -43,9 +46,11 @@ public class StorageComposers {
                 tupleAccessor,
                 child,
                 mapSupplier,
-                d -> tupleAccessor.get(d, tupleIdx));
+                TupleValueFunction::component0
+                );
+                // Return the element at index 0 of any tuple like object
+                // (tupleLike, tupleAccessor) -> tupleAccessor.get(tupleLike, 0));
     }
-
 
 
 //    public static <C, L, D> Meta2Node<Tuple<C>, D, C> parentMap(Meta2Node<L, D, C> child, int... tupleIdxs) {

@@ -7,9 +7,10 @@ package org.apache.jena.dboe.storage.advanced.tuple;
  *
  * @param <DomainType>
  */
-public interface TupleAccessor<DomainType, ComponentType> {
+public interface TupleAccessor<DomainType, ComponentType>
+    extends TupleAccessorCore<DomainType, ComponentType>
+{
     int getRank();
-    ComponentType get(DomainType domainObject, int idx);
 
     /**
      * Restore a domain object from some other object with a corresponding accessor

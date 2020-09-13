@@ -71,7 +71,9 @@ public class TestTupleTableCore {
     public void test2() {
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
 
-        // Hooray - ugly complex nested type expression
+        // Hooray - ugly complex nested type expression - exactly what I would have wanted for Sparqlify's
+        // source selection index like 8 years ago - but back then I constructed a similar nested expression starting from the root
+        // This time I do it bottom-up and it is so much better!
         Meta2NodeCompound<Quad, Node, Map<Node, Map<Node, Map<Node, Map<Node, Quad>>>>> storage =
             StorageComposers.innerMap(3, LinkedHashMap::new,
                 StorageComposers.innerMap(0, LinkedHashMap::new,
@@ -79,17 +81,33 @@ public class TestTupleTableCore {
                             StorageComposers.leafMap(2, accessor, LinkedHashMap::new))));
 
         System.out.println("Storage structure: " + storage);
-        Object root = storage.newStore();
+        Map<Node, Map<Node, Map<Node, Map<Node, Quad>>>> rootTyped = storage.newStore();
+        Object root = rootTyped;
 
         Quad q1 = SSE.parseQuad("(:g1 :s1 :g1p1 :g1o1)");
         Quad q2 = SSE.parseQuad("(:g1 :s1 :g1p2 :g1o2)");
         Quad q3 = SSE.parseQuad("(:g2 :s2 :g2p1 :g2o1)");
         Quad q4 = SSE.parseQuad("(:g2 :s2 :g2p2 :g2o2)");
 
+        System.out.println("Performing inserts");
         storage.add(root, q1);
         storage.add(root, q2);
         storage.add(root, q3);
         storage.add(root, q4);
+
+
+        List<?> entries1 = storage.streamEntries(root).collect(Collectors.toList());
+        for(Object entry : entries1) {
+            System.out.println(entry);
+        }
+
+        System.out.println("Performing removals");
+        storage.remove(root, q1);
+        storage.remove(root, q2);
+        List<?> entries2 = storage.streamEntries(root).collect(Collectors.toList());
+        for(Object entry : entries2) {
+            System.out.println(entry);
+        }
 
 
         //storage.add(root, )

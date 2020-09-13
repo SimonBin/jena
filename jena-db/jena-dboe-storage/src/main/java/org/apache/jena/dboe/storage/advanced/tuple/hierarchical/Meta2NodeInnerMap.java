@@ -1,14 +1,17 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
+import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.function.Function;
+import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.MapSupplier;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 
 public class Meta2NodeInnerMap<D, C, K, V>
     extends Meta2NodeMapBase<D, C, K, V>
@@ -20,7 +23,7 @@ public class Meta2NodeInnerMap<D, C, K, V>
             TupleAccessor<D, C> tupleAccessor,
             Meta2NodeCompound<D, C, V> child,
             MapSupplier mapSupplier,
-            Function<? super D, ? extends K> keyFunction) {
+            TupleValueFunction<C, K> keyFunction) {
         super(tupleIdxs, tupleAccessor, mapSupplier, keyFunction);
         this.child = child;
     }
@@ -37,17 +40,13 @@ public class Meta2NodeInnerMap<D, C, K, V>
     }
 
     // @Override
-    public K tupleToKey(D tupleLike) {
-        K result = keyFunction.apply(tupleLike);
-        return result;
-    }
 
     @Override
     public boolean add(Object store, D tupleLike) {
         @SuppressWarnings("unchecked")
         Map<K, V> map = (Map<K, V>)store;
 
-        K key = keyFunction.apply(tupleLike);
+        K key = tupleToKey(tupleLike);
 
         V v = map.get(key);
         if (v == null) {
@@ -66,7 +65,7 @@ public class Meta2NodeInnerMap<D, C, K, V>
         @SuppressWarnings("unchecked")
         Map<K, V> map = (Map<K, V>)store;
 
-        K key = keyFunction.apply(tupleLike);
+        K key = tupleToKey(tupleLike);
 
         boolean result = false;
         V v = map.get(key);
@@ -85,5 +84,45 @@ public class Meta2NodeInnerMap<D, C, K, V>
     public String toString() {
         return "(" + Arrays.toString(tupleIdxs) + " -> " + Objects.toString(child) + ")";
     }
+
+
+
+    @Override
+    public <T> Stream<Entry<K, ?>> streamEntries(Object store, T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
+        @SuppressWarnings("unchecked")
+        Map<K, V> map = (Map<K, V>)store;
+
+        // Check whether the components of the given tuple are all non-null such that we can
+        // create a key from them
+        Object[] tmp = new Object[tupleIdxs.length];
+        boolean eligibleAsKey = true;
+        for (int i = 0; i < tupleIdxs.length; ++i) {
+            C componentValue = tupleAccessor.get(tupleLike, i);
+            if (componentValue == null) {
+                eligibleAsKey = false;
+                break;
+            }
+            tmp[i] = componentValue;
+        }
+
+        Stream<Entry<K, ?>> childStream;
+
+        // If we have a key we can do a lookup in the map
+        // otherwise we have to scan all keys
+        if (eligibleAsKey) {
+            K key = keyFunction.map(tmp, (x, i) -> (C)x[i]);
+
+            V childStore = map.get(key);
+            childStream = childStore == null
+                    ? Stream.empty()
+                    : child.streamEntries(childStore, tupleLike, tupleAccessor).map(v -> new SimpleEntry<>(key, v));
+        } else {
+            childStream = map.entrySet().stream().flatMap(
+                    e -> child.streamEntries(e.getValue(), tupleLike, tupleAccessor).map(v -> new SimpleEntry<>(e.getKey(), v)));
+        }
+
+        return childStream;
+    }
+
 }
 
