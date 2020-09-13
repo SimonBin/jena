@@ -15,12 +15,11 @@ public class Meta2NodeLeafSet<D, C, V>
     protected TupleValueFunction<C, V> valueFunction;
 
     public Meta2NodeLeafSet(
-            int[] tupleIdxs,
             TupleAccessor<D, C> tupleAccessor,
             SetSupplier setSupplier,
             TupleValueFunction<C, V> valueFunction
             ) {
-        super(tupleIdxs, tupleAccessor, setSupplier);
+        super(new int[] {}, tupleAccessor, setSupplier);
         this.valueFunction = valueFunction;
     }
 

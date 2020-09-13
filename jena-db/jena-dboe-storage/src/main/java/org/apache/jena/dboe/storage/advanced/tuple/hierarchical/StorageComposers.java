@@ -22,7 +22,6 @@ public class StorageComposers {
             TupleAccessor<D, C> tupleAccessor,
             SetSupplier setSupplier) {
         return new Meta2NodeLeafSet<D, C, D>(
-                new int[] {}, // Indexed by no components
                 tupleAccessor,
                 setSupplier,
                 // Ugly identity mapping of domain tuples to themselves as values - can we do better?

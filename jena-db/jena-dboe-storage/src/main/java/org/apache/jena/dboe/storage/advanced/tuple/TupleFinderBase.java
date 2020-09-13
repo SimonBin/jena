@@ -62,7 +62,8 @@ public class TupleFinderBase<ExposedType, DomainType, ComponentType>
     }
 
     /**
-     * The current strategy to create the stream
+     * The current strategy to create the stream - i.e. which find*() method to call on
+     * the tupleTable and how to post process the result if needed
      *
      *
      */
@@ -88,7 +89,6 @@ public class TupleFinderBase<ExposedType, DomainType, ComponentType>
 //    protected TupleAccessor<ExposedType, ComponentType> exposedAccessor;
 
 
-    @SuppressWarnings("unchecked")
     public static <DomainType, ComponentType> TupleFinder<DomainType, DomainType, ComponentType> create(
             TupleTableCore<DomainType, ComponentType> tupleTable) {
 
@@ -98,6 +98,11 @@ public class TupleFinderBase<ExposedType, DomainType, ComponentType>
                     // Default strategy with a fresh TupleQueryImpl is to pass a null-value-filled
                     // pattern to the findTuple methods
                     (table, query) -> table.findTuples(query.getPattern()));
+    }
+
+    @Override
+    public TupleQuery<ComponentType> getTupleQuery() {
+        return tupleQuery;
     }
 
     public TupleFinderBase(

@@ -89,6 +89,8 @@ public interface TupleFinder<ExposedType, DomainType, ComponentType> {
 
     TupleFinder<ExposedType, DomainType, ComponentType> eq(int componentIdx, ComponentType value);
 
+    TupleQuery<ComponentType> getTupleQuery();
+
     default TupleFinder<ComponentType, DomainType, ComponentType> projectOnly(int componentIdx) {
         return project(componentIdx).plain();
     }

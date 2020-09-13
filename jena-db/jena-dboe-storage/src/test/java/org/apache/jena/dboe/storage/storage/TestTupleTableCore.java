@@ -16,12 +16,15 @@ import org.apache.jena.dboe.storage.advanced.triple.TripleTableCoreFromNestedMap
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuad;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2Node;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleQueryImpl;
+import org.apache.jena.dboe.storage.advanced.tuple.analysis.PathReport;
+import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2NodeCompound;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.sse.SSE;
+import org.apache.jena.vocabulary.RDF;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -71,26 +74,6 @@ public class TestTupleTableCore {
                 lr3);
     }
 
-    public static <TupleLike, ComponentType> Object analyze(
-            Meta2NodeCompound<TupleLike, ComponentType, ?> node,
-            TupleQuery<ComponentType> tupleQuery) {
-
-        int[] currentIxds = node.getKeyTupleIdxs();
-
-        for (int i = 0; i < currentIxds.length; ++i) {
-            ComponentType c = tupleQuery.getConstraint(i);
-            if (c != null) {
-
-            }
-        }
-
-        for(Meta2Node<TupleLike, ComponentType, ?> child : node.getChildren()) {
-
-        }
-
-        return null;
-    }
-
     @Test
     public void test2() {
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
@@ -103,6 +86,19 @@ public class TestTupleTableCore {
                 StorageComposers.innerMap(0, LinkedHashMap::new,
                         StorageComposers.innerMap(1, LinkedHashMap::new,
                             StorageComposers.leafMap(2, accessor, LinkedHashMap::new))));
+
+        TupleQuery<Node> tupleQuery = new TupleQueryImpl<>(4);
+        tupleQuery.setConstraint(3, RDF.Nodes.type);
+        tupleQuery.setConstraint(0, RDF.Nodes.first);
+
+
+        List<PathReport> reports = TupleQueryAnalyzer.analyze(tupleQuery, storage);
+        System.out.println("BEGIN OF REPORTS");
+        for (PathReport report : reports) {
+            System.out.println(report);
+        }
+        System.out.println("END OF REPORTS");
+
 
         System.out.println("Storage structure: " + storage);
         Map<Node, Map<Node, Map<Node, Map<Node, Quad>>>> rootTyped = storage.newStore();
