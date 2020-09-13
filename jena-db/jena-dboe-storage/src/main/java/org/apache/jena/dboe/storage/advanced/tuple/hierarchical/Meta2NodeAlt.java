@@ -110,6 +110,6 @@ public class Meta2NodeAlt<D, C>
 
     @Override
     public String toString() {
-        return "<" + children.stream().map(Object::toString).collect(Collectors.joining(", ")) + ">";
+        return "<" + children.stream().map(Object::toString).collect(Collectors.joining(" | ")) + ">";
     }
 }

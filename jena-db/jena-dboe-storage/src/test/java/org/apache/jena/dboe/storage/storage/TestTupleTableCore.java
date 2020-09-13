@@ -71,7 +71,7 @@ public class TestTupleTableCore {
                 lr3);
     }
 
-    public static <TupleLike, ComponentType> Object explain(
+    public static <TupleLike, ComponentType> Object analyze(
             Meta2NodeCompound<TupleLike, ComponentType, ?> node,
             TupleQuery<ComponentType> tupleQuery) {
 

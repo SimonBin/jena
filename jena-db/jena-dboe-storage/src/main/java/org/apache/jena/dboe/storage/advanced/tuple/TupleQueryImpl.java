@@ -61,4 +61,9 @@ public class TupleQueryImpl<ComponentType>
     public void setProject(int... tupleIdxs) {
         projection = tupleIdxs;
     }
+
+    @Override
+    public boolean hasProject() {
+        return projection != null;
+    }
 }

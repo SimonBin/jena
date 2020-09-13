@@ -90,6 +90,7 @@ public class StorageComposers {
         TupleAccessor<D, C> tupleAccessor = children.get(0).getTupleAccessor();
         return new Meta2NodeAlt<D, C>(tupleAccessor, children);
     }
+
 }
 
 

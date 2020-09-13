@@ -28,5 +28,7 @@ public interface TupleQuery<ComponentType> {
      */
     int[] getProject();
 
+    boolean hasProject();
+
     void setProject(int... tupleIdxs);
 }

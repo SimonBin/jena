@@ -68,6 +68,25 @@ public interface TupleTableCore<TupleType, ComponentType> {
 //        return findTuples((ComponentType[]) new Object[getRank()]);
 //    }
 
+
+    /**
+     * Implementing this method can avoid needless wrapping and unwrapping
+     * of components as Tuple1 objects
+     *
+     * The tuple query must project exactly one component
+     *
+     * @param distinct
+     * @param idx
+     * @return
+     */
+    default Stream<ComponentType> findComponent(TupleQuery<ComponentType> tupleQuery) {
+        if (!tupleQuery.hasProject() || tupleQuery.getProject().length != 1) {
+            throw new IllegalArgumentException("Tuple query for a specific component must project exactly 1 component");
+        }
+
+        return find(tupleQuery).map(x -> x.get(0));
+    }
+
     /**
      *
      *
