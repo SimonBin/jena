@@ -28,7 +28,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.IndexNodeCollection;
 import org.apache.jena.dboe.storage.advanced.tuple.IndexNodeFork;
 import org.apache.jena.dboe.storage.advanced.tuple.IndexNodeForkFromMap;
 import org.apache.jena.dboe.storage.advanced.tuple.IndexNodeNestedMap;
-import org.apache.jena.dboe.storage.advanced.tuple.MapSupplier;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.MapSupplier;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.sparql.util.NodeUtils;
@@ -72,7 +72,7 @@ public class TripleTableCoreFromNestedMapsImpl
         this.mapSupplier = mapSupplier;
 
         // Initialize
-        store = mapSupplier.newMap();
+        store = mapSupplier.get();
     }
 
     @Override
@@ -124,8 +124,8 @@ public class TripleTableCoreFromNestedMapsImpl
         MapSupplier mapSupplier
     ) {
         store
-            .computeIfAbsent(triple.getSubject(), s -> mapSupplier.newMap())
-            .computeIfAbsent(triple.getPredicate(), p -> mapSupplier.newMap())
+            .computeIfAbsent(triple.getSubject(), s -> mapSupplier.get())
+            .computeIfAbsent(triple.getPredicate(), p -> mapSupplier.get())
             .computeIfAbsent(triple.getObject(), o -> triple);
     }
 

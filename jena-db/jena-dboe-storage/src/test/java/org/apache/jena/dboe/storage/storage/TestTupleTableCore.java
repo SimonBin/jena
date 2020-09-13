@@ -2,8 +2,10 @@ package org.apache.jena.dboe.storage.storage;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
@@ -13,8 +15,10 @@ import org.apache.jena.dboe.storage.advanced.quad.QuadTableCoreFromMapOfTripleTa
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCoreFromNestedMapsImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuad;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2Node;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2NodeCompound;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.sse.SSE;
@@ -67,6 +71,26 @@ public class TestTupleTableCore {
                 lr3);
     }
 
+    public static <TupleLike, ComponentType> Object explain(
+            Meta2NodeCompound<TupleLike, ComponentType, ?> node,
+            TupleQuery<ComponentType> tupleQuery) {
+
+        int[] currentIxds = node.getKeyTupleIdxs();
+
+        for (int i = 0; i < currentIxds.length; ++i) {
+            ComponentType c = tupleQuery.getConstraint(i);
+            if (c != null) {
+
+            }
+        }
+
+        for(Meta2Node<TupleLike, ComponentType, ?> child : node.getChildren()) {
+
+        }
+
+        return null;
+    }
+
     @Test
     public void test2() {
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
@@ -94,6 +118,8 @@ public class TestTupleTableCore {
         storage.add(root, q2);
         storage.add(root, q3);
         storage.add(root, q4);
+
+
 
 
         List<?> entries1 = storage.streamEntries(root).collect(Collectors.toList());
@@ -126,5 +152,43 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
 */
 
 
+    }
+
+
+    @Test
+    public void test3() {
+        TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
+
+        Meta2NodeCompound<Quad, Node, Map<Node, Set<Quad>>> storage =
+                StorageComposers.innerMap(3, LinkedHashMap::new,
+                        StorageComposers.leafSet(accessor, LinkedHashSet::new));
+
+        System.out.println("Storage structure: " + storage);
+        Map<Node, Set<Quad>> rootTyped = storage.newStore();
+        Object root = rootTyped;
+
+        Quad q1 = SSE.parseQuad("(:g1 :s1 :g1p1 :g1o1)");
+        Quad q2 = SSE.parseQuad("(:g1 :s1 :g1p2 :g1o2)");
+        Quad q3 = SSE.parseQuad("(:g2 :s2 :g2p1 :g2o1)");
+        Quad q4 = SSE.parseQuad("(:g2 :s2 :g2p2 :g2o2)");
+
+        System.out.println("Performing inserts");
+        storage.add(root, q1);
+        storage.add(root, q2);
+        storage.add(root, q3);
+        storage.add(root, q4);
+
+        List<?> entries1 = storage.streamEntries(root).collect(Collectors.toList());
+        for(Object entry : entries1) {
+            System.out.println(entry);
+        }
+
+        System.out.println("Performing removals");
+        storage.remove(root, q1);
+        storage.remove(root, q2);
+        List<?> entries2 = storage.streamEntries(root).collect(Collectors.toList());
+        for(Object entry : entries2) {
+            System.out.println(entry);
+        }
     }
 }

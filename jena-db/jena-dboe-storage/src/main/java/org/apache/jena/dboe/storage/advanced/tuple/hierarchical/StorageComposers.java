@@ -2,9 +2,9 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
-import org.apache.jena.dboe.storage.advanced.tuple.MapSupplier;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 
 /**
@@ -18,6 +18,19 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
  *
  */
 public class StorageComposers {
+
+    public static <D, C> Meta2NodeCompound<D, C, Set<D>> leafSet(
+            TupleAccessor<D, C> tupleAccessor,
+            SetSupplier setSupplier) {
+        return new Meta2NodeLeafSet<D, C, D>(
+                new int[] {}, // Indexed by no components
+                tupleAccessor,
+                setSupplier,
+                // Ugly identity mapping of domain tuples to themselves as values - can we do better?
+                TupleValueFunction.newIdentity()
+                );
+    }
+
     public static <D, C> Meta2NodeCompound<D, C, Map<C, D>> leafMap(
             int tupleIdx,
             TupleAccessor<D, C> tupleAccessor,

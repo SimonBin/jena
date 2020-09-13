@@ -2,7 +2,6 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.Map;
 
-import org.apache.jena.dboe.storage.advanced.tuple.MapSupplier;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 
 abstract class Meta2NodeMapBase<D, C, K, V>
@@ -17,6 +16,13 @@ abstract class Meta2NodeMapBase<D, C, K, V>
         K result = keyFunction.map(tupleLike, (d, i) -> tupleAccessor.get(d, tupleIdxs[i]));
         return result;
     }
+
+
+    @SuppressWarnings("unchecked")
+    public Map<K, V> asMap(Object store) {
+        return (Map<K, V>)store;
+    }
+
 
     public Meta2NodeMapBase(
             int[] tupleIdxs,
@@ -33,14 +39,12 @@ abstract class Meta2NodeMapBase<D, C, K, V>
 
     @Override
     public Map<K, V> newStore() {
-        return mapSupplier.newMap();
+        return mapSupplier.get();
     }
 
     @Override
     public boolean isEmpty(Object store) {
-        @SuppressWarnings("unchecked")
-        Map<K, V> map = (Map<K, V>)store;
-
+        Map<K, V> map = asMap(store);
         boolean result = map.isEmpty();
         return result;
     }

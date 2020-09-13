@@ -1,6 +1,6 @@
-package org.apache.jena.dboe.storage.advanced.tuple;
+package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
-import java.util.Map;
+import java.util.Set;
 
 /**
  * Helper interface for creating new map instances with automatically inferred types
@@ -8,6 +8,6 @@ import java.util.Map;
  * @author Claus Stadler 11/09/2020
  *
  */
-public interface MapSupplier {
-  <K, V> Map<K, V> newMap();
+public interface SetSupplier {
+  <V> Set<V> get();
 }
