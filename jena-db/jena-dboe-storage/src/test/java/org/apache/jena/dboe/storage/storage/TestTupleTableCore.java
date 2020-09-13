@@ -109,8 +109,22 @@ public class TestTupleTableCore {
             System.out.println(entry);
         }
 
+/*
+Output:
 
-        //storage.add(root, )
+Storage structure: ([3] -> ([0] -> ([1] -> ([2]))))
+Performing inserts
+http://example/g1=http://example/s1=http://example/g1p1=http://example/g1o1=[http://example/g1 http://example/s1 http://example/g1p1 http://example/g1o1]
+http://example/g1=http://example/s1=http://example/g1p2=http://example/g1o2=[http://example/g1 http://example/s1 http://example/g1p2 http://example/g1o2]
+http://example/g2=http://example/s2=http://example/g2p1=http://example/g2o1=[http://example/g2 http://example/s2 http://example/g2p1 http://example/g2o1]
+http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[http://example/g2 http://example/s2 http://example/g2p2 http://example/g2o2]
+
+Performing removals
+http://example/g2=http://example/s2=http://example/g2p1=http://example/g2o1=[http://example/g2 http://example/s2 http://example/g2p1 http://example/g2o1]
+http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[http://example/g2 http://example/s2 http://example/g2p2 http://example/g2o2]
+
+*/
+
 
     }
 }
