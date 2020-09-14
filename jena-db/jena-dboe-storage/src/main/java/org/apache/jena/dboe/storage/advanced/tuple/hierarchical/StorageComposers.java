@@ -2,6 +2,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
@@ -118,7 +119,18 @@ public class StorageComposers {
 
         // TODO Validate that all children use the same tuple acessor
         TupleAccessor<D, C> tupleAccessor = children.get(0).getTupleAccessor();
-        return new Meta2NodeAlt<D, C>(tupleAccessor, children);
+        return new Meta2NodeAltN<D, C>(tupleAccessor, children);
+    }
+
+
+    public static <D, C, V1, V2> Meta2NodeCompound<D, C, Entry<V1, V2>> alt2(
+            Meta2NodeCompound<D, C, V1> child1,
+            Meta2NodeCompound<D, C, V2> child2
+            ) {
+
+        // TODO Validate that all children use the same tuple acessor
+        TupleAccessor<D, C> tupleAccessor = child1.getTupleAccessor();
+        return new Meta2NodeAlt2<D, C, V1, V2>(tupleAccessor, child1, child2);
     }
 
 }

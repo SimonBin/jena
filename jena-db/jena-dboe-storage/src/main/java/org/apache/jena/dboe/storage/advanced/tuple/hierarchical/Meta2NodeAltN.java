@@ -1,6 +1,5 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -8,13 +7,13 @@ import java.util.stream.Stream;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 
-public class Meta2NodeAlt<D, C>
-    extends Meta2NodeBase<D, C, List<Object>>
-    implements Meta2NodeCompound<D, C, List<Object>>
+public class Meta2NodeAltN<D, C>
+    extends Meta2NodeBase<D, C, Object[]>
+    implements Meta2NodeCompound<D, C, Object[]>
 {
     protected List<? extends Meta2NodeCompound<D, C, ?>> children;
 
-    public Meta2NodeAlt(
+    public Meta2NodeAltN(
             TupleAccessor<D, C> tupleAccessor,
             List<? extends Meta2NodeCompound<D, C, ?>> children
             ) {
@@ -28,21 +27,14 @@ public class Meta2NodeAlt<D, C>
     }
 
     @Override
-    public <T> Stream<?> streamEntries(List<Object> store, T tupleLike,
+    public <T> Stream<?> streamEntries(Object[] childStores, T tupleLike,
             TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
 
-        List<Object> childStores = asList(store);
-
         Meta2NodeCompound<D, C, ?> pickedChild = children.get(0);
-        Object pickedChildStore = childStores.get(0);
+        Object pickedChildStore = childStores[0];
 
         // Delegate always to the first entry - we would need external information to do better
         return pickedChild.streamEntriesRaw(pickedChildStore, tupleLike, tupleAccessor);
-    }
-
-    @SuppressWarnings("unchecked")
-    public List<Object> asList(Object store) {
-        return (List<Object>)store;
     }
 
     /**
@@ -50,10 +42,10 @@ public class Meta2NodeAlt<D, C>
      *
      */
     @Override
-    public List<Object> newStore() {
-        List<Object> result = new ArrayList<>();
-        for (Meta2NodeCompound<D, C, ?> child : children) {
-            result.add(child.newStore());
+    public Object[] newStore() {
+        Object[] result = new Object[children.size()];
+        for (int i = 0; i < result.length; ++i) {
+            result[i] = children.get(i);
         }
         return result;
     }
@@ -64,27 +56,20 @@ public class Meta2NodeAlt<D, C>
      * (Not to be confused with checking the list of alternatives itself for emptiness)
      */
     @Override
-    public boolean isEmpty(List<Object> childStores) {
-        boolean result = true;
-        for (int i = 0; i < children.size(); ++i) {
-            Meta2NodeCompound<D, C, ?> child = children.get(i);
-            Object childStore = childStores.get(i);
+    public boolean isEmpty(Object[] childStores) {
+        Meta2NodeCompound<D, C, ?> pickedChild = children.get(0);
+        Object pickedChildStore = childStores[0];
 
-            result = child.isEmptyRaw(childStore);
-            if (!result) {
-                break;
-            }
-        }
-
+        boolean result = pickedChild.isEmptyRaw(pickedChildStore);
         return result;
     }
 
     @Override
-    public boolean add(List<Object> childStores, D tupleLike) {
+    public boolean add(Object[] childStores, D tupleLike) {
         boolean result = false;
         for (int i = 0; i < children.size(); ++i) {
             Meta2NodeCompound<D, C, ?> child = children.get(i);
-            Object childStore = childStores.get(i);
+            Object childStore = childStores[i];
 
             result = result || child.addRaw(childStore, tupleLike);
         }
@@ -93,11 +78,11 @@ public class Meta2NodeAlt<D, C>
     }
 
     @Override
-    public boolean remove(List<Object> childStores, D tupleLike) {
+    public boolean remove(Object[] childStores, D tupleLike) {
         boolean result = false;
         for (int i = 0; i < children.size(); ++i) {
             Meta2NodeCompound<D, C, ?> child = children.get(i);
-            Object childStore = childStores.get(i);
+            Object childStore = childStores[i];
 
             result = result || child.removeRaw(childStore, tupleLike);
         }

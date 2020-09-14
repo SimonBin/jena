@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -87,21 +88,6 @@ public class TestTupleTableCore {
                         StorageComposers.innerMap(1, LinkedHashMap::new,
                             StorageComposers.leafMap(2, accessor, LinkedHashMap::new))));
 
-        TupleQuery<Node> tupleQuery = new TupleQueryImpl<>(4);
-        tupleQuery.setDistinct(true);
-//        tupleQuery.setConstraint(3, RDF.Nodes.type);
-        tupleQuery.setConstraint(3, RDF.Nodes.first);
-        tupleQuery.setProject(3);
-
-
-        System.out.println("BEGIN OF REPORTS");
-        List<IndexPathReport> reports = TupleQueryAnalyzer.analyze(tupleQuery, storage);
-
-        for (IndexPathReport report : reports) {
-            System.out.println(report);
-        }
-        System.out.println("END OF REPORTS");
-
 
         System.out.println("Storage structure: " + storage);
         Map<Node, Map<Node, Map<Node, Map<Node, Quad>>>> root = storage.newStore();
@@ -116,6 +102,22 @@ public class TestTupleTableCore {
         storage.add(root, q2);
         storage.add(root, q3);
         storage.add(root, q4);
+
+
+        TupleQuery<Node> tupleQuery = new TupleQueryImpl<>(4);
+        tupleQuery.setDistinct(true);
+//        tupleQuery.setConstraint(3, RDF.Nodes.type);
+        tupleQuery.setConstraint(3, RDF.Nodes.first);
+        tupleQuery.setProject(3);
+
+
+        System.out.println("BEGIN OF REPORTS");
+        List<IndexPathReport> reports = TupleQueryAnalyzer.analyze(tupleQuery, storage, new int[] {10, 10, 1, 100});
+
+        for (IndexPathReport report : reports) {
+            System.out.println(report);
+        }
+        System.out.println("END OF REPORTS");
 
 
 
@@ -189,9 +191,22 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
         }
     }
 
+    @Test
+    public void testAlternatives2() {
+        TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
+
+        Meta2NodeCompound<Quad, Node, Entry<Map<Node, Set<Quad>>, Map<Node, Set<Quad>>>> storage =
+                StorageComposers.alt2(
+                    StorageComposers.innerMap(3, LinkedHashMap::new,
+                            StorageComposers.leafSet(accessor, LinkedHashSet::new)),
+                    StorageComposers.innerMap(0, LinkedHashMap::new,
+                            StorageComposers.leafSet(accessor, LinkedHashSet::new)));
+
+        Entry<Map<Node, Set<Quad>>, Map<Node, Set<Quad>>> store = storage.newStore();
+    }
 
     @Test
-    public void testAlternatives() {
+    public void testAlternativesN() {
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
 
         Meta2NodeCompound<Quad, Node, ?> storage = StorageComposers.altN(Arrays.asList(

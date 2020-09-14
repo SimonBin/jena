@@ -30,11 +30,11 @@ public interface Meta2Node<D, C, V> {
     List<? extends Meta2Node<D, C, ?>> getChildren();
 
     /**
-     * Future work; return a histogram associated with the index node
+     * Future work; return a histogram for a corresponding store
      * Perhaps this method fits better on a derived interface such as IndexNodeMap
      *
      */
-    // Histogram getHistogram()
+    // Histogram getHistogram(V store)
 
     /**
      * Should a node have a parent?
