@@ -22,6 +22,9 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
+import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNode;
+import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeFork;
+import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeForkRoot;
 import org.apache.jena.graph.Node;
 
 /**
@@ -152,7 +155,7 @@ public interface TupleTableCore<TupleType, ComponentType> {
      * @return
      */
      default TupleFinder<TupleType, TupleType, ComponentType> newFinder() {
-         return TupleFinderBase.create(this);
+         return TupleFinderImpl.create(this);
      }
 
      public static Node nullToAny(Node n) {

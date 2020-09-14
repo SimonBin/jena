@@ -19,20 +19,14 @@ abstract class Meta2NodeSetBase<D, C, V>
         this.setSupplier = setSupplier;
     }
 
-    @SuppressWarnings("unchecked")
-    public Set<V> asSet(Object store) {
-        return (Set<V>)store;
-    }
-
     @Override
     public Set<V> newStore() {
         return setSupplier.get();
     }
 
     @Override
-    public boolean isEmpty(Object store) {
-        Set<V> set = asSet(store);
-        boolean result = set.isEmpty();
+    public boolean isEmpty(Set<V> store) {
+        boolean result = store.isEmpty();
         return result;
     }
 }

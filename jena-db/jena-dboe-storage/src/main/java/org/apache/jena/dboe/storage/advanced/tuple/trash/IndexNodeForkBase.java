@@ -1,4 +1,6 @@
-package org.apache.jena.dboe.storage.advanced.tuple;
+package org.apache.jena.dboe.storage.advanced.tuple.trash;
+
+import org.apache.jena.dboe.storage.advanced.tuple.TupleConstraint;
 
 public abstract class IndexNodeForkBase<ComponentType>
     implements IndexNodeFork<ComponentType>

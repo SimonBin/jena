@@ -23,12 +23,12 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import org.apache.jena.dboe.storage.advanced.tuple.IndexNode;
-import org.apache.jena.dboe.storage.advanced.tuple.IndexNodeCollection;
-import org.apache.jena.dboe.storage.advanced.tuple.IndexNodeFork;
-import org.apache.jena.dboe.storage.advanced.tuple.IndexNodeForkFromMap;
-import org.apache.jena.dboe.storage.advanced.tuple.IndexNodeNestedMap;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.MapSupplier;
+import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNode;
+import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeCollection;
+import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeFork;
+import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeForkFromMap;
+import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeNestedMap;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.sparql.util.NodeUtils;

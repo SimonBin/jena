@@ -17,11 +17,11 @@ abstract class Meta2NodeMapBase<D, C, K, V>
         return result;
     }
 
-
-    @SuppressWarnings("unchecked")
-    public Map<K, V> asMap(Object store) {
-        return (Map<K, V>)store;
-    }
+//
+//    @SuppressWarnings("unchecked")
+//    public Map<K, V> asMap(Object store) {
+//        return (Map<K, V>)store;
+//    }
 
 
     public Meta2NodeMapBase(
@@ -43,8 +43,7 @@ abstract class Meta2NodeMapBase<D, C, K, V>
     }
 
     @Override
-    public boolean isEmpty(Object store) {
-        Map<K, V> map = asMap(store);
+    public boolean isEmpty(Map<K, V> map) {
         boolean result = map.isEmpty();
         return result;
     }

@@ -2,6 +2,9 @@ package org.apache.jena.dboe.storage.advanced.tuple;
 
 import java.util.Arrays;
 
+import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNode;
+import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeFork;
+
 public class ConstraintBuilderBase<ComponentType>
     implements ConstraintBuilder<ComponentType>
 {

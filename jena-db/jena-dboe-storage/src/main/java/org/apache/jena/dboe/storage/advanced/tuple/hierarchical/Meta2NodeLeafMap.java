@@ -39,10 +39,7 @@ public class Meta2NodeLeafMap<D, C, K, V>
 //    }
 
     @Override
-    public boolean add(Object store, D tupleLike) {
-        @SuppressWarnings("unchecked")
-        Map<K, V> map = (Map<K, V>)store;
-
+    public boolean add(Map<K, V> map, D tupleLike) {
         K key = tupleToKey(tupleLike);
         V newValue = valueFunction.map(tupleLike, tupleAccessor);
 
@@ -57,10 +54,7 @@ public class Meta2NodeLeafMap<D, C, K, V>
     }
 
     @Override
-    public boolean remove(Object store, D tupleLike) {
-        @SuppressWarnings("unchecked")
-        Map<K, V> map = (Map<K, V>)store;
-
+    public boolean remove(Map<K, V> map, D tupleLike) {
         K key = tupleToKey(tupleLike);
         boolean result = map.containsKey(key);
         if (result) {
@@ -76,10 +70,7 @@ public class Meta2NodeLeafMap<D, C, K, V>
     }
 
     @Override
-    public <T> Stream<Entry<K, ?>> streamEntries(Object store, T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
-        @SuppressWarnings("unchecked")
-        Map<K, V> map = (Map<K, V>)store;
-
+    public <T> Stream<Entry<K, ?>> streamEntries(Map<K, V> map, T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
         // Check whether the components of the given tuple are all non-null such that we can
         // create a key from them
         Object[] tmp = new Object[tupleIdxs.length];

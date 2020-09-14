@@ -44,6 +44,37 @@ public class StorageComposers {
     }
 
 
+    /**
+     * TODO Think this through
+     *
+     * Similar to innerMap - however the values are custom intermediary object
+     * that will hold a further index nodes.
+     *
+     * <pre>
+     * forwardingInnerMap(
+     *   mapSupplier for Map<K, TripleTableCore>,
+     *   TupleTableCore::getIndexRoot
+     * )
+     * </pre>
+     *
+     * @param <D>
+     * @param <C>
+     * @param <V>
+     * @param tupleIdx
+     * @param mapSupplier
+     * @param child
+     * @return
+     */
+    public static <D, C, V> Meta2NodeCompound<D, C, Map<C, V>> forwardingInnerMap(
+            int tupleIdx,
+            MapSupplier mapSupplier,
+            Meta2NodeCompound<D, C, V> child
+            ) {
+
+        return null;
+    }
+
+
     public static <D, C, V> Meta2NodeCompound<D, C, Map<C, V>> innerMap(
             int tupleIdx,
             MapSupplier mapSupplier,

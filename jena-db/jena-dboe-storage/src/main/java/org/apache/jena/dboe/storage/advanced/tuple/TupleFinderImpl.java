@@ -42,7 +42,7 @@ import org.apache.jena.atlas.lib.tuple.Tuple;
  * @param <DomainType>
  * @param <ComponentType>
  */
-public class TupleFinderBase<ExposedType, DomainType, ComponentType>
+public class TupleFinderImpl<ExposedType, DomainType, ComponentType>
     implements TupleFinder<ExposedType, DomainType, ComponentType>
 {
     /**
@@ -92,7 +92,7 @@ public class TupleFinderBase<ExposedType, DomainType, ComponentType>
     public static <DomainType, ComponentType> TupleFinder<DomainType, DomainType, ComponentType> create(
             TupleTableCore<DomainType, ComponentType> tupleTable) {
 
-        return new TupleFinderBase<DomainType, DomainType, ComponentType>(
+        return new TupleFinderImpl<DomainType, DomainType, ComponentType>(
                     tupleTable,
                     new TupleQueryImpl<>(tupleTable.getRank()),
                     // Default strategy with a fresh TupleQueryImpl is to pass a null-value-filled
@@ -105,7 +105,7 @@ public class TupleFinderBase<ExposedType, DomainType, ComponentType>
         return tupleQuery;
     }
 
-    public TupleFinderBase(
+    public TupleFinderImpl(
             TupleTableCore<DomainType, ComponentType> tupleTable,
             TupleQuery<ComponentType> tupleQuery,
             Strategy<ExposedType, DomainType, ComponentType> strategy) {
@@ -119,7 +119,7 @@ public class TupleFinderBase<ExposedType, DomainType, ComponentType>
 
     public <NewExposedType> TupleFinder<NewExposedType, DomainType, ComponentType>
     newProjectedTupleFinder(Strategy<NewExposedType, DomainType, ComponentType> newStrategy) {
-        return new TupleFinderBase<NewExposedType, DomainType, ComponentType>(tupleTable, tupleQuery, newStrategy);
+        return new TupleFinderImpl<NewExposedType, DomainType, ComponentType>(tupleTable, tupleQuery, newStrategy);
     }
 
     @Override

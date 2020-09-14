@@ -26,8 +26,8 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
-import org.apache.jena.dboe.storage.advanced.tuple.IndexNode;
-import org.apache.jena.dboe.storage.advanced.tuple.IndexNodeFork;
+import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNode;
+import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeFork;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.util.NodeUtils;

@@ -35,16 +35,14 @@ public class Meta2NodeLeafSet<D, C, V>
     }
 
     @Override
-    public boolean add(Object store, D tupleLike) {
-        Set<V> set = asSet(store);
+    public boolean add(Set<V> set, D tupleLike) {
         V newValue = tupleToValue(tupleLike);
         boolean result = set.add(newValue);
         return result;
     }
 
     @Override
-    public boolean remove(Object store, D tupleLike) {
-        Set<V> set = asSet(store);
+    public boolean remove(Set<V> set, D tupleLike) {
         V newValue = tupleToValue(tupleLike);
         boolean result = set.remove(newValue);
         return result;
@@ -56,8 +54,8 @@ public class Meta2NodeLeafSet<D, C, V>
     }
 
     @Override
-    public <T> Stream<V> streamEntries(Object store, T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
-        Set<V> set = asSet(store);
+    public <T> Stream<V> streamEntries(Set<V> set, T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
+        // FIXME We need to filter the result stream by the components of the tuple like!
         return set.stream();
     }
 

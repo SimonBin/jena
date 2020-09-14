@@ -1,8 +1,11 @@
-package org.apache.jena.dboe.storage.advanced.tuple;
+package org.apache.jena.dboe.storage.advanced.tuple.trash;
 
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
+import org.apache.jena.dboe.storage.advanced.tuple.ConstraintBuilder;
+import org.apache.jena.dboe.storage.advanced.tuple.ConstraintBuilderBase;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleConstraint;
 
 
 /**

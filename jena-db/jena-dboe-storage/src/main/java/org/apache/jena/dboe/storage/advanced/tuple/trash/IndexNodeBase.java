@@ -1,4 +1,4 @@
-package org.apache.jena.dboe.storage.advanced.tuple;
+package org.apache.jena.dboe.storage.advanced.tuple.trash;
 
 public abstract class IndexNodeBase<ComponentType>
     implements IndexNode<ComponentType>

@@ -1,4 +1,4 @@
-package org.apache.jena.dboe.storage.advanced.tuple;
+package org.apache.jena.dboe.storage.advanced.tuple.trash;
 
 import java.util.Arrays;
 import java.util.Collections;

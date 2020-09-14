@@ -41,9 +41,7 @@ public class Meta2NodeInnerMap<D, C, K, V>
     // @Override
 
     @Override
-    public boolean add(Object store, D tupleLike) {
-        Map<K, V> map = asMap(store);
-
+    public boolean add(Map<K, V> map, D tupleLike) {
         K key = tupleToKey(tupleLike);
 
         V v = map.get(key);
@@ -59,9 +57,7 @@ public class Meta2NodeInnerMap<D, C, K, V>
     }
 
     @Override
-    public boolean remove(Object store, D tupleLike) {
-        Map<K, V> map = asMap(store);
-
+    public boolean remove(Map<K, V> map, D tupleLike) {
         K key = tupleToKey(tupleLike);
 
         boolean result = false;
@@ -85,8 +81,7 @@ public class Meta2NodeInnerMap<D, C, K, V>
 
 
     @Override
-    public <T> Stream<Entry<K, ?>> streamEntries(Object store, T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
-        Map<K, V> map = asMap(store);
+    public <T> Stream<Entry<K, ?>> streamEntries(Map<K, V> map, T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
 
         // Check whether the components of the given tuple are all non-null such that we can
         // create a key from them

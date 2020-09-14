@@ -17,7 +17,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuad;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQueryImpl;
-import org.apache.jena.dboe.storage.advanced.tuple.analysis.PathReport;
+import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexPathReport;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2NodeCompound;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers;
@@ -88,21 +88,23 @@ public class TestTupleTableCore {
                             StorageComposers.leafMap(2, accessor, LinkedHashMap::new))));
 
         TupleQuery<Node> tupleQuery = new TupleQueryImpl<>(4);
-        tupleQuery.setConstraint(3, RDF.Nodes.type);
-        tupleQuery.setConstraint(0, RDF.Nodes.first);
+        tupleQuery.setDistinct(true);
+//        tupleQuery.setConstraint(3, RDF.Nodes.type);
+        tupleQuery.setConstraint(3, RDF.Nodes.first);
+        tupleQuery.setProject(3);
 
 
-        List<PathReport> reports = TupleQueryAnalyzer.analyze(tupleQuery, storage);
         System.out.println("BEGIN OF REPORTS");
-        for (PathReport report : reports) {
+        List<IndexPathReport> reports = TupleQueryAnalyzer.analyze(tupleQuery, storage);
+
+        for (IndexPathReport report : reports) {
             System.out.println(report);
         }
         System.out.println("END OF REPORTS");
 
 
         System.out.println("Storage structure: " + storage);
-        Map<Node, Map<Node, Map<Node, Map<Node, Quad>>>> rootTyped = storage.newStore();
-        Object root = rootTyped;
+        Map<Node, Map<Node, Map<Node, Map<Node, Quad>>>> root = storage.newStore();
 
         Quad q1 = SSE.parseQuad("(:g1 :s1 :g1p1 :g1o1)");
         Quad q2 = SSE.parseQuad("(:g1 :s1 :g1p2 :g1o2)");
@@ -160,8 +162,7 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
                         StorageComposers.leafSet(accessor, LinkedHashSet::new));
 
         System.out.println("Storage structure: " + storage);
-        Map<Node, Set<Quad>> rootTyped = storage.newStore();
-        Object root = rootTyped;
+        Map<Node, Set<Quad>> root = storage.newStore();
 
         Quad q1 = SSE.parseQuad("(:g1 :s1 :g1p1 :g1o1)");
         Quad q2 = SSE.parseQuad("(:g1 :s1 :g1p2 :g1o2)");
@@ -209,20 +210,20 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
         Quad q4 = SSE.parseQuad("(:g2 :s2 :g2p2 :g2o2)");
 
         System.out.println("Performing inserts");
-        storage.add(root, q1);
-        storage.add(root, q2);
-        storage.add(root, q3);
-        storage.add(root, q4);
+        storage.addRaw(root, q1);
+        storage.addRaw(root, q2);
+        storage.addRaw(root, q3);
+        storage.addRaw(root, q4);
 
-        List<?> entries1 = storage.streamEntries(root).collect(Collectors.toList());
+        List<?> entries1 = storage.streamEntriesRaw(root).collect(Collectors.toList());
         for(Object entry : entries1) {
             System.out.println(entry);
         }
 
         System.out.println("Performing removals");
-        storage.remove(root, q1);
-        storage.remove(root, q2);
-        List<?> entries2 = storage.streamEntries(root).collect(Collectors.toList());
+        storage.removeRaw(root, q1);
+        storage.removeRaw(root, q2);
+        List<?> entries2 = storage.streamEntriesRaw(root).collect(Collectors.toList());
         for(Object entry : entries2) {
             System.out.println(entry);
         }

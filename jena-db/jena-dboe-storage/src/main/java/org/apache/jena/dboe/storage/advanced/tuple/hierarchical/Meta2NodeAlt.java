@@ -28,7 +28,7 @@ public class Meta2NodeAlt<D, C>
     }
 
     @Override
-    public <T> Stream<?> streamEntries(Object store, T tupleLike,
+    public <T> Stream<?> streamEntries(List<Object> store, T tupleLike,
             TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
 
         List<Object> childStores = asList(store);
@@ -37,7 +37,7 @@ public class Meta2NodeAlt<D, C>
         Object pickedChildStore = childStores.get(0);
 
         // Delegate always to the first entry - we would need external information to do better
-        return pickedChild.streamEntries(pickedChildStore, tupleLike, tupleAccessor);
+        return pickedChild.streamEntriesRaw(pickedChildStore, tupleLike, tupleAccessor);
     }
 
     @SuppressWarnings("unchecked")
@@ -61,17 +61,16 @@ public class Meta2NodeAlt<D, C>
     /**
      * Checks whether all child store entries in the list of alternatives are empty
      *
-     * (Not to be confused with check the list of alternatives itself for emptiness)
+     * (Not to be confused with checking the list of alternatives itself for emptiness)
      */
     @Override
-    public boolean isEmpty(Object store) {
-        List<Object> childStores = asList(store);
+    public boolean isEmpty(List<Object> childStores) {
         boolean result = true;
         for (int i = 0; i < children.size(); ++i) {
             Meta2NodeCompound<D, C, ?> child = children.get(i);
             Object childStore = childStores.get(i);
 
-            result = child.isEmpty(childStore);
+            result = child.isEmptyRaw(childStore);
             if (!result) {
                 break;
             }
@@ -81,28 +80,26 @@ public class Meta2NodeAlt<D, C>
     }
 
     @Override
-    public boolean add(Object store, D tupleLike) {
-        List<Object> childStores = asList(store);
+    public boolean add(List<Object> childStores, D tupleLike) {
         boolean result = false;
         for (int i = 0; i < children.size(); ++i) {
             Meta2NodeCompound<D, C, ?> child = children.get(i);
             Object childStore = childStores.get(i);
 
-            result = result || child.add(childStore, tupleLike);
+            result = result || child.addRaw(childStore, tupleLike);
         }
 
         return result;
     }
 
     @Override
-    public boolean remove(Object store, D tupleLike) {
-        List<Object> childStores = asList(store);
+    public boolean remove(List<Object> childStores, D tupleLike) {
         boolean result = false;
         for (int i = 0; i < children.size(); ++i) {
             Meta2NodeCompound<D, C, ?> child = children.get(i);
             Object childStore = childStores.get(i);
 
-            result = result || child.remove(childStore, tupleLike);
+            result = result || child.removeRaw(childStore, tupleLike);
         }
 
         return result;
