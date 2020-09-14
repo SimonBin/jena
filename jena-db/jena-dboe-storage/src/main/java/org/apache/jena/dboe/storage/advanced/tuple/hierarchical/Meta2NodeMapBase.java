@@ -1,8 +1,13 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.Map;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.Map.Entry;
+import java.util.stream.Stream;
 
+import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 
 abstract class Meta2NodeMapBase<D, C, K, V>
     extends Meta2NodeBase<D, C, Map<K, V>>
@@ -47,4 +52,55 @@ abstract class Meta2NodeMapBase<D, C, K, V>
         boolean result = map.isEmpty();
         return result;
     }
+
+
+    public <T> Streamer<Map<K, V>, K> streamerForKeysUnderConstraints(
+            T tupleLike,
+            TupleAccessorCore<? super T, ? extends C> tupleAccessor)
+    {
+        Object[] tmp = new Object[tupleIdxs.length];
+        boolean eligibleAsKey = true;
+        for (int i = 0; i < tupleIdxs.length; ++i) {
+            C componentValue = tupleAccessor.get(tupleLike, i);
+            if (componentValue == null) {
+                eligibleAsKey = false;
+                break;
+            }
+            tmp[i] = componentValue;
+        }
+
+        Streamer<Map<K, V>, K> result;
+
+        if (eligibleAsKey) {
+            K key = keyFunction.map(tmp, (x, i) -> (C)x[i]);
+
+            result = argMap -> argMap.containsKey(key)
+                    ? Stream.of(key)
+                    : Stream.empty();
+        } else {
+            result = argMap -> argMap.keySet().stream();
+        }
+
+        return result;
+    }
+
+    @Override
+    public <T> Streamer<Map<K, V>, C> streamerForKeysAsComponent(
+            T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor) {
+
+        Streamer<Map<K, V>, K> baseStreamer = streamerForKeysUnderConstraints(pattern, accessor);
+        // FIXME Ensure that the keys can be cast as components!
+        return argMap -> baseStreamer.stream(argMap).map(key -> (C)key);
+    }
+
+
+    @Override
+    public <T> Streamer<Map<K, V>, Tuple<C>> streamerForKeysAsTuples(
+            T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
 }

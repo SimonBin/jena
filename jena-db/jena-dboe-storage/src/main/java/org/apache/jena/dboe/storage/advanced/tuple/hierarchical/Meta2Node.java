@@ -1,8 +1,10 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 
@@ -68,6 +70,30 @@ public interface Meta2Node<D, C, V> {
      */
 //    <T> Stream<T> createStreamer(Supplier<T> tupleSupp, TupleSetter<T, C> setter);
 
+
+    /**
+     * Compiles from a given pattern a function that can stream the matching
+     * keys from the appropriate store.
+     * The keys must be instances of the component type otherwise an exception is raised
+     *
+     *
+     * @return
+     */
+    <T> Streamer<V, C> streamerForKeysAsComponent(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
+
+
+    /**
+     *
+     * Compiles from a given pattern a function that can stream the matching
+     * keys from the appropriate store.
+     * The keys must be instances of the component type otherwise an exception is raised
+     *
+     * if getKeyTupleIdxs().length == 0 then returns a single tuple that projects no components
+     *
+     * @param store
+     * @return
+     */
+    <T> Streamer<V, Tuple<C>> streamerForKeysAsTuples(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 
     /**
      * Stream all entries under equality constraints obtained from a tuple-like pattern

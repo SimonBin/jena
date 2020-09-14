@@ -21,13 +21,18 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleQueryImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexPathReport;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2NodeCompound;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.sse.SSE;
 import org.apache.jena.vocabulary.RDF;
 import org.junit.Assert;
 import org.junit.Test;
+
+import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.innerMap;
+import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.alt2;
+import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.altN;
+import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafMap;
+import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafSet;
 
 
 public class TestTupleTableCore {
@@ -77,20 +82,29 @@ public class TestTupleTableCore {
 
     @Test
     public void test2() {
-        TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
 
         // Hooray - ugly complex nested type expression - exactly what I would have wanted for Sparqlify's
         // source selection index like 8 years ago - but back then I constructed a similar nested expression starting from the root
         // This time I do it bottom-up and it is so much better!
-        Meta2NodeCompound<Quad, Node, Map<Node, Map<Node, Map<Node, Map<Node, Quad>>>>> storage =
-            StorageComposers.innerMap(3, LinkedHashMap::new,
-                StorageComposers.innerMap(0, LinkedHashMap::new,
-                        StorageComposers.innerMap(1, LinkedHashMap::new,
-                            StorageComposers.leafMap(2, accessor, LinkedHashMap::new))));
+        Meta2NodeCompound<Quad, Node,
+            Entry<
+                Map<Node, Map<Node, Entry<
+                    Map<Node, Map<Node, Quad>>,
+                    Set<Quad>>>>,
+                Set<Quad>>>
+        storage =
+            alt2(
+                innerMap(3, LinkedHashMap::new,
+                    innerMap(0, LinkedHashMap::new,
+                        alt2(
+                            innerMap(1, LinkedHashMap::new,
+                                leafMap(2, TupleAccessorQuad.INSTANCE, LinkedHashMap::new)),
+                            leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new)))),
+                leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new));
 
 
         System.out.println("Storage structure: " + storage);
-        Map<Node, Map<Node, Map<Node, Map<Node, Quad>>>> root = storage.newStore();
+        Entry<Map<Node, Map<Node, Entry<Map<Node, Map<Node, Quad>>, Set<Quad>>>>, Set<Quad>> root = storage.newStore();
 
         Quad q1 = SSE.parseQuad("(:g1 :s1 :g1p1 :g1o1)");
         Quad q2 = SSE.parseQuad("(:g1 :s1 :g1p2 :g1o2)");
@@ -160,8 +174,8 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
 
         Meta2NodeCompound<Quad, Node, Map<Node, Set<Quad>>> storage =
-                StorageComposers.innerMap(3, LinkedHashMap::new,
-                        StorageComposers.leafSet(accessor, LinkedHashSet::new));
+                innerMap(3, LinkedHashMap::new,
+                        leafSet(accessor, LinkedHashSet::new));
 
         System.out.println("Storage structure: " + storage);
         Map<Node, Set<Quad>> root = storage.newStore();
@@ -196,11 +210,11 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
 
         Meta2NodeCompound<Quad, Node, Entry<Map<Node, Set<Quad>>, Map<Node, Set<Quad>>>> storage =
-                StorageComposers.alt2(
-                    StorageComposers.innerMap(3, LinkedHashMap::new,
-                            StorageComposers.leafSet(accessor, LinkedHashSet::new)),
-                    StorageComposers.innerMap(0, LinkedHashMap::new,
-                            StorageComposers.leafSet(accessor, LinkedHashSet::new)));
+                alt2(
+                    innerMap(3, LinkedHashMap::new,
+                            leafSet(accessor, LinkedHashSet::new)),
+                    innerMap(0, LinkedHashMap::new,
+                            leafSet(accessor, LinkedHashSet::new)));
 
         Entry<Map<Node, Set<Quad>>, Map<Node, Set<Quad>>> store = storage.newStore();
     }
@@ -209,11 +223,11 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
     public void testAlternativesN() {
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
 
-        Meta2NodeCompound<Quad, Node, ?> storage = StorageComposers.altN(Arrays.asList(
-                StorageComposers.innerMap(3, LinkedHashMap::new,
-                        StorageComposers.leafSet(accessor, LinkedHashSet::new)),
-                StorageComposers.innerMap(0, LinkedHashMap::new,
-                        StorageComposers.leafSet(accessor, LinkedHashSet::new))));
+        Meta2NodeCompound<Quad, Node, ?> storage = altN(Arrays.asList(
+                innerMap(3, LinkedHashMap::new,
+                        leafSet(accessor, LinkedHashSet::new)),
+                innerMap(0, LinkedHashMap::new,
+                        leafSet(accessor, LinkedHashSet::new))));
 
 
         System.out.println("Storage structure: " + storage);

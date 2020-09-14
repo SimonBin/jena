@@ -8,7 +8,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 
 public class Meta2NodeAltN<D, C>
-    extends Meta2NodeBase<D, C, Object[]>
+    extends Meta2NodeNoKeyBase<D, C, Object[]>
     implements Meta2NodeCompound<D, C, Object[]>
 {
     protected List<? extends Meta2NodeCompound<D, C, ?>> children;
@@ -17,7 +17,7 @@ public class Meta2NodeAltN<D, C>
             TupleAccessor<D, C> tupleAccessor,
             List<? extends Meta2NodeCompound<D, C, ?>> children
             ) {
-        super(new int[] {}, tupleAccessor);
+        super(tupleAccessor);
         this.children = children;
     }
 
@@ -45,7 +45,7 @@ public class Meta2NodeAltN<D, C>
     public Object[] newStore() {
         Object[] result = new Object[children.size()];
         for (int i = 0; i < result.length; ++i) {
-            result[i] = children.get(i);
+            result[i] = children.get(i).newStore();
         }
         return result;
     }

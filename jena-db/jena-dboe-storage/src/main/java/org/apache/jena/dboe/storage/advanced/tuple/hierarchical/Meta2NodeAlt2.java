@@ -12,7 +12,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import com.github.jsonldjava.shaded.com.google.common.collect.Maps;
 
 public class Meta2NodeAlt2<D, C, V1, V2>
-    extends Meta2NodeBase<D, C, Entry<V1, V2>>
+    extends Meta2NodeNoKeyBase<D, C, Entry<V1, V2>>
     implements Meta2NodeCompound<D, C, Entry<V1, V2>>
 {
     // protected List<? extends Meta2NodeCompound<D, C, ?>> children;
@@ -23,7 +23,7 @@ public class Meta2NodeAlt2<D, C, V1, V2>
             Meta2NodeCompound<D, C, V1> child1,
             Meta2NodeCompound<D, C, V2> child2
         ) {
-        super(new int[] {}, tupleAccessor);
+        super(tupleAccessor);
         this.children = Maps.immutableEntry(child1, child2);
     }
 

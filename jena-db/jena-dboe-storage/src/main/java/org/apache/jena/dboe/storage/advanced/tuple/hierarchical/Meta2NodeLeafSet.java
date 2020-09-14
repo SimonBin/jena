@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import org.apache.jena.atlas.lib.tuple.Tuple;
+import org.apache.jena.atlas.lib.tuple.TupleFactory;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 
@@ -51,6 +53,18 @@ public class Meta2NodeLeafSet<D, C, V>
     @Override
     public String toString() {
         return "(" + Arrays.toString(tupleIdxs) + ")";
+    }
+
+    @Override
+    public <T> Streamer<Set<V>, C> streamerForKeysAsComponent(T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor) {
+        throw new UnsupportedOperationException("Cannot stream keys as components if there are no keys");
+    }
+
+    @Override
+    public <T> Streamer<Set<V>, Tuple<C>> streamerForKeysAsTuples(T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor) {
+        return argStore -> Stream.of(TupleFactory.create0());
     }
 
     @Override

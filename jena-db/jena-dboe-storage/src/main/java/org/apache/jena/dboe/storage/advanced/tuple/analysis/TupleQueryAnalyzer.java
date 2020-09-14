@@ -24,7 +24,7 @@ public class TupleQueryAnalyzer {
      * the number of distinct values in each component.
      * E.g. there is a 'many' subjects, 'few' predicates and 'very many' objects could be expressed as
      * [10, 1, 100]
-     *
+     * This is used as a basis for pair-wise cardinality estimates e.g. s to o would be 10:1000
      *
      * @param <TupleLike>
      * @param <ComponentType>

@@ -6,8 +6,20 @@ import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.atlas.lib.tuple.TupleFactory;
 
 public class TupleOps {
+
+    /**
+     * Prepare and return a mapping function that projects specified components into {@link Tuple}s
+     * from input tuple-like objects.
+     *
+     *
+     * @param <DomainType> The type of the tuple like object
+     * @param <ComponentType> The type of the components of the tuple
+     * @param project The indices of the projected components
+     * @param accessor The accessor for the tuple tike object
+     * @return
+     */
     public static <DomainType, ComponentType> Function<DomainType, Tuple<ComponentType>>
-    createProjector(int[] project, TupleAccessor<? super DomainType, ? extends ComponentType> accessor) {
+    createProjector(int[] project, TupleAccessorCore<? super DomainType, ? extends ComponentType> accessor) {
         Function<DomainType, Tuple<ComponentType>> result;
 
         int len = project.length;
@@ -32,10 +44,22 @@ public class TupleOps {
         return result;
     }
 
+    /**
+     * Generic projection method
+     *
+     * @param <DomainType>
+     * @param <ComponentType>
+     * @param proj
+     * @param domainObject
+     * @param accessor
+     * @return
+     */
     public static <DomainType, ComponentType> Tuple<ComponentType> project(
             int[] proj,
             DomainType domainObject,
-            TupleAccessor<? super DomainType, ? extends ComponentType> accessor) {
+            TupleAccessorCore<? super DomainType, ? extends ComponentType> accessor) {
+
+        // FIXME This cast is broken and will not work!
         @SuppressWarnings("unchecked")
         ComponentType[] tuple = (ComponentType[])new Object[proj.length];
         for(int i = 0; i < proj.length; ++i) {
