@@ -4,9 +4,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.apache.jena.atlas.lib.tuple.TupleFactory;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2Node;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
@@ -29,6 +29,10 @@ public class IndexTreeNodeImpl<D, C>
         super();
         this.storage = storage;
         this.parent = parent;
+    }
+
+    public IndexTreeNodeImpl<D, C> child(int idx) {
+        return children.get(idx);
     }
 
     public static <D, C> IndexTreeNodeImpl<D, C> bakeTree(Meta2Node<D, C, ?> root) {
@@ -88,7 +92,8 @@ public class IndexTreeNodeImpl<D, C>
 
         // Streamer<?, ?> result = null;
 
-        Streamer<?, ? extends Entry<?, ?>> current = null;
+        // The root of the cartesian product is an entry where the first store becomes the value of an entry
+        Streamer<?, ? extends Entry<?, ?>> current = null; //store -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), store));
         for (int i = 0; i < ancestors.size(); ++i) {
             IndexTreeNodeImpl<D, C> node = ancestors.get(i);
 
@@ -97,8 +102,8 @@ public class IndexTreeNodeImpl<D, C>
                 current = next;
             } else {
                 Streamer<?, ? extends Entry<?, ?>> tmp = current;
-                current = store -> tmp.streamRaw(store)
-                        .flatMap(e -> next.streamRaw(e.getValue()).map(v -> Maps.immutableEntry(e.getKey(), v)));
+                current = store -> tmp.streamRaw(store).flatMap(
+                        e -> next.streamRaw(e.getValue()).map(e2 -> Maps.immutableEntry(e.getKey(), e2.getValue())));
             }
         }
 

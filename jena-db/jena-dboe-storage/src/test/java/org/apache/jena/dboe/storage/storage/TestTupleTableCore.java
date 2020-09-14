@@ -121,7 +121,7 @@ public class TestTupleTableCore {
 
         IndexTreeNodeImpl<Quad, Node> baked = IndexTreeNodeImpl.bakeTree(storage);
 
-        baked.cartesianProduct(Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
+        baked.child(0).cartesianProduct(Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
             .streamRaw(root).forEach(x -> System.out.println("OMG: " + x));
 
         System.out.println("Baked: " + baked);
