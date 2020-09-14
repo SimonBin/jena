@@ -88,25 +88,18 @@ public class TestTupleTableCore {
         // Hooray - ugly complex nested type expression - exactly what I would have wanted for Sparqlify's
         // source selection index like 8 years ago - but back then I constructed a similar nested expression starting from the root
         // This time I do it bottom-up and it is so much better!
-        Meta2NodeCompound<Quad, Node,
-            Entry<
-                Map<Node, Map<Node, Entry<
-                    Map<Node, Map<Node, Quad>>,
-                    Set<Quad>>>>,
-                Set<Quad>>>
-        storage =
-            alt2(
-                innerMap(3, LinkedHashMap::new,
+        Meta2NodeCompound<Quad, Node, Entry<Map<Node, Entry<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>> storage = alt2(
+            innerMap(3, LinkedHashMap::new,
+                alt2(
                     innerMap(0, LinkedHashMap::new,
-                        alt2(
-                            innerMap(1, LinkedHashMap::new,
-                                leafMap(2, TupleAccessorQuad.INSTANCE, LinkedHashMap::new)),
-                            leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new)))),
-                leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new));
+                        innerMap(1, LinkedHashMap::new,
+                            leafMap(2, TupleAccessorQuad.INSTANCE, LinkedHashMap::new))),
+                    leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new))),
+            leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new));
 
 
         System.out.println("Storage structure: " + storage);
-        Entry<Map<Node, Map<Node, Entry<Map<Node, Map<Node, Quad>>, Set<Quad>>>>, Set<Quad>> root = storage.newStore();
+        Entry<Map<Node, Entry<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>> root = storage.newStore();
 
         Quad q1 = SSE.parseQuad("(:g1 :s1 :g1p1 :g1o1)");
         Quad q2 = SSE.parseQuad("(:g1 :s1 :g1p2 :g1o2)");
@@ -121,8 +114,8 @@ public class TestTupleTableCore {
 
         IndexTreeNodeImpl<Quad, Node> baked = IndexTreeNodeImpl.bakeTree(storage);
 
-        baked.child(0).cartesianProduct(Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
-            .streamRaw(root).forEach(x -> System.out.println("OMG: " + x));
+        baked.child(0).child(0).child(0).child(0).cartesianProduct(Quad.create(Node.ANY, q1.getSubject(), Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
+            .streamRaw(root).forEach(x -> System.out.println("OMG: " + x.getKey()));
 
         System.out.println("Baked: " + baked);
 
@@ -232,7 +225,7 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
         Entry<Map<Node, Set<Quad>>, Map<Node, Set<Quad>>> store = storage.newStore();
     }
 
-    @Test
+//    @Test
     public void testAlternativesN() {
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
 

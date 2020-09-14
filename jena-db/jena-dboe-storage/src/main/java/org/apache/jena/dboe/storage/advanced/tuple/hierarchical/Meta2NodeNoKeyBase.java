@@ -1,7 +1,5 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
-import java.util.List;
-import java.util.Set;
 import java.util.Map.Entry;
 import java.util.stream.Stream;
 
@@ -9,8 +7,8 @@ import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.atlas.lib.tuple.TupleFactory;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.ext.com.google.common.collect.Maps;
 
-import com.github.jsonldjava.shaded.com.google.common.collect.Maps;
 
 /**
  * Base class for index nodes that do not index by a key - or rather:
@@ -56,7 +54,8 @@ public abstract class Meta2NodeNoKeyBase<D, C, V>
     }
 
     @Override
-    public <T> Streamer<V, ? extends Entry<?, ?>> streamerForKeyAndSubStores(T pattern,
+    public <T> Streamer<V, ? extends Entry<?, ?>> streamerForKeyAndSubStores(
+            T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {
         return argStore -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), argStore));
     }

@@ -11,8 +11,8 @@ import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.atlas.lib.tuple.TupleFactory;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.ext.com.google.common.collect.Maps;
 
-import com.github.jsonldjava.shaded.com.google.common.collect.Maps;
 
 public class Meta2NodeLeafSet<D, C, V>
     extends Meta2NodeSetBase<D, C, V>
@@ -77,9 +77,12 @@ public class Meta2NodeLeafSet<D, C, V>
 
 
     @Override
-    public <T> Streamer<Set<V>, ? extends Entry<?, ?>> streamerForKeyAndSubStores(T pattern,
+    public <T> Streamer<Set<V>, ? extends Entry<?, ?>> streamerForKeyAndSubStores(
+//            int altIdx,
+            T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {
-        return argSet -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), argSet));
+//        return argSet -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), argSet));
+        throw new UnsupportedOperationException("leaf sets do not have a sub store");
     }
 
     @Override

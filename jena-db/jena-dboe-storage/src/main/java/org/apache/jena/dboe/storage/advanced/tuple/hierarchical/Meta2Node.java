@@ -128,7 +128,9 @@ public interface Meta2Node<D, C, V> {
      * @param accessor
      * @return
      */
-    <T> Streamer<V, ? extends Entry<?, ?>> streamerForKeyAndSubStores(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
+    <T> Streamer<V, ? extends Entry<?, ?>> streamerForKeyAndSubStores(
+            //int altIdx,
+            T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 
     // <T> Streamer<V, Tuple<C>> streamerForE(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 

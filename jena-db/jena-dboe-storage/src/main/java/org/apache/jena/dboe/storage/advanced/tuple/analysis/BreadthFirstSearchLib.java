@@ -7,8 +7,9 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import org.apache.jena.ext.com.google.common.collect.Streams;
+
 import com.github.andrewoma.dexx.collection.List;
-import com.github.jsonldjava.shaded.com.google.common.collect.Streams;
 
 
 /**

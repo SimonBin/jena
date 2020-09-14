@@ -7,8 +7,7 @@ import java.util.stream.Stream;
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
-
-import com.github.jsonldjava.shaded.com.google.common.collect.Maps;
+import org.apache.jena.ext.com.google.common.collect.Maps;
 
 abstract class Meta2NodeMapBase<D, C, K, V>
     extends Meta2NodeBase<D, C, Map<K, V>>
@@ -97,7 +96,7 @@ abstract class Meta2NodeMapBase<D, C, K, V>
         Object[] tmp = new Object[tupleIdxs.length];
         boolean eligibleAsKey = true;
         for (int i = 0; i < tupleIdxs.length; ++i) {
-            C componentValue = tupleAccessor.get(tupleLike, i);
+            C componentValue = tupleAccessor.get(tupleLike, tupleIdxs[i]);
             if (componentValue == null) {
                 eligibleAsKey = false;
                 break;
@@ -155,8 +154,10 @@ abstract class Meta2NodeMapBase<D, C, K, V>
 
 
     @Override
-    public <T> Streamer<Map<K, V>, Entry<K, V>> streamerForKeyAndSubStores(T pattern,
+    public <T> Streamer<Map<K, V>, Entry<K, V>> streamerForKeyAndSubStores(
+            T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {
+        // TODO Assert that altIdx == 0
         return streamerForEntriesUnderConstraints(pattern, accessor);
     }
 

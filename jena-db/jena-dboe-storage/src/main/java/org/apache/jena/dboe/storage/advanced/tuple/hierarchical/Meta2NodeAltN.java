@@ -1,11 +1,14 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.jena.atlas.lib.tuple.TupleFactory;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.ext.com.google.common.collect.Maps;
 
 public class Meta2NodeAltN<D, C>
     extends Meta2NodeNoKeyBase<D, C, Object[]>
@@ -94,6 +97,15 @@ public class Meta2NodeAltN<D, C>
     public String toString() {
         return "<" + children.stream().map(Object::toString).collect(Collectors.joining(" | ")) + ">";
     }
+
+
+//    @Override
+//    public <T> Streamer<Object[], ? extends Entry<?, ?>> streamerForKeyAndSubStores(
+//            int altIdx,
+//            T pattern,
+//            TupleAccessorCore<? super T, ? extends C> accessor) {
+//        return argStore -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), chooseSubStore(argStore, altIdx)));
+//    }
 
     @Override
     public Object chooseSubStore(Object[] store, int subStoreIdx) {

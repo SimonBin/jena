@@ -6,10 +6,10 @@ import java.util.Map.Entry;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2Node;
+import org.apache.jena.ext.com.google.common.collect.Maps;
 
 import com.github.andrewoma.dexx.collection.LinkedLists;
 import com.github.andrewoma.dexx.collection.List;
-import com.github.jsonldjava.shaded.com.google.common.collect.Maps;
 
 public class Meta2NodeLib {
 

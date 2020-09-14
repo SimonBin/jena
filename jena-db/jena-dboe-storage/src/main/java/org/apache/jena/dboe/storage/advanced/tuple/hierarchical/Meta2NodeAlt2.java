@@ -6,10 +6,11 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.jena.atlas.lib.tuple.TupleFactory;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.ext.com.google.common.collect.Maps;
 
-import com.github.jsonldjava.shaded.com.google.common.collect.Maps;
 
 public class Meta2NodeAlt2<D, C, V1, V2>
     extends Meta2NodeNoKeyBase<D, C, Entry<V1, V2>>
@@ -93,6 +94,15 @@ public class Meta2NodeAlt2<D, C, V1, V2>
         }
         return result;
     }
+
+//    @Override
+//    public <T> Streamer<Entry<V1, V2>, ? extends Entry<?, ?>> streamerForKeyAndSubStores(
+//            int altIdx,
+//            T pattern,
+//            TupleAccessorCore<? super T, ? extends C> accessor) {
+//        return argStore -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), chooseSubStore(argStore, altIdx)));
+//    }
+
 
     @Override
     public String toString() {

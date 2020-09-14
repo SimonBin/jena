@@ -3,15 +3,11 @@ package org.apache.jena.dboe.storage.advanced.tuple.trash;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
 
-import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleConstraint;
+import org.apache.jena.ext.com.google.common.collect.Iterables;
 import org.apache.jena.ext.com.google.common.collect.Multimap;
 
-import com.github.jsonldjava.shaded.com.google.common.collect.Iterables;
 
 
 /**
