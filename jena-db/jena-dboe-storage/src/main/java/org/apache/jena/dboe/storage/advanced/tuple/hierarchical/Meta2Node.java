@@ -101,10 +101,34 @@ public interface Meta2Node<D, C, V> {
 
     C getKeyComponentRaw(Object key, int idx);
 
+    Object chooseSubStore(V store, int subStoreIdx);
+
+    @SuppressWarnings("unchecked")
+    default Object chooseSubStoreRaw(Object store, int subStoreIdx) {
+        return chooseSubStore((V)store, subStoreIdx);
+    }
 
     <T> Streamer<V, ?> streamerForValues(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 
-    <T> Streamer<V, ? extends Entry<?, ?>> streamerForEntries(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
+    /**
+     * The streamer returns entry that hold a tuple-like key and conceptually alternatives of sub-stores
+     *
+     * The tuple components of the key can be accessed using {@link #getKeyComponentRaw(Object, int)}
+     * There are as many components as the length of {@link #getKeyTupleIdxs()}
+     * If there is 0 components then any invocation of {@link #getKeyComponentRaw(Object, int)} will fail with a
+     * {@link UnsupportedOperationException}.
+     *
+     * To extract a specific alternative from the substore use {@link #chooseSubStore(Object, int)}.
+     * There are as many substore indices as there are {@link #getChildren()}
+     * If there are no children then calling this method will raise an {@link UnsupportedOperationException}.
+     *
+     *
+     * @param <T>
+     * @param pattern
+     * @param accessor
+     * @return
+     */
+    <T> Streamer<V, ? extends Entry<?, ?>> streamerForKeyAndSubStores(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 
     // <T> Streamer<V, Tuple<C>> streamerForE(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 

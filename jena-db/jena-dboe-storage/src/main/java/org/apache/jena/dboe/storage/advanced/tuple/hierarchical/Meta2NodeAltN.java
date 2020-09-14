@@ -94,4 +94,9 @@ public class Meta2NodeAltN<D, C>
     public String toString() {
         return "<" + children.stream().map(Object::toString).collect(Collectors.joining(" | ")) + ">";
     }
+
+    @Override
+    public Object chooseSubStore(Object[] store, int subStoreIdx) {
+        return store[subStoreIdx];
+    }
 }

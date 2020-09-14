@@ -77,7 +77,7 @@ public class Meta2NodeLeafSet<D, C, V>
 
 
     @Override
-    public <T> Streamer<Set<V>, ? extends Entry<?, ?>> streamerForEntries(T pattern,
+    public <T> Streamer<Set<V>, ? extends Entry<?, ?>> streamerForKeyAndSubStores(T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {
         return argSet -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), argSet));
     }
@@ -99,4 +99,8 @@ public class Meta2NodeLeafSet<D, C, V>
         throw new RuntimeException("Key is an empty tuple - there are no key components");
     }
 
+    @Override
+    public Object chooseSubStore(Set<V> store, int subStoreIdx) {
+        throw new UnsupportedOperationException("leaf sets do not have a sub store");
+    }
 }

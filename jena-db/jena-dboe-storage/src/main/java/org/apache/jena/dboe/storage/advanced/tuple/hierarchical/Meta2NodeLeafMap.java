@@ -103,4 +103,9 @@ public class Meta2NodeLeafMap<D, C, K, V>
         return childStream;
     }
 
+    @Override
+    public Object chooseSubStore(Map<K, V> store, int subStoreIdx) {
+        throw new UnsupportedOperationException("leaf maps do not have a sub store");
+    }
+
 }

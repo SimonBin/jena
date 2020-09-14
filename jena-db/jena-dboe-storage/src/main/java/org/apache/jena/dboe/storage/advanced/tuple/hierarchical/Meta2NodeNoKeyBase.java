@@ -56,7 +56,7 @@ public abstract class Meta2NodeNoKeyBase<D, C, V>
     }
 
     @Override
-    public <T> Streamer<V, ? extends Entry<?, ?>> streamerForEntries(T pattern,
+    public <T> Streamer<V, ? extends Entry<?, ?>> streamerForKeyAndSubStores(T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {
         return argStore -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), argStore));
     }

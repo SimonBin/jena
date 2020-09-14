@@ -116,5 +116,15 @@ public class Meta2NodeInnerMap<D, C, K, V>
         return childStream;
     }
 
+
+    @Override
+    public Object chooseSubStore(Map<K, V> store, int subStoreIdx) {
+        if (subStoreIdx != 0) {
+            throw new IndexOutOfBoundsException("Index must be 0 for inner maps");
+        }
+
+        // Return the store itself
+        return store;
+    }
 }
 

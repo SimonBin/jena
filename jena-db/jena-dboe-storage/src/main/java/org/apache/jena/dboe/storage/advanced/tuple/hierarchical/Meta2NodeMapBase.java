@@ -155,7 +155,7 @@ abstract class Meta2NodeMapBase<D, C, K, V>
 
 
     @Override
-    public <T> Streamer<Map<K, V>, Entry<K, V>> streamerForEntries(T pattern,
+    public <T> Streamer<Map<K, V>, Entry<K, V>> streamerForKeyAndSubStores(T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {
         return streamerForEntriesUnderConstraints(pattern, accessor);
     }

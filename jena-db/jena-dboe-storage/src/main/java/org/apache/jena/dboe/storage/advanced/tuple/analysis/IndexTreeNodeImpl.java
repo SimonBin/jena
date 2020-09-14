@@ -4,9 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.stream.Stream;
 
-import org.apache.jena.atlas.lib.tuple.TupleFactory;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2Node;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
@@ -21,6 +19,7 @@ public class IndexTreeNodeImpl<D, C>
 {
     protected Meta2Node<D, C, ?> storage;
     protected IndexTreeNodeImpl<D, C> parent;
+    protected int childIndex = -1; // The ith child of the parent
     protected List<IndexTreeNodeImpl<D, C>> children = new ArrayList<>();
 
     public IndexTreeNodeImpl(
@@ -55,11 +54,14 @@ public class IndexTreeNodeImpl<D, C>
         return storage;
     }
 
-    public void addChild(IndexTreeNodeImpl<D, C> child) {
-        children.add(child);
+    public int getChildIndex() {
+        return childIndex;
     }
 
-
+    public void addChild(IndexTreeNodeImpl<D, C> child) {
+        child.childIndex = children.size();
+        children.add(child);
+    }
 
 
     /**
@@ -94,17 +96,26 @@ public class IndexTreeNodeImpl<D, C>
 
         // The root of the cartesian product is an entry where the first store becomes the value of an entry
         Streamer<?, ? extends Entry<?, ?>> current = null; //store -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), store));
+        IndexTreeNodeImpl<D, C> parentNode = null;
         for (int i = 0; i < ancestors.size(); ++i) {
             IndexTreeNodeImpl<D, C> node = ancestors.get(i);
 
-            Streamer<?, ? extends Entry<?, ?>> next = node.getStorage().streamerForEntries(pattern, accessor);
+            Streamer<?, ? extends Entry<?, ?>> next = node.getStorage().streamerForKeyAndSubStores(pattern, accessor);
             if (current == null) {
                 current = next;
             } else {
                 Streamer<?, ? extends Entry<?, ?>> tmp = current;
+                Meta2Node<D, C, ?> parentStorage = parentNode.getStorage();
                 current = store -> tmp.streamRaw(store).flatMap(
-                        e -> next.streamRaw(e.getValue()).map(e2 -> Maps.immutableEntry(e.getKey(), e2.getValue())));
+                        e -> {
+                            Object subStoreAlts = e.getValue();
+                            Object subStore = parentStorage.chooseSubStoreRaw(subStoreAlts, node.getChildIndex());
+
+                            return next.streamRaw(subStore).map(e2 -> Maps.immutableEntry(e.getKey(), e2.getValue()));
+                        });
             }
+
+            parentNode = node;
         }
 
 

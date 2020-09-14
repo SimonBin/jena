@@ -83,6 +83,16 @@ public class Meta2NodeAlt2<D, C, V1, V2>
         return result;
     }
 
+    @Override
+    public Object chooseSubStore(Entry<V1, V2> store, int subStoreIdx) {
+        Object result;
+        switch(subStoreIdx) {
+        case 0: result = store.getKey(); break;
+        case 1: result = store.getValue(); break;
+        default: throw new IndexOutOfBoundsException("Index must be 0 or 1; was " + subStoreIdx);
+        }
+        return result;
+    }
 
     @Override
     public String toString() {
