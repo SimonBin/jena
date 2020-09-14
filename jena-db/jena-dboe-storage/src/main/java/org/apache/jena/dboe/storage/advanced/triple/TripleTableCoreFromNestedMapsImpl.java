@@ -24,15 +24,9 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.MapSupplier;
-import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNode;
-import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeCollection;
-import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeFork;
-import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeForkFromMap;
-import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeNestedMap;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.sparql.util.NodeUtils;
-import org.apache.jena.vocabulary.RDF;
 
 /**
  * TripleTableCore implementation based on three nested maps
@@ -50,22 +44,17 @@ public class TripleTableCoreFromNestedMapsImpl
         this(LinkedHashMap::new);
     }
 
-    void test() {
-        getRootIndexNode(null).chooseFirst(0)
-            .contraints().set(RDF.type.asNode()).build()
-            .estimateIndexSize();
-    }
 
-    @Override
-    public IndexNodeFork<Node> getRootIndexNode(IndexNode<Node> parent) {
-        return IndexNodeForkFromMap.singleton(
-                parent, 0, forkS -> IndexNodeNestedMap.create(
-                    forkS, store, (nodeS, pMap) -> IndexNodeForkFromMap.singleton(
-                        nodeS, 1, forkP -> IndexNodeNestedMap.create(
-                            forkP, pMap, (nodeP, oMap) -> IndexNodeForkFromMap.singleton(
-                                nodeP, 2, forkO -> IndexNodeCollection.create(
-                                    forkO, oMap.keySet()))))));
-    }
+//    @Override
+//    public Meta2Node<TriplNode> getRootIndexNode(IndexNode<Node> parent) {
+//        return IndexNodeForkFromMap.singleton(
+//                parent, 0, forkS -> IndexNodeNestedMap.create(
+//                    forkS, store, (nodeS, pMap) -> IndexNodeForkFromMap.singleton(
+//                        nodeS, 1, forkP -> IndexNodeNestedMap.create(
+//                            forkP, pMap, (nodeP, oMap) -> IndexNodeForkFromMap.singleton(
+//                                nodeP, 2, forkO -> IndexNodeCollection.create(
+//                                    forkO, oMap.keySet()))))));
+//    }
 
     public TripleTableCoreFromNestedMapsImpl(MapSupplier mapSupplier) {
         super();

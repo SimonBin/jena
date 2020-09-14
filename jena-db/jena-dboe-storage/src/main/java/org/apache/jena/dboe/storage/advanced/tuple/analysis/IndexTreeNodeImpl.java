@@ -15,13 +15,15 @@ import org.apache.jena.ext.com.google.common.graph.Traverser;
 
 
 public class IndexTreeNodeImpl<D, C>
-//    implements IndexTreeNode
+    implements IndexTreeNode<D, C>
 {
     protected Meta2Node<D, C, ?> storage;
     protected IndexTreeNodeImpl<D, C> parent;
     protected int depth = 0;
     protected int childIndex = 0; // The ith child of the parent
     protected List<IndexTreeNodeImpl<D, C>> children = new ArrayList<>();
+
+    protected IndexTreeNodeImpl<D, C> leastNestedNode = null;
 
     public IndexTreeNodeImpl(
             Meta2Node<D, C, ?> storage,
@@ -32,9 +34,31 @@ public class IndexTreeNodeImpl<D, C>
         this.depth = parent == null ? 0 : parent.depth + 1;
     }
 
+    @Override
     public IndexTreeNodeImpl<D, C> child(int idx) {
         return children.get(idx);
     }
+
+    @Override
+    public int childCount() {
+        return children.size();
+    }
+
+    @Override
+    public List<? extends IndexTreeNode<D, C>> getChildren() {
+        return children;
+    }
+
+
+    @Override
+    public IndexTreeNode<D, C> leastNestedChildOrSelf() {
+        if (leastNestedNode == null) {
+            leastNestedNode = (IndexTreeNodeImpl<D, C>) Meta2NodeLib.findLeastNestedIndexNode(this);
+        }
+
+        return leastNestedNode;
+    }
+
 
     public static <D, C> IndexTreeNodeImpl<D, C> bakeTree(Meta2Node<D, C, ?> root) {
 
@@ -48,10 +72,14 @@ public class IndexTreeNodeImpl<D, C>
         return result;
     }
 
+
+    @Override
     public IndexTreeNodeImpl<D, C> getParent() {
         return parent;
     }
 
+
+    @Override
     public Meta2Node<D, C, ?> getStorage() {
         return storage;
     }
@@ -81,6 +109,7 @@ public class IndexTreeNodeImpl<D, C>
 //
 //    }
 
+    @Override
     public <T> Streamer<?, Entry<?, ?>> cartesianProduct(
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {

@@ -1,16 +1,18 @@
 package org.apache.jena.dboe.storage.advanced.tuple.analysis;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.jena.atlas.lib.persistent.PSet;
 import org.apache.jena.atlas.lib.persistent.PersistentSet;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2Node;
+
 
 public class TupleQueryAnalyzer {
 
@@ -35,18 +37,17 @@ public class TupleQueryAnalyzer {
      */
     public static <TupleLike, ComponentType> List<IndexPathReport> analyze(
             TupleQuery<ComponentType> tupleQuery,
-            Meta2Node<TupleLike, ComponentType, ?> node,
+            IndexTreeNode<TupleLike, ComponentType> node,
             int[] componentWeights) {
 
-        List<IndexPathReport> patternMatches = new ArrayList<>();
+        Map<IndexTreeNode<TupleLike, ComponentType>, PersistentSet<Integer>> patternMatches = new IdentityHashMap<>();
 
         // Sort candidates with most number of components matched to keys first
-        Collections.sort(patternMatches,
-                (a, b) -> a.getMatchedComponents().asSet().size() - b.getMatchedComponents().asSet().size());
+//        Collections.sort(patternMatches,
+//                (a, b) -> a.getMatchedComponents().asSet().size() - b.getMatchedComponents().asSet().size());
 
-        IndexPathReport root = new IndexPathReport(null, -1);
 
-        analyzeForPattern(tupleQuery, node, root, 0, patternMatches);
+        analyzeForPattern(tupleQuery, node, PSet.empty(), patternMatches);
 
         // If there are no matching candidates pick any index among those with the lowest nested depth
         // so that we need to perform the least number of nested lookups
@@ -72,16 +73,17 @@ public class TupleQueryAnalyzer {
             int[] project = tupleQuery.getProject();
             Set<Integer> proj = IntStream.of(project).boxed().collect(Collectors.toSet());
 
-            List<IndexPathReport> projectionMatches = new ArrayList<>();
+//            List<IndexPathReport> projectionMatches = new ArrayList<>();
+            List<IndexTreeNode<TupleLike, ComponentType>> projectionMatches = new ArrayList<>();
 
             // TODO We may expand a candidate
-            for (IndexPathReport candidate : patternMatches) {
+            for (Entry<IndexTreeNode<TupleLike, ComponentType>, PersistentSet<Integer>> candidate : patternMatches.entrySet()) {
 
-                boolean canServeProjection = candidate.getMatchedComponents().asSet()
+                boolean canServeProjection = candidate.getValue().asSet()
                         .containsAll(proj);
 
                 if (canServeProjection) {
-                    projectionMatches.add(candidate);
+                    projectionMatches.add(candidate.getKey());
                 }
 //            	while (start != null) {
 //            		int[] start.getIndexNode().getKeyTupleIdxs();
@@ -93,7 +95,7 @@ public class TupleQueryAnalyzer {
 
         // If no best candidate for the pattern was found we need to scan all tuples anyway
         if (true) {
-            List<Integer> leastNestedIndex =  Meta2NodeLib.findLeastNestedIndexNode(node);
+            node.leastNestedChildOrSelf();
 
             // We need the following access mechanisms:
             // (.) stream the key set of some nested map (TODO the key must be tuple like so we can restore components!)
@@ -117,7 +119,7 @@ public class TupleQueryAnalyzer {
 
         }
 
-        return patternMatches;
+        return new ArrayList<>();
     }
 
 //    public static <N> Stream<com.github.andrewoma.dexx.collection.List<N>>
@@ -130,15 +132,14 @@ public class TupleQueryAnalyzer {
 
     public static <TupleLike, ComponentType> boolean analyzeForPattern(
             TupleQuery<ComponentType> tupleQuery,
-            Meta2Node<TupleLike, ComponentType, ?> node,
-            IndexPathReport parent, // can be used recursion depth
-            int altIdx,
-            Collection<IndexPathReport> candidates
+            IndexTreeNode<TupleLike, ComponentType> node,
+            PersistentSet<Integer> matchedComponents,
+            Map<? super IndexTreeNode<TupleLike, ComponentType>, PersistentSet<Integer>> candidates
             ) {
 
 //        PathReport result = new PathReport(parent, altIdx);
 
-        int[] currentIxds = node.getKeyTupleIdxs();
+        int[] currentIxds = node.getStorage().getKeyTupleIdxs();
 
         boolean canDoIndexedLookup = true;
         for (int i = 0; i < currentIxds.length; ++i) {
@@ -153,27 +154,27 @@ public class TupleQueryAnalyzer {
         boolean foundEvenBetterCandidate = false;
 
         if (canDoIndexedLookup) {
-            PersistentSet<Integer> newMatchedComponents = parent.getMatchedComponents();
+            PersistentSet<Integer> newMatchedComponents = matchedComponents;
             for (int i = 0; i < currentIxds.length; ++i) {
                 newMatchedComponents = newMatchedComponents.plus(currentIxds[i]);
             }
 
-            IndexPathReport betterCandidate = new IndexPathReport(parent, altIdx, node, newMatchedComponents);
+            //IndexPathReport betterCandidate = new IndexPathReport(parent, altIdx, node, newMatchedComponents);
 
             // If none of the children matches any more components than return this
 //            for(Meta2Node<TupleLike, ComponentType, ?> child : node.getChildren()) {
-            List<? extends Meta2Node<TupleLike, ComponentType, ?>> children = node.getChildren();
+            List<? extends IndexTreeNode<TupleLike, ComponentType>> children = node.getChildren();
             for (int childIdx = 0; childIdx < children.size(); ++childIdx) {
-                Meta2Node<TupleLike, ComponentType, ?> child = children.get(childIdx);
+                IndexTreeNode<TupleLike, ComponentType> child = children.get(childIdx);
                 foundEvenBetterCandidate = foundEvenBetterCandidate || analyzeForPattern(
                         tupleQuery,
                         child,
-                        betterCandidate,
-                        childIdx,
+                        newMatchedComponents,
                         candidates);
             }
             if (!foundEvenBetterCandidate) {
-                candidates.add(betterCandidate);
+                // candidates.add(betterCandidate);
+                candidates.put(node, matchedComponents);
             }
         }
 

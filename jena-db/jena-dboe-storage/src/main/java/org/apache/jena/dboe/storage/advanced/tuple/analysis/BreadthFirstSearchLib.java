@@ -3,11 +3,13 @@ package org.apache.jena.dboe.storage.advanced.tuple.analysis;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Map.Entry;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.apache.jena.ext.com.google.common.collect.Streams;
+import org.apache.jena.ext.com.google.common.graph.Traverser;
 
 import com.github.andrewoma.dexx.collection.List;
 
@@ -63,6 +65,25 @@ public class BreadthFirstSearchLib {
        return Stream.concat(
                breath.get(),
                breath.get().flatMap(entry -> breadthFirstIndexedPaths(entry, successorFn)));
+   }
+
+
+   public static <N> N conditionalBreadthFirst(
+           N start,
+           Function<? super N, ? extends Iterable<? extends N>> successorFunction,
+           Predicate<? super N> predicate
+           ) {
+
+       N result = null;
+       Iterable<N> it = Traverser.<N>forTree(node -> successorFunction.apply(node)).breadthFirst(start);
+       for (N node : it) {
+           if (predicate.test(node)) {
+               result = node;
+               break;
+           }
+       }
+
+       return result;
    }
 
 }

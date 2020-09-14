@@ -26,8 +26,6 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
-import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNode;
-import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeFork;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.util.NodeUtils;
@@ -82,13 +80,6 @@ public class QuadTableCoreFromMapOfTripleTableCore
         return find(store, g, s, p, o);
     }
 
-    @Override
-    public IndexNodeFork<Node> getRootIndexNode(IndexNode<Node> parent) {
-        return null;
-//        return IndexNodeForkFromMap.singleton(
-//            parent, 3, forkG -> IndexNodeNestedMap.create(
-//                forkG, store, (nodeG, sMap) -> store.get(nodeG).getRootIndexNode(nodeG)));
-    }
 
 
     @Override

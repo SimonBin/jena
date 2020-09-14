@@ -132,7 +132,7 @@ public class TestTupleTableCore {
 
 
         System.out.println("BEGIN OF REPORTS");
-        List<IndexPathReport> reports = TupleQueryAnalyzer.analyze(tupleQuery, storage, new int[] {10, 10, 1, 100});
+        List<IndexPathReport> reports = TupleQueryAnalyzer.analyze(tupleQuery, baked, new int[] {10, 10, 1, 100});
 
         for (IndexPathReport report : reports) {
             System.out.println(report);

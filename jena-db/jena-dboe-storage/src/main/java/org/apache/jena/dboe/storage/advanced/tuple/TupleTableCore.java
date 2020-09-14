@@ -22,9 +22,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
-import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNode;
-import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeFork;
-import org.apache.jena.dboe.storage.advanced.tuple.trash.IndexNodeForkRoot;
 import org.apache.jena.graph.Node;
 
 /**
@@ -131,10 +128,6 @@ public interface TupleTableCore<TupleType, ComponentType> {
      *
      * @return
      */
-    default IndexNodeFork<ComponentType> getRootIndexNode(IndexNode<ComponentType> parent) {
-        // return new IndexNodeRoot<Node>(this::size);
-        return new IndexNodeForkRoot<>(parent, this::size);
-    }
 
     /**
      * The number of components / columns
