@@ -80,7 +80,7 @@ public class TreeLib {
      * @param appendChild
      * @return
      */
-    public static <N, W, CC extends Collection<W>> W createTreePreOrder(
+    public static <N, W> W createTreePreOrder(
             W wrappedParent,
             N node,
             Function<? super N, ? extends Iterable<? extends N>> successorFunction,

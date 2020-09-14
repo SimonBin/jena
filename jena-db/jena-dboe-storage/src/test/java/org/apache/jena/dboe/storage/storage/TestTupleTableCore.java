@@ -20,6 +20,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuadAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQueryImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexPathReport;
+import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexTreeNodeImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2NodeCompound;
 import org.apache.jena.graph.Node;
@@ -118,6 +119,9 @@ public class TestTupleTableCore {
         storage.add(root, q3);
         storage.add(root, q4);
 
+        IndexTreeNodeImpl<Quad, Node> baked = IndexTreeNodeImpl.bakeTree(storage);
+
+        System.out.println("Baked: " + baked);
 
         storage.getChildren().get(0)
             .streamerForKeysAsComponent(Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
