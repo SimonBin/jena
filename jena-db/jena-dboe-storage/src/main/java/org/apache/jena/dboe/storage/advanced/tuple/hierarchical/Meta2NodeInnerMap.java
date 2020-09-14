@@ -22,8 +22,9 @@ public class Meta2NodeInnerMap<D, C, K, V>
             TupleAccessor<D, C> tupleAccessor,
             Meta2NodeCompound<D, C, V> child,
             MapSupplier mapSupplier,
-            TupleValueFunction<C, K> keyFunction) {
-        super(tupleIdxs, tupleAccessor, mapSupplier, keyFunction);
+            TupleValueFunction<C, K> keyFunction,
+            TupleAccessorCore<? super K, ? extends C> keyToComponent) {
+        super(tupleIdxs, tupleAccessor, mapSupplier, keyFunction, keyToComponent);
         this.child = child;
     }
 

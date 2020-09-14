@@ -1,12 +1,16 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.List;
+import java.util.Set;
+import java.util.Map.Entry;
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.atlas.lib.tuple.TupleFactory;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+
+import com.github.jsonldjava.shaded.com.google.common.collect.Maps;
 
 /**
  * Base class for index nodes that do not index by a key - or rather:
@@ -18,18 +22,13 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
  * @param <C>
  * @param <V>
  */
-public class Meta2NodeNoKeyBase<D, C, V>
+public abstract class Meta2NodeNoKeyBase<D, C, V>
     extends Meta2NodeBase<D, C, V>
 {
     public Meta2NodeNoKeyBase(TupleAccessor<D, C> tupleAccessor) {
         super(new int[] {}, tupleAccessor);
     }
 
-    @Override
-    public List<? extends Meta2Node<D, C, ?>> getChildren() {
-        // TODO Auto-generated method stub
-        return null;
-    }
 
     @Override
     public <T> Streamer<V, C> streamerForKeysAsComponent(T pattern,
@@ -44,8 +43,26 @@ public class Meta2NodeNoKeyBase<D, C, V>
     }
 
     @Override
-    public <T> Stream<?> streamEntries(V store, T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
-        // TODO Auto-generated method stub
-        return null;
+    public <T> Streamer<V, V> streamerForValues(T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor) {
+        return argStore -> Stream.of(argStore);
+    }
+
+
+    @Override
+    public <T> Streamer<V, ?> streamerForKeys(T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor) {
+        return argStore -> Stream.of(TupleFactory.create0());
+    }
+
+    @Override
+    public <T> Streamer<V, ? extends Entry<?, ?>> streamerForEntries(T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor) {
+        return argStore -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), argStore));
+    }
+
+    @Override
+    public C getKeyComponentRaw(Object key, int idx) {
+        throw new RuntimeException("Key is an empty tuple - there are no key components");
     }
 }

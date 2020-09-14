@@ -1,7 +1,7 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.List;
-import java.util.function.Function;
+import java.util.Map.Entry;
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
@@ -94,6 +94,19 @@ public interface Meta2Node<D, C, V> {
      * @return
      */
     <T> Streamer<V, Tuple<C>> streamerForKeysAsTuples(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
+
+
+    <T> Streamer<V, ?> streamerForKeys(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
+
+
+    C getKeyComponentRaw(Object key, int idx);
+
+
+    <T> Streamer<V, ?> streamerForValues(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
+
+    <T> Streamer<V, ? extends Entry<?, ?>> streamerForEntries(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
+
+    // <T> Streamer<V, Tuple<C>> streamerForE(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 
     /**
      * Stream all entries under equality constraints obtained from a tuple-like pattern

@@ -3,6 +3,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -10,6 +11,8 @@ import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.atlas.lib.tuple.TupleFactory;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+
+import com.github.jsonldjava.shaded.com.google.common.collect.Maps;
 
 public class Meta2NodeLeafSet<D, C, V>
     extends Meta2NodeSetBase<D, C, V>
@@ -68,9 +71,32 @@ public class Meta2NodeLeafSet<D, C, V>
     }
 
     @Override
+    public <T> Streamer<Set<V>, V> streamerForValues(T pattern, TupleAccessorCore<? super T, ? extends C> accessor) {
+        return argSet -> argSet.stream();
+    }
+
+
+    @Override
+    public <T> Streamer<Set<V>, ? extends Entry<?, ?>> streamerForEntries(T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor) {
+        return argSet -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), argSet));
+    }
+
+    @Override
     public <T> Stream<V> streamEntries(Set<V> set, T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
         // FIXME We need to filter the result stream by the components of the tuple like!
         return set.stream();
+    }
+
+    @Override
+    public <T> Streamer<Set<V>, ?> streamerForKeys(T pattern, TupleAccessorCore<? super T, ? extends C> accessor) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public C getKeyComponentRaw(Object key, int idx) {
+        throw new RuntimeException("Key is an empty tuple - there are no key components");
     }
 
 }

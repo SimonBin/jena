@@ -21,9 +21,10 @@ public class Meta2NodeLeafMap<D, C, K, V>
             TupleAccessor<D, C> tupleAccessor,
             MapSupplier mapSupplier,
             TupleValueFunction<C, K> keyFunction,
+            TupleAccessorCore<? super K, ? extends C> keyToComponent,
             TupleValueFunction<C, V> valueFunction
             ) {
-        super(tupleIdxs, tupleAccessor, mapSupplier, keyFunction);
+        super(tupleIdxs, tupleAccessor, mapSupplier, keyFunction, keyToComponent);
         this.valueFunction = valueFunction;
     }
 

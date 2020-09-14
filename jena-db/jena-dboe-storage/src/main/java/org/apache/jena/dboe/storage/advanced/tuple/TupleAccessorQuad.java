@@ -34,6 +34,11 @@ public class TupleAccessorQuad
         }
     }
 
+//    public static Node anyToNull(Node n) {
+//        return Node.ANY.equals(n) ? null : n;
+//    }
+
+
     @Override
     public <T> Quad restore(T obj, TupleAccessor<? super T, ? extends Node> accessor) {
 //        if (accessor.getRank() != this.getRank()) {

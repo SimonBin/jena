@@ -16,6 +16,7 @@ import org.apache.jena.dboe.storage.advanced.quad.QuadTableCoreFromMapOfTripleTa
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCoreFromNestedMapsImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuad;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuadAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQueryImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexPathReport;
@@ -116,6 +117,11 @@ public class TestTupleTableCore {
         storage.add(root, q2);
         storage.add(root, q3);
         storage.add(root, q4);
+
+
+        storage.getChildren().get(0)
+            .streamerForKeysAsComponent(Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
+            .streamRaw(root.getKey()).forEach(x -> System.out.println("KEY: " + x));
 
 
         TupleQuery<Node> tupleQuery = new TupleQueryImpl<>(4);

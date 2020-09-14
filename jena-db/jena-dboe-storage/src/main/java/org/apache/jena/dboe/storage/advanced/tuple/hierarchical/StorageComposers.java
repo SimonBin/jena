@@ -6,6 +6,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.ext.com.google.common.base.Functions;
 
 /**
  * The APIs for building the index from the root become so utterly complex;
@@ -39,6 +40,7 @@ public class StorageComposers {
                 tupleAccessor,
                 mapSupplier,
                 TupleValueFunction::component0,
+                (key, idx) -> key, // TODO Ensure that only component 0 is requested
                 // Ugly identity mapping of domain tuples to themselves as values - can we do better?
                 TupleValueFunction.newIdentity()
                 );
@@ -89,7 +91,8 @@ public class StorageComposers {
                 tupleAccessor,
                 child,
                 mapSupplier,
-                TupleValueFunction::component0
+                TupleValueFunction::component0,
+                (key, idx) -> key // TODO Ensure that only component 0 is requested
                 );
                 // Return the element at index 0 of any tuple like object
                 // (tupleLike, tupleAccessor) -> tupleAccessor.get(tupleLike, 0));

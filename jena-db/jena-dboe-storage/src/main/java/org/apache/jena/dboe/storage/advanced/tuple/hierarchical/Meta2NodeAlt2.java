@@ -83,6 +83,7 @@ public class Meta2NodeAlt2<D, C, V1, V2>
         return result;
     }
 
+
     @Override
     public String toString() {
         return "<" + getChildren().stream().map(Object::toString).collect(Collectors.joining(" | ")) + ">";
