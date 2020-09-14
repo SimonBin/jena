@@ -1,5 +1,11 @@
 package org.apache.jena.dboe.storage.storage;
 
+import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.alt2;
+import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.altN;
+import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.innerMap;
+import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafMap;
+import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafSet;
+
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -30,15 +36,9 @@ import org.apache.jena.vocabulary.RDF;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.innerMap;
-import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.alt2;
-import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.altN;
-import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafMap;
-import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafSet;
-
 
 public class TestTupleTableCore {
-    @Test
+//    @Test
     public void test1() {
         Quad q1 = SSE.parseQuad("(:g1 :s1 :g1p1 :g1o1)");
         Quad q2 = SSE.parseQuad("(:g1 :s1 :g1p2 :g1o2)");
@@ -121,6 +121,9 @@ public class TestTupleTableCore {
 
         IndexTreeNodeImpl<Quad, Node> baked = IndexTreeNodeImpl.bakeTree(storage);
 
+        baked.cartesianProduct(Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
+            .streamRaw(root).forEach(x -> System.out.println("OMG: " + x));
+
         System.out.println("Baked: " + baked);
 
         storage.getChildren().get(0)
@@ -179,7 +182,7 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
     }
 
 
-    @Test
+//    @Test
     public void test3() {
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
 
@@ -215,7 +218,7 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
         }
     }
 
-    @Test
+//    @Test
     public void testAlternatives2() {
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
 

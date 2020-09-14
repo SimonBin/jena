@@ -1,10 +1,19 @@
 package org.apache.jena.dboe.storage.advanced.tuple.analysis;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2Node;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
+import org.apache.jena.ext.com.google.common.collect.Lists;
+import org.apache.jena.ext.com.google.common.graph.Traverser;
+
+import com.github.jsonldjava.shaded.com.google.common.collect.Maps;
 
 
 public class IndexTreeNodeImpl<D, C>
@@ -34,6 +43,13 @@ public class IndexTreeNodeImpl<D, C>
         return result;
     }
 
+    public IndexTreeNodeImpl<D, C> getParent() {
+        return parent;
+    }
+
+    public Meta2Node<D, C, ?> getStorage() {
+        return storage;
+    }
 
     public void addChild(IndexTreeNodeImpl<D, C> child) {
         children.add(child);
@@ -41,33 +57,55 @@ public class IndexTreeNodeImpl<D, C>
 
 
 
+
     /**
-     * Receive a key from
+     * Create a streamer for the component at
      *
      * @param key
      * @param forwardingFunction
      */
-    public <TupleLike, ComponentType> void receiveKeyTuple(
-            // TODO
-            TupleLike pattern,
-            TupleAccessorCore<TupleLike, ComponentType> accessor
-    ) {
-        // Create the streamers for all parents
+//    public <TupleLike, ComponentType> Streamer<Object, > streamerForComponent(
+//        TupleLike pattern,
+//        TupleAccessorCore<TupleLike, ComponentType> accessor) {
+//
+//
+//
+//
+//    }
 
-//        IndexTreeNodeImpl<N, Self> start = this;
+    public <T> Streamer<?, ? extends Entry<?, ?>> cartesianProduct(
+            T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor) {
+
+        // Root is first element in the list because of depthFirstPostOrder
+        List<IndexTreeNodeImpl<D, C>> ancestors = Lists.newArrayList(Traverser.<IndexTreeNodeImpl<D, C>>forTree(n -> n.getParent() == null
+                ? Collections.emptySet()
+                : Collections.singleton(n.getParent())).depthFirstPostOrder(this));
+
+//        List<Streamer<?, ? extends Entry<?, ?>>> streamers = ancestors.stream()
+//                .map(node -> node.getStorage().streamerForEntries(pattern, accessor))
+//                .collect(Collectors.toList());
+
+        // Streamer<?, ?> result = null;
+
+        Streamer<?, ? extends Entry<?, ?>> current = null;
+        for (int i = 0; i < ancestors.size(); ++i) {
+            IndexTreeNodeImpl<D, C> node = ancestors.get(i);
+
+            Streamer<?, ? extends Entry<?, ?>> next = node.getStorage().streamerForEntries(pattern, accessor);
+            if (current == null) {
+                current = next;
+            } else {
+                Streamer<?, ? extends Entry<?, ?>> tmp = current;
+                current = store -> tmp.streamRaw(store)
+                        .flatMap(e -> next.streamRaw(e.getValue()).map(v -> Maps.immutableEntry(e.getKey(), v)));
+            }
+        }
 
 
-
-
-
-        // Stream tuples from the parent or an empty tuple if there is none
-        //getParent().receiveKeyTuple(pattern, accessor, callback);
-
-//        if(getParent() != null) {
-//            //getParent()
-//        }
-
+        return current;
     }
 
+    //void cart()
 
 }
