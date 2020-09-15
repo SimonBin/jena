@@ -27,9 +27,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQueryImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexPathReport;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.KeyReducer;
-import org.apache.jena.dboe.storage.advanced.tuple.analysis.KeyReducerList;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.KeyReducerTuple;
-import org.apache.jena.dboe.storage.advanced.tuple.analysis.KeyReducers;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
@@ -147,14 +145,17 @@ public class TestTupleTableCore {
 
 
         StoreAccessor<Quad, Node> oAccessor = rootAccessor.child(0).child(0).child(0).child(0).child(0);
-        KeyReducerTuple<Node> fancyKeyReducer = KeyReducerTuple.createForProjection(oAccessor, new int[] {0, 1, 2, 3});
+        KeyReducerTuple<Node> fancyKeyReducer = KeyReducerTuple.createForProjection(oAccessor, new int[] {0, 0, 3, 2, 0});
 
         oAccessor.cartesianProduct(
                 Quad.create(Node.ANY, Node.ANY, Node.ANY, q4.getObject()),
                 TupleAccessorQuadAnyToNull.INSTANCE,
                 fancyKeyReducer.newAccumulator(),
                 fancyKeyReducer)
-        .streamRaw(root).forEach(x -> System.out.println("CARTPROD3: " + x.getKey()));
+        .streamRaw(root).map(Entry::getKey).map(fancyKeyReducer::makeTuple)
+        .forEach(x -> System.out.println("CARTPROD3: " + x));
+
+        //forEach(x -> System.out.println("CARTPROD3: " + x.getKey()));
 
         System.out.println("Baked: " + rootAccessor);
 

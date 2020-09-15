@@ -4,7 +4,10 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
+import org.apache.jena.atlas.lib.tuple.Tuple;
+import org.apache.jena.atlas.lib.tuple.TupleFactory;
 import org.apache.jena.ext.com.google.common.collect.HashMultimap;
 import org.apache.jena.ext.com.google.common.collect.Multimap;
 
@@ -14,25 +17,58 @@ public class KeyReducerTuple<C>
     implements KeyReducer<com.github.andrewoma.dexx.collection.List<C>>
 {
 
+    protected int[] projection;
     protected List<KeyReducer2<com.github.andrewoma.dexx.collection.List<C>>> reducers = new ArrayList<>();
-    protected Multimap<Integer, Integer> tupleIdxToProjSlot;
-    protected List<Integer> reducedKeyIdxToTupleIdx;
+    protected Multimap<Integer, Integer> tupleIdxToProjSlots;
+    protected int[] reducedKeyIdxToTupleIdx;
+//    protected Function<? super com.github.andrewoma.dexx.collection.List<C>, ? extends Tuple<C>> tupleFactory;
 
     public KeyReducerTuple(
+            int[] projection,
             List<KeyReducer2<com.github.andrewoma.dexx.collection.List<C>>> reducers,
-            Multimap<Integer, Integer> tupleIdxToProjSlot,
-            List<Integer> reducedKeyIdxToTupleIdx
-            ) {
+            Multimap<Integer, Integer> tupleIdxToProjSlots,
+            int[] reducedKeyIdxToTupleIdx) {
         super();
+        this.projection = projection;
         this.reducers = reducers;
-        this.tupleIdxToProjSlot = tupleIdxToProjSlot;
+        this.tupleIdxToProjSlots = tupleIdxToProjSlots;
         this.reducedKeyIdxToTupleIdx = reducedKeyIdxToTupleIdx;
+
+//        this.tupleFactory = tupleFactory;
     }
 
 
     public com.github.andrewoma.dexx.collection.List<C> newAccumulator() {
         return LinkedLists.of();
     }
+
+    @SuppressWarnings("unchecked")
+    public Tuple<C> makeTuple(com.github.andrewoma.dexx.collection.List<C> list) {
+        Object tmp[] = new Object[projection.length];
+
+        int[] i = {0};
+        list.forEach(item -> {
+            int tupleIdx = reducedKeyIdxToTupleIdx[i[0]];
+            for(int slot : tupleIdxToProjSlots.get(tupleIdx)) {
+                tmp[slot] = item;
+            }
+
+            ++i[0];
+        });
+
+        return (Tuple<C>) TupleFactory.create(tmp);
+    }
+
+    public static <C> Function<? super com.github.andrewoma.dexx.collection.List<C>, ? extends Tuple<C>> createTupleFactory(int length) {
+        // Because we know the length of the tuples we could point directly to the ctor
+        return list -> TupleFactory.create(list.asList());
+//    	switch(length) {
+//    	case
+//
+//    	};
+    }
+
+
 
     @Override
     public com.github.andrewoma.dexx.collection.List<C> reduce(
@@ -61,14 +97,14 @@ public class KeyReducerTuple<C>
         // Inverted projection which maps projected tuple ids to the slots
         // e.g. [3, 2, 3, 9] becomes [2: {1}, 3: {0, 1}, 9:{3}]
         Multimap<Integer, Integer> tupleIdxToProjSlot = HashMultimap.create();
-        Set<Integer> remainingProjIdx = new HashSet<>();
+        Set<Integer> remainingTupleIdxs = new HashSet<>();
 
         for (int i = 0; i < projection.length; ++i) {
             int tupleIdx = projection[i];
             tupleIdxToProjSlot.put(tupleIdx, i);
 
             // E.g. {2, 3, 9}
-            remainingProjIdx.add(tupleIdx);
+            remainingTupleIdxs.add(tupleIdx);
         }
 
 
@@ -92,9 +128,9 @@ public class KeyReducerTuple<C>
 
                 // Take note of any tuple idx that are requested and not already served
                 // A reducer will be created for them that collects the component values into a list
-                if (remainingProjIdx.contains(tupleIdx)) {
+                if (remainingTupleIdxs.contains(tupleIdx)) {
                     reducedKeyIdxToTupleIdx.add(tupleIdx);
-                    remainingProjIdx.remove(tupleIdx);
+                    remainingTupleIdxs.remove(tupleIdx);
                     keyComponentIdxsToAppend.add(t);
                 }
             }
@@ -108,8 +144,12 @@ public class KeyReducerTuple<C>
             reducers.add(nodeReducer);
         }
 
+//        Function<? super com.github.andrewoma.dexx.collection.List<C>, ? extends Tuple<C>> tupleFactory = createTupleFactory(projection.length);
 
-        return new KeyReducerTuple<C>(reducers, tupleIdxToProjSlot, reducedKeyIdxToTupleIdx);
+        return new KeyReducerTuple<C>(
+                projection,
+                reducers, tupleIdxToProjSlot,
+                reducedKeyIdxToTupleIdx.stream().mapToInt(x -> x).toArray());
     }
 
 }
