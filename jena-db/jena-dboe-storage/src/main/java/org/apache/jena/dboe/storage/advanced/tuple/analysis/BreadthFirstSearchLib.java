@@ -68,7 +68,7 @@ public class BreadthFirstSearchLib {
    }
 
 
-   public static <N> N conditionalBreadthFirst(
+   public static <N> N breadthFirstFindFirst(
            N start,
            Function<? super N, ? extends Iterable<? extends N>> successorFunction,
            Predicate<? super N> predicate

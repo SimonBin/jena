@@ -12,6 +12,11 @@ import java.util.stream.IntStream;
 import org.apache.jena.atlas.lib.persistent.PSet;
 import org.apache.jena.atlas.lib.persistent.PersistentSet;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
+import org.apache.jena.ext.com.google.common.graph.Traverser;
+import org.apache.jena.riot.RDFFormat;
+import org.apache.jena.riot.system.StreamRDF;
+import org.apache.jena.riot.system.StreamRDFOps;
+import org.apache.jena.riot.system.StreamRDFWriter;
 
 
 public class TupleQueryAnalyzer {
@@ -68,15 +73,21 @@ public class TupleQueryAnalyzer {
         // (2) use the index and emit the surface according to some cardinalities
         // We don't track cardinalities (yet) so go with (1)
 
+
+        // Distinct may become turned off if the projection can be served directly sfrom
+        // an index's top level surface form
+        boolean applyDistinctOnResult = tupleQuery.isDistinct();
+
+
         if (tupleQuery.isDistinct() && tupleQuery.hasProject()) {
 
             int[] project = tupleQuery.getProject();
             Set<Integer> proj = IntStream.of(project).boxed().collect(Collectors.toSet());
 
-//            List<IndexPathReport> projectionMatches = new ArrayList<>();
             List<IndexTreeNode<TupleLike, ComponentType>> projectionMatches = new ArrayList<>();
 
-            // TODO We may expand a candidate
+            // By 'deepening' the found candidates we may be able to serve remaining components
+            // of the requested projection
             for (Entry<IndexTreeNode<TupleLike, ComponentType>, PersistentSet<Integer>> candidate : patternMatches.entrySet()) {
 
                 boolean canServeProjection = candidate.getValue().asSet()
@@ -84,16 +95,36 @@ public class TupleQueryAnalyzer {
 
                 if (canServeProjection) {
                     projectionMatches.add(candidate.getKey());
+                } else {
+                    // Check whether by deepening the current node to its descendants would cover the projection
+                    // Performs depth first pre order search
+                    projectionMatches = DepthFirstSearchLib.conditionalDepthFirstInOrderWithParent(
+                            candidate.getKey(),
+                            null,
+                            IndexTreeNode::getChildren,
+                            (n, parent) -> { // non-reflexive; parent is never null
+
+                                // Beware of the side effects!
+                                PersistentSet<Integer> cover = patternMatches.get(parent);
+                                PersistentSet<Integer> nextCover = plus(cover, n);
+                                patternMatches.put(n, nextCover);
+
+                                boolean canExpansionServeProjection = nextCover.asSet().containsAll(proj);
+
+                                // System.out.println("Expansion for projection: " + n + " can serve " + canExpansionServeProjection + " " + nextCover.asSet() + " requested " + proj);
+
+                                // True indicates successful match and terminates the search on the branch
+                                return canExpansionServeProjection;
+                            }).collect(Collectors.toList());
+
                 }
-//            	while (start != null) {
-//            		int[] start.getIndexNode().getKeyTupleIdxs();
-//            	}
             }
 
             System.out.println("Can serve projection " + proj + " from " + projectionMatches);
         }
 
         // If no best candidate for the pattern was found we need to scan all tuples anyway
+        // For this purpose scan the content of the least-nested leaf node
         if (true) {
             node.leastNestedChildOrSelf();
 
@@ -122,14 +153,41 @@ public class TupleQueryAnalyzer {
         return new ArrayList<>();
     }
 
-//    public static <N> Stream<com.github.andrewoma.dexx.collection.List<N>>
-//    breadthFirstPaths2(N rootItem, Function<? super N, ? extends Collection<? extends N>> successorFn) {
-//        return breadthFirstPaths(LinkedLists.of(rootItem), parent -> successorFn.apply(parent).stream().map(x -> (N)x));
-//    }
+
+
+    /**
+     * Helper function to add the tuple indices of an index node to an existing persistent set of indices
+     *
+     * @param <D>
+     * @param <C>
+     * @param matchedComponents
+     * @param node
+     * @return
+     */
+    public static <D, C> PersistentSet<Integer> plus(PersistentSet<Integer> matchedComponents, IndexTreeNode<D, C> node) {
+        PersistentSet<Integer> result = matchedComponents;
+        int[] currentIdxs = node.getStorage().getKeyTupleIdxs();
+        for (int i = 0; i < currentIdxs.length; ++i) {
+            result = result.plus(currentIdxs[i]);
+        }
+        return result;
+    }
 
 
 
-
+    /**
+     * Depth first pre order travesal to find the deepest nodes for which
+     * no descendants can match more constraints of the tuple query
+     *
+     *
+     * @param <TupleLike>
+     * @param <ComponentType>
+     * @param tupleQuery
+     * @param node
+     * @param matchedComponents
+     * @param candidates
+     * @return
+     */
     public static <TupleLike, ComponentType> boolean analyzeForPattern(
             TupleQuery<ComponentType> tupleQuery,
             IndexTreeNode<TupleLike, ComponentType> node,
@@ -178,6 +236,6 @@ public class TupleQueryAnalyzer {
             }
         }
 
-        return canDoIndexedLookup || foundEvenBetterCandidate;
+        return canDoIndexedLookup && !foundEvenBetterCandidate;
     }
 }

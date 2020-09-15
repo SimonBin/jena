@@ -3,7 +3,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.analysis;
 public class Meta2NodeLib {
 
     public static <D, C> IndexTreeNode<D, C> findLeastNestedIndexNode(IndexTreeNode<D, C> node) {
-        return BreadthFirstSearchLib.conditionalBreadthFirst(
+        return BreadthFirstSearchLib.breadthFirstFindFirst(
                 node,
                 IndexTreeNode::getChildren,
                 n -> n.childCount() == 0);

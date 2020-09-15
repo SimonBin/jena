@@ -128,7 +128,7 @@ public class TestTupleTableCore {
         tupleQuery.setDistinct(true);
 //        tupleQuery.setConstraint(3, RDF.Nodes.type);
         tupleQuery.setConstraint(3, RDF.Nodes.first);
-        tupleQuery.setProject(3);
+        tupleQuery.setProject(1);
 
 
         System.out.println("BEGIN OF REPORTS");
