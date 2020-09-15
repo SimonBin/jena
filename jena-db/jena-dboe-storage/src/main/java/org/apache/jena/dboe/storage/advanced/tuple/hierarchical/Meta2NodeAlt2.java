@@ -29,7 +29,7 @@ public class Meta2NodeAlt2<D, C, V1, V2>
     }
 
     @Override
-    public List<? extends Meta2Node<D, C, ?>> getChildren() {
+    public List<? extends StorageNode<D, C, ?>> getChildren() {
         return Arrays.asList(children.getKey(), children.getValue());
     }
 

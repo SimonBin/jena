@@ -12,11 +12,6 @@ import java.util.stream.IntStream;
 import org.apache.jena.atlas.lib.persistent.PSet;
 import org.apache.jena.atlas.lib.persistent.PersistentSet;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
-import org.apache.jena.ext.com.google.common.graph.Traverser;
-import org.apache.jena.riot.RDFFormat;
-import org.apache.jena.riot.system.StreamRDF;
-import org.apache.jena.riot.system.StreamRDFOps;
-import org.apache.jena.riot.system.StreamRDFWriter;
 
 
 public class TupleQueryAnalyzer {
@@ -45,36 +40,24 @@ public class TupleQueryAnalyzer {
             IndexTreeNode<TupleLike, ComponentType> node,
             int[] componentWeights) {
 
+        // First we look for candidates that answer the constraints efficiently
+        // Then check whether it is possible to also answer the projection
+
         Map<IndexTreeNode<TupleLike, ComponentType>, PersistentSet<Integer>> patternMatches = new IdentityHashMap<>();
-
-        // Sort candidates with most number of components matched to keys first
-//        Collections.sort(patternMatches,
-//                (a, b) -> a.getMatchedComponents().asSet().size() - b.getMatchedComponents().asSet().size());
-
 
         analyzeForPattern(tupleQuery, node, PSet.empty(), patternMatches);
 
-        // If there are no matching candidates pick any index among those with the lowest nested depth
-        // so that we need to perform the least number of nested lookups
-
-//        List<Integer> pathToLeastNestedNode = null;
-//
-//        if (candidates.isEmpty()) {
-//            pathToLeastNestedNode =  Meta2NodeLib.findLeastNestedIndexNode(node);
-//
-//        }
+        // If there are suitable index nodes then pick the one deemed to be most selective
+        // The component weights are use for this purpose
 
 
-        // First we look for candidates that answer the constraints efficiently
-        // For this we want as many components correspond to keys in the index as possible
-
-        // If the request is non-distinct we have two options:
-        // (1) just iterate and project the quads
-        // (2) use the index and emit the surface according to some cardinalities
-        // We don't track cardinalities (yet) so go with (1)
+        // Sort candidates with most number of components matched to keys first
+//      Collections.sort(patternMatches,
+//              (a, b) -> a.getMatchedComponents().asSet().size() - b.getMatchedComponents().asSet().size());
 
 
-        // Distinct may become turned off if the projection can be served directly sfrom
+
+        // Distinct may become turned off if the projection can be served directly from
         // an index's top level surface form
         boolean applyDistinctOnResult = tupleQuery.isDistinct();
 
@@ -121,6 +104,7 @@ public class TupleQueryAnalyzer {
             }
 
             System.out.println("Can serve projection " + proj + " from " + projectionMatches);
+
         }
 
         // If no best candidate for the pattern was found we need to scan all tuples anyway

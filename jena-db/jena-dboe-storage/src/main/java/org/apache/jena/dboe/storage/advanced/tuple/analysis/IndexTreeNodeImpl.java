@@ -7,7 +7,7 @@ import java.util.Map.Entry;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2Node;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
 import org.apache.jena.ext.com.google.common.collect.Lists;
 import org.apache.jena.ext.com.google.common.collect.Maps;
@@ -17,16 +17,20 @@ import org.apache.jena.ext.com.google.common.graph.Traverser;
 public class IndexTreeNodeImpl<D, C>
     implements IndexTreeNode<D, C>
 {
-    protected Meta2Node<D, C, ?> storage;
+    protected StorageNode<D, C, ?> storage;
     protected IndexTreeNodeImpl<D, C> parent;
     protected int depth = 0;
     protected int childIndex = 0; // The ith child of the parent
     protected List<IndexTreeNodeImpl<D, C>> children = new ArrayList<>();
 
+
+    // Caches (computed on first request)
     protected IndexTreeNodeImpl<D, C> leastNestedNode = null;
+    protected List<IndexTreeNodeImpl<D, C>> ancestorsCache = null;
+
 
     public IndexTreeNodeImpl(
-            Meta2Node<D, C, ?> storage,
+            StorageNode<D, C, ?> storage,
             IndexTreeNodeImpl<D, C> parent) {
         super();
         this.storage = storage;
@@ -59,13 +63,23 @@ public class IndexTreeNodeImpl<D, C>
         return leastNestedNode;
     }
 
+    public List<IndexTreeNodeImpl<D, C>> ancestors() {
+        if (ancestorsCache == null) {
+            ancestorsCache = Lists.newArrayList(Traverser.<IndexTreeNodeImpl<D, C>>forTree(n -> n.getParent() == null
+                    ? Collections.emptySet()
+                    : Collections.singleton(n.getParent())).depthFirstPostOrder(this));
+        }
 
-    public static <D, C> IndexTreeNodeImpl<D, C> bakeTree(Meta2Node<D, C, ?> root) {
+        return ancestorsCache;
+    }
 
-        IndexTreeNodeImpl<D, C> result = TreeLib.<Meta2Node<D, C, ?>, IndexTreeNodeImpl<D, C>>createTreePreOrder(
+
+    public static <D, C> IndexTreeNodeImpl<D, C> bakeTree(StorageNode<D, C, ?> root) {
+
+        IndexTreeNodeImpl<D, C> result = TreeLib.<StorageNode<D, C, ?>, IndexTreeNodeImpl<D, C>>createTreePreOrder(
                 null,
                 root,
-                Meta2Node::getChildren,
+                StorageNode::getChildren,
                 IndexTreeNodeImpl::new,
                 IndexTreeNodeImpl::addChild);
 
@@ -80,7 +94,7 @@ public class IndexTreeNodeImpl<D, C>
 
 
     @Override
-    public Meta2Node<D, C, ?> getStorage() {
+    public StorageNode<D, C, ?> getStorage() {
         return storage;
     }
 
@@ -114,11 +128,9 @@ public class IndexTreeNodeImpl<D, C>
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {
 
+        // Gather this node's ancestors in a list
         // Root is first element in the list because of depthFirstPostOrder
-        List<IndexTreeNodeImpl<D, C>> ancestors = Lists.newArrayList(Traverser.<IndexTreeNodeImpl<D, C>>forTree(n -> n.getParent() == null
-                ? Collections.emptySet()
-                : Collections.singleton(n.getParent())).depthFirstPostOrder(this));
-
+        List<IndexTreeNodeImpl<D, C>> ancestors = ancestors();
 
         // The lambdas in the following are deliberately verbose in an attempt to ease debugging
 
@@ -145,6 +157,9 @@ public class IndexTreeNodeImpl<D, C>
                     Stream<? extends Entry<?, ?>> subStream = nextStreamer.streamRaw(subStore);
 
                     return subStream.map(e2 -> {
+                        // FIXME Add some mechanisms so that we can skip creating pairs when we are not
+                        // interested in them
+
                         return Maps.immutableEntry(Maps.immutableEntry(e.getKey(), e2.getKey()), e2.getValue());
                     });
                 });

@@ -2,7 +2,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.analysis;
 
 import org.apache.jena.atlas.lib.persistent.PSet;
 import org.apache.jena.atlas.lib.persistent.PersistentSet;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2Node;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
 
 public class IndexPathReport {
     protected int depth;
@@ -10,13 +10,13 @@ public class IndexPathReport {
     protected IndexPathReport parent;
     protected int childId;
     protected PersistentSet<Integer> matchedComponents;
-    protected Meta2Node<?, ?, ?> indexNode;
+    protected StorageNode<?, ?, ?> indexNode;
 
     public IndexPathReport(IndexPathReport parent, int childId) {
         this(parent, childId, null, PSet.empty());
     }
 
-    public IndexPathReport(IndexPathReport parent, int childId, Meta2Node<?, ?, ?> indexNode, PersistentSet<Integer> matchedComponents) {
+    public IndexPathReport(IndexPathReport parent, int childId, StorageNode<?, ?, ?> indexNode, PersistentSet<Integer> matchedComponents) {
         super();
         this.depth = parent == null ? 0 : parent.depth + 1;
         this.parent = parent;
@@ -37,7 +37,7 @@ public class IndexPathReport {
         return matchedComponents;
     }
 
-    public Meta2Node<?, ?, ?> getIndexNode() {
+    public StorageNode<?, ?, ?> getIndexNode() {
         return indexNode;
     }
 

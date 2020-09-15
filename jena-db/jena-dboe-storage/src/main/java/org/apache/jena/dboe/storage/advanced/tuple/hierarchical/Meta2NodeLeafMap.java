@@ -29,7 +29,7 @@ public class Meta2NodeLeafMap<D, C, K, V>
     }
 
     @Override
-    public List<Meta2Node<D, C, ?>> getChildren() {
+    public List<StorageNode<D, C, ?>> getChildren() {
         return Collections.emptyList();
     }
 

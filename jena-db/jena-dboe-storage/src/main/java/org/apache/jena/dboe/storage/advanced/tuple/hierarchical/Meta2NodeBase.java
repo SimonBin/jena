@@ -3,7 +3,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 
 public abstract class Meta2NodeBase<D, C, V>
-    implements Meta2Node<D, C, V>
+    implements StorageNode<D, C, V>
 {
     protected int[] tupleIdxs;
     protected TupleAccessor<D, C> tupleAccessor;

@@ -25,7 +25,7 @@ public class Meta2NodeAltN<D, C>
     }
 
     @Override
-    public List<? extends Meta2Node<D, C, ?>> getChildren() {
+    public List<? extends StorageNode<D, C, ?>> getChildren() {
         return children;
     }
 

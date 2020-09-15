@@ -1,7 +1,7 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 public interface Meta2NodeCompound<D, C, V>
-    extends Meta2Node<D, C, V>
+    extends StorageNode<D, C, V>
 {
 //    Meta2Node<D, C, V> getChild();
 

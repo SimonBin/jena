@@ -9,11 +9,10 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 
 /**
- * FIXME The naming is horrible - it should be someting like StorageExpression or StorageFactory or
- * StorageManager or IndexNode or ...?
- * The 'Meta' in the name at present is because it is not the store itself but the factory for it
- * 'Node' because it is a node in a tree (or an expression)
- * '2' because its the second design
+ * A StorageNode can express nested storage such as nested maps, lists and sets for tuples.
+ * A Storage may have alternative child structures to choose from. All alternatives are assumed
+ * to be in sync and contain the same instance data - but the nesting may differ.
+ *
  *
  *
  * @author raven
@@ -22,14 +21,14 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
  * @param <C>
  * @param <V>
  */
-public interface Meta2Node<D, C, V> {
+public interface StorageNode<D, C, V> {
 
     /**
      * Each node in the storage expression may have 0 or more children
      *
      * @return
      */
-    List<? extends Meta2Node<D, C, ?>> getChildren();
+    List<? extends StorageNode<D, C, ?>> getChildren();
 
     /**
      * Future work; return a histogram for a corresponding store

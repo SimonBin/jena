@@ -30,7 +30,7 @@ public class Meta2NodeInnerMap<D, C, K, V>
 
 
     @Override
-    public List<Meta2Node<D, C, ?>> getChildren() {
+    public List<StorageNode<D, C, ?>> getChildren() {
         return Collections.singletonList(child);
     }
 
