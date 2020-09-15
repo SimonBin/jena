@@ -44,7 +44,7 @@ public interface IndexTreeNode<D, C> {
      * @param accessor
      * @return
      */
-    <T> Streamer<?, Entry<?, ?>> cartesianProduct(
+    <T> Streamer<?, ? extends Entry<?, ?>> cartesianProduct(
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor);
 

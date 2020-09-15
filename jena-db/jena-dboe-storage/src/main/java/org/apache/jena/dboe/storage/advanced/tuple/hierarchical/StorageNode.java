@@ -131,6 +131,17 @@ public interface StorageNode<D, C, V> {
             //int altIdx,
             T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 
+
+//    default <T> Streamer<Object, Entry<?, ?>> streamerForKeyAndSubStoresRaw(
+//            T pattern, TupleAccessorCore<? super T, ? extends C> accessor) {
+//
+//        Streamer<V, ? extends Entry<?, ?>> streamer = streamerForKeyAndSubStores(pattern, accessor);
+//        Object x = null;
+//        Stream<? extends Entry<?, ?>> fo = streamer.streamRaw((V)x);
+//
+//        return store ->fo;
+//    }
+
     // <T> Streamer<V, Tuple<C>> streamerForE(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 
     /**

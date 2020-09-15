@@ -71,7 +71,7 @@ public class TupleQueryAnalyzer {
 
             // By 'deepening' the found candidates we may be able to serve remaining components
             // of the requested projection
-            for (Entry<IndexTreeNode<TupleLike, ComponentType>, PersistentSet<Integer>> candidate : patternMatches.entrySet()) {
+            for (Entry<IndexTreeNode<TupleLike, ComponentType>, PersistentSet<Integer>> candidate : new ArrayList<>(patternMatches.entrySet())) {
 
                 boolean canServeProjection = candidate.getValue().asSet()
                         .containsAll(proj);
