@@ -88,14 +88,15 @@ public class TestTupleTableCore {
         // Hooray - ugly complex nested type expression - exactly what I would have wanted for Sparqlify's
         // source selection index like 8 years ago - but back then I constructed a similar nested expression starting from the root
         // This time I do it bottom-up and it is so much better!
-        Meta2NodeCompound<Quad, Node, Entry<Map<Node, Entry<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>> storage = alt2(
-            innerMap(3, LinkedHashMap::new,
-                alt2(
-                    innerMap(0, LinkedHashMap::new,
-                        innerMap(1, LinkedHashMap::new,
-                            leafMap(2, TupleAccessorQuad.INSTANCE, LinkedHashMap::new))),
-                    leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new))),
-            leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new));
+        Meta2NodeCompound<Quad, Node, Entry<Map<Node, Entry<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>> storage =
+            alt2(
+                innerMap(3, LinkedHashMap::new,
+                    alt2(
+                        innerMap(0, LinkedHashMap::new,
+                            innerMap(1, LinkedHashMap::new,
+                                leafMap(2, TupleAccessorQuad.INSTANCE, LinkedHashMap::new))),
+                        leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new))),
+                leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new));
 
 
         System.out.println("Storage structure: " + storage);
@@ -121,6 +122,8 @@ public class TestTupleTableCore {
             .streamRaw(root).forEach(x -> System.out.println("CARTPROD1: " + x.getKey()));
 
 
+        // ISSUE The leafMap does not declare have any children
+        // hence
         baked.child(0).child(0).child(0).child(0).child(0).cartesianProduct(Quad.create(Node.ANY, q1.getSubject(), Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
         .streamRaw(root).forEach(x -> System.out.println("CARTPROD2: " + x.getKey()));
 

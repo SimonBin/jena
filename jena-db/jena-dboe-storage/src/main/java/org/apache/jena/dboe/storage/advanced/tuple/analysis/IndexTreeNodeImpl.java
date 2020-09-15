@@ -165,7 +165,7 @@ public class IndexTreeNodeImpl<D, C>
             int i) {
         Stream<Entry<?, ?>> result;
 
-        if (i + 1 >= ancestors.size()) {
+        if (i >= ancestors.size()) {
             result = Stream.of(keysAndStoreAlts);
         } else {
             IndexTreeNodeImpl<D, C> node = ancestors.get(i);

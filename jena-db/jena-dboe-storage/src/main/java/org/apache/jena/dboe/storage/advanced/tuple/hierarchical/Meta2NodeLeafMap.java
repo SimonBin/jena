@@ -3,6 +3,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -30,6 +31,10 @@ public class Meta2NodeLeafMap<D, C, K, V>
 
     @Override
     public List<StorageNode<D, C, ?>> getChildren() {
+        // TODO We need to declare a 'fake' child - so that this node is an index for the child
+        // the child a store conceptually contains zero tuples but indexed by the keys of this node
+
+        // return Collections.singletonList(StorageComposers.leafSet(tupleAccessor, LinkedHashSet::new));
         return Collections.emptyList();
     }
 
@@ -102,10 +107,4 @@ public class Meta2NodeLeafMap<D, C, K, V>
 
         return childStream;
     }
-
-    @Override
-    public Object chooseSubStore(Map<K, V> store, int subStoreIdx) {
-        throw new UnsupportedOperationException("leaf maps do not have a sub store");
-    }
-
 }
