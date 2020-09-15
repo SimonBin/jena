@@ -28,7 +28,8 @@ public interface StoreAccessor<D, C> {
 
     StorageNode<D, C, ?> getStorage();
 
-    // reflexive
+    // reflexive, starts with the root, last element is this
+    List<? extends StoreAccessor<D, C>> ancestors();
     StoreAccessor<D, C> leastNestedChildOrSelf();
 
 
@@ -45,8 +46,11 @@ public interface StoreAccessor<D, C> {
      * @param accessor
      * @return
      */
-    <T> Streamer<?, ? extends Entry<?, ?>> cartesianProduct(
+    <T, K> Streamer<?, ? extends Entry<K, ?>> cartesianProduct(
             T pattern,
-            TupleAccessorCore<? super T, ? extends C> accessor);
+            TupleAccessorCore<? super T, ? extends C> accessor,
+            K initialAccumulator,
+            KeyReducer<K> keyReducer
+            );
 
 }
