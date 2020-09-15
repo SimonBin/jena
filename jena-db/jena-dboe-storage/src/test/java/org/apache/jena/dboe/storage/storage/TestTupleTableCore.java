@@ -26,7 +26,8 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuadAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQueryImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexPathReport;
-import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexTreeNodeImpl;
+import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2NodeCompound;
 import org.apache.jena.graph.Node;
@@ -113,22 +114,21 @@ public class TestTupleTableCore {
         storage.add(root, q3);
         storage.add(root, q4);
 
-        IndexTreeNodeImpl<Quad, Node> baked = IndexTreeNodeImpl.bakeTree(storage);
+        StoreAccessor<Quad, Node> rootAccessor = StoreAccessorImpl.createForStore(storage);
 
-        baked.child(0).cartesianProduct(Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
+        rootAccessor.child(0).cartesianProduct(Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
         .streamRaw(root).forEach(x -> System.out.println("CARTPROD0: " + x.getKey()));
 
-        baked.child(0).child(0).child(0).cartesianProduct(Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
+        rootAccessor.child(0).child(0).child(0).cartesianProduct(Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
             .streamRaw(root).forEach(x -> System.out.println("CARTPROD1: " + x.getKey()));
 
-
-        // ISSUE The leafMap does not declare have any children
-        // hence
-        baked.child(0).child(0).child(0).child(0).child(0).cartesianProduct(Quad.create(Node.ANY, q1.getSubject(), Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
+        rootAccessor.child(0).child(0).child(0).child(0).child(0).cartesianProduct(Quad.create(Node.ANY, q1.getSubject(), Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
         .streamRaw(root).forEach(x -> System.out.println("CARTPROD2: " + x.getKey()));
 
+        rootAccessor.child(0).child(0).child(0).child(0).child(0).cartesianProduct(Quad.create(Node.ANY, Node.ANY, Node.ANY, q4.getObject()), TupleAccessorQuadAnyToNull.INSTANCE)
+        .streamRaw(root).forEach(x -> System.out.println("CARTPROD3: " + x.getKey()));
 
-        System.out.println("Baked: " + baked);
+        System.out.println("Baked: " + rootAccessor);
 
         storage.getChildren().get(0)
             .streamerForKeysAsComponent(Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
@@ -143,7 +143,7 @@ public class TestTupleTableCore {
 
 
         System.out.println("BEGIN OF REPORTS");
-        List<IndexPathReport> reports = TupleQueryAnalyzer.analyze(tupleQuery, baked, new int[] {10, 10, 1, 100});
+        List<IndexPathReport> reports = TupleQueryAnalyzer.analyze(tupleQuery, rootAccessor, new int[] {10, 10, 1, 100});
 
         for (IndexPathReport report : reports) {
             System.out.println(report);

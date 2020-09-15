@@ -15,24 +15,24 @@ import org.apache.jena.ext.com.google.common.collect.Maps;
 import org.apache.jena.ext.com.google.common.graph.Traverser;
 
 
-public class IndexTreeNodeImpl<D, C>
-    implements IndexTreeNode<D, C>
+public class StoreAccessorImpl<D, C>
+    implements StoreAccessor<D, C>
 {
     protected StorageNode<D, C, ?> storage;
-    protected IndexTreeNodeImpl<D, C> parent;
+    protected StoreAccessorImpl<D, C> parent;
     protected int depth = 0;
     protected int childIndex = 0; // The ith child of the parent
-    protected List<IndexTreeNodeImpl<D, C>> children = new ArrayList<>();
+    protected List<StoreAccessorImpl<D, C>> children = new ArrayList<>();
 
 
     // Caches (computed on first request)
-    protected IndexTreeNodeImpl<D, C> leastNestedNode = null;
-    protected List<IndexTreeNodeImpl<D, C>> ancestorsCache = null;
+    protected StoreAccessorImpl<D, C> leastNestedNode = null;
+    protected List<StoreAccessorImpl<D, C>> ancestorsCache = null;
 
 
-    public IndexTreeNodeImpl(
+    public StoreAccessorImpl(
             StorageNode<D, C, ?> storage,
-            IndexTreeNodeImpl<D, C> parent) {
+            StoreAccessorImpl<D, C> parent) {
         super();
         this.storage = storage;
         this.parent = parent;
@@ -40,7 +40,7 @@ public class IndexTreeNodeImpl<D, C>
     }
 
     @Override
-    public IndexTreeNodeImpl<D, C> child(int idx) {
+    public StoreAccessorImpl<D, C> child(int idx) {
         return children.get(idx);
     }
 
@@ -50,23 +50,23 @@ public class IndexTreeNodeImpl<D, C>
     }
 
     @Override
-    public List<? extends IndexTreeNode<D, C>> getChildren() {
+    public List<? extends StoreAccessor<D, C>> getChildren() {
         return children;
     }
 
 
     @Override
-    public IndexTreeNode<D, C> leastNestedChildOrSelf() {
+    public StoreAccessor<D, C> leastNestedChildOrSelf() {
         if (leastNestedNode == null) {
-            leastNestedNode = (IndexTreeNodeImpl<D, C>) Meta2NodeLib.findLeastNestedIndexNode(this);
+            leastNestedNode = (StoreAccessorImpl<D, C>) Meta2NodeLib.findLeastNestedIndexNode(this);
         }
 
         return leastNestedNode;
     }
 
-    public List<IndexTreeNodeImpl<D, C>> ancestors() {
+    public List<StoreAccessorImpl<D, C>> ancestors() {
         if (ancestorsCache == null) {
-            ancestorsCache = Lists.newArrayList(Traverser.<IndexTreeNodeImpl<D, C>>forTree(n -> n.getParent() == null
+            ancestorsCache = Lists.newArrayList(Traverser.<StoreAccessorImpl<D, C>>forTree(n -> n.getParent() == null
                     ? Collections.emptySet()
                     : Collections.singleton(n.getParent())).depthFirstPostOrder(this));
         }
@@ -75,21 +75,21 @@ public class IndexTreeNodeImpl<D, C>
     }
 
 
-    public static <D, C> IndexTreeNodeImpl<D, C> bakeTree(StorageNode<D, C, ?> root) {
+    public static <D, C> StoreAccessorImpl<D, C> createForStore(StorageNode<D, C, ?> root) {
 
-        IndexTreeNodeImpl<D, C> result = TreeLib.<StorageNode<D, C, ?>, IndexTreeNodeImpl<D, C>>createTreePreOrder(
+        StoreAccessorImpl<D, C> result = TreeLib.<StorageNode<D, C, ?>, StoreAccessorImpl<D, C>>createTreePreOrder(
                 null,
                 root,
                 StorageNode::getChildren,
-                IndexTreeNodeImpl::new,
-                IndexTreeNodeImpl::addChild);
+                StoreAccessorImpl::new,
+                StoreAccessorImpl::addChild);
 
         return result;
     }
 
 
     @Override
-    public IndexTreeNodeImpl<D, C> getParent() {
+    public StoreAccessorImpl<D, C> getParent() {
         return parent;
     }
 
@@ -103,7 +103,7 @@ public class IndexTreeNodeImpl<D, C>
         return childIndex;
     }
 
-    public void addChild(IndexTreeNodeImpl<D, C> child) {
+    public void addChild(StoreAccessorImpl<D, C> child) {
         child.childIndex = children.size();
         children.add(child);
     }
@@ -132,7 +132,7 @@ public class IndexTreeNodeImpl<D, C>
 
         // Gather this node's ancestors in a list
         // Root is first element in the list because of depthFirstPostOrder
-        List<IndexTreeNodeImpl<D, C>> ancestors = ancestors();
+        List<StoreAccessorImpl<D, C>> ancestors = ancestors();
 
         List<Streamer<?, ? extends Entry<?, ?>>> nodeStreamers = ancestors.stream().map(
                 node -> node.getStorage().streamerForKeyAndSubStores(pattern, accessor))
@@ -160,7 +160,7 @@ public class IndexTreeNodeImpl<D, C>
      */
     public <T> Stream<Entry<?, ?>> recursiveCartesianProduct(
             Entry<?, ?> keysAndStoreAlts,
-            List<IndexTreeNodeImpl<D, C>> ancestors,
+            List<StoreAccessorImpl<D, C>> ancestors,
             List<Streamer<?, ? extends Entry<?, ?>>> nodeStreamers,
             int i) {
         Stream<Entry<?, ?>> result;
@@ -168,7 +168,7 @@ public class IndexTreeNodeImpl<D, C>
         if (i >= ancestors.size()) {
             result = Stream.of(keysAndStoreAlts);
         } else {
-            IndexTreeNodeImpl<D, C> node = ancestors.get(i);
+            StoreAccessorImpl<D, C> node = ancestors.get(i);
             Streamer<?, ? extends Entry<?, ?>> nextStreamer = nodeStreamers.get(i);
 
             Object storeAlts = keysAndStoreAlts.getValue();
@@ -230,7 +230,7 @@ public class IndexTreeNodeImpl<D, C>
 
         // Gather this node's ancestors in a list
         // Root is first element in the list because of depthFirstPostOrder
-        List<IndexTreeNodeImpl<D, C>> ancestors = ancestors();
+        List<StoreAccessorImpl<D, C>> ancestors = ancestors();
 
         // The lambdas in the following are deliberately verbose in an attempt to ease debugging
 
@@ -238,7 +238,7 @@ public class IndexTreeNodeImpl<D, C>
         Streamer<Entry<?, ?>, Entry<?, ?>> currPairStreamer = e -> Stream.of(e); //store -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), store));
 
         for (int i = 0; i < ancestors.size(); ++i) {
-            IndexTreeNodeImpl<D, C> node = ancestors.get(i);
+            StoreAccessorImpl<D, C> node = ancestors.get(i);
 
             Streamer<?, ? extends Entry<?, ?>> nextStreamer = node.getStorage().streamerForKeyAndSubStores(pattern, accessor);
 

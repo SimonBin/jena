@@ -9,7 +9,8 @@ import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
 
 
 /**
- * Auxiliary tree structure wrapping a storage node structure
+ * Storage retrievers form an auxiliary tree structure wrapping a storage nodes
+ *
  * Features cartesian products and projection of keys
  *
  *
@@ -18,17 +19,17 @@ import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
  * @param <D>
  * @param <C>
  */
-public interface IndexTreeNode<D, C> {
-    IndexTreeNode<D, C> getParent();
+public interface StoreAccessor<D, C> {
+    StoreAccessor<D, C> getParent();
 
-    List<? extends IndexTreeNode<D, C>> getChildren();
-    IndexTreeNode<D, C> child(int idx);
+    List<? extends StoreAccessor<D, C>> getChildren();
+    StoreAccessor<D, C> child(int idx);
     int childCount();
 
     StorageNode<D, C, ?> getStorage();
 
     // reflexive
-    IndexTreeNode<D, C> leastNestedChildOrSelf();
+    StoreAccessor<D, C> leastNestedChildOrSelf();
 
 
     /**

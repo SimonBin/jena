@@ -37,13 +37,13 @@ public class TupleQueryAnalyzer {
      */
     public static <TupleLike, ComponentType> List<IndexPathReport> analyze(
             TupleQuery<ComponentType> tupleQuery,
-            IndexTreeNode<TupleLike, ComponentType> node,
+            StoreAccessor<TupleLike, ComponentType> node,
             int[] componentWeights) {
 
         // First we look for candidates that answer the constraints efficiently
         // Then check whether it is possible to also answer the projection
 
-        Map<IndexTreeNode<TupleLike, ComponentType>, PersistentSet<Integer>> patternMatches = new IdentityHashMap<>();
+        Map<StoreAccessor<TupleLike, ComponentType>, PersistentSet<Integer>> patternMatches = new IdentityHashMap<>();
 
         analyzeForPattern(tupleQuery, node, PSet.empty(), patternMatches);
 
@@ -67,11 +67,11 @@ public class TupleQueryAnalyzer {
             int[] project = tupleQuery.getProject();
             Set<Integer> proj = IntStream.of(project).boxed().collect(Collectors.toSet());
 
-            List<IndexTreeNode<TupleLike, ComponentType>> projectionMatches = new ArrayList<>();
+            List<StoreAccessor<TupleLike, ComponentType>> projectionMatches = new ArrayList<>();
 
             // By 'deepening' the found candidates we may be able to serve remaining components
             // of the requested projection
-            for (Entry<IndexTreeNode<TupleLike, ComponentType>, PersistentSet<Integer>> candidate : new ArrayList<>(patternMatches.entrySet())) {
+            for (Entry<StoreAccessor<TupleLike, ComponentType>, PersistentSet<Integer>> candidate : new ArrayList<>(patternMatches.entrySet())) {
 
                 boolean canServeProjection = candidate.getValue().asSet()
                         .containsAll(proj);
@@ -84,7 +84,7 @@ public class TupleQueryAnalyzer {
                     projectionMatches = DepthFirstSearchLib.conditionalDepthFirstInOrderWithParent(
                             candidate.getKey(),
                             null,
-                            IndexTreeNode::getChildren,
+                            StoreAccessor::getChildren,
                             (n, parent) -> { // non-reflexive; parent is never null
 
                                 // Beware of the side effects!
@@ -148,7 +148,7 @@ public class TupleQueryAnalyzer {
      * @param node
      * @return
      */
-    public static <D, C> PersistentSet<Integer> plus(PersistentSet<Integer> matchedComponents, IndexTreeNode<D, C> node) {
+    public static <D, C> PersistentSet<Integer> plus(PersistentSet<Integer> matchedComponents, StoreAccessor<D, C> node) {
         PersistentSet<Integer> result = matchedComponents;
         int[] currentIdxs = node.getStorage().getKeyTupleIdxs();
         for (int i = 0; i < currentIdxs.length; ++i) {
@@ -174,9 +174,9 @@ public class TupleQueryAnalyzer {
      */
     public static <TupleLike, ComponentType> boolean analyzeForPattern(
             TupleQuery<ComponentType> tupleQuery,
-            IndexTreeNode<TupleLike, ComponentType> node,
+            StoreAccessor<TupleLike, ComponentType> node,
             PersistentSet<Integer> matchedComponents,
-            Map<? super IndexTreeNode<TupleLike, ComponentType>, PersistentSet<Integer>> candidates
+            Map<? super StoreAccessor<TupleLike, ComponentType>, PersistentSet<Integer>> candidates
             ) {
 
 //        PathReport result = new PathReport(parent, altIdx);
@@ -205,9 +205,9 @@ public class TupleQueryAnalyzer {
 
             // If none of the children matches any more components than return this
 //            for(Meta2Node<TupleLike, ComponentType, ?> child : node.getChildren()) {
-            List<? extends IndexTreeNode<TupleLike, ComponentType>> children = node.getChildren();
+            List<? extends StoreAccessor<TupleLike, ComponentType>> children = node.getChildren();
             for (int childIdx = 0; childIdx < children.size(); ++childIdx) {
-                IndexTreeNode<TupleLike, ComponentType> child = children.get(childIdx);
+                StoreAccessor<TupleLike, ComponentType> child = children.get(childIdx);
                 foundEvenBetterCandidate = foundEvenBetterCandidate || analyzeForPattern(
                         tupleQuery,
                         child,
