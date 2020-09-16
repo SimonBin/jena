@@ -63,7 +63,7 @@ public abstract class Meta2NodeNoKeyBase<D, C, V>
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {
 
-        return argStore -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), argStore));
+        return argStore -> Stream.of(Maps.immutableEntry(null, argStore));
     }
 
     @Override

@@ -147,6 +147,15 @@ public class StoreAccessorImpl<D, C>
 //    }
 
 
+
+    /**
+     * Cartesian product with support for reducing keys
+     * Implicitly assumes that the altIdx is 0
+     *
+     * TODO Raise an exception when calling this method on a storage node that actually can have multiple
+     * alts.
+     *
+     */
     @Override
     public <T, K> Streamer<?, ? extends Entry<K, ?>> cartesianProduct(
             T pattern,
