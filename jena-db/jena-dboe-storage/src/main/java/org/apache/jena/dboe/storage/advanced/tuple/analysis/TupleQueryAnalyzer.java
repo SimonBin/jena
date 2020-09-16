@@ -5,12 +5,16 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.ResultStreamer;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleOps;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
 import org.apache.jena.ext.com.google.common.collect.ComparisonChain;
@@ -337,6 +341,25 @@ public class TupleQueryAnalyzer {
     }
 
 
+
+    public static <D, C, P> boolean recheckCondition(
+            D domainItem,
+            TupleAccessorCore<D, C> domainAccessor,
+            int[] recheckIdxs,
+            P pattern,
+            TupleAccessorCore<P, C> patternAccessor) {
+        boolean result = true;
+        for (int i = 0; result && i < recheckIdxs.length; ++i) {
+            int tupleIdx = recheckIdxs[i];
+            C actual = domainAccessor.get(domainItem, tupleIdx);
+            C expected = patternAccessor.get(pattern, tupleIdx);
+
+            result = Objects.equals(expected, actual);
+        }
+
+        return result;
+    }
+
     /**
      * Creates a streamer for the results of a tuple query.
      * The accessor must be a suitable candidate for answering the query!
@@ -356,13 +379,13 @@ public class TupleQueryAnalyzer {
      */
     public static <D, C, X, T> ResultStreamer<D, C, X> createResultStreamer(
             NodeStats<D, C> stats,
-            TupleQuery<C> tupleQuery
+            TupleQuery<C> tupleQuery,
+            TupleAccessorCore<D, C> domainAccessor
             ) {
 
         List<C> pattern = tupleQuery.getPattern();
         int[] projection = tupleQuery.getProject();
         boolean isDistinct = tupleQuery.isDistinct();
-
 
         StoreAccessor<D, C> accessor = stats.getAccessor();
 
@@ -372,21 +395,35 @@ public class TupleQueryAnalyzer {
         Set<Integer> indexedComponents = stats.getMatchedConstraintIdxSet();
 
         Set<Integer> recheckComponents = Sets.difference(constrainedComponents, indexedComponents);
-        int[] rechekIdxs = recheckComponents.stream().mapToInt(i -> i).toArray();
+        int[] recheckIdxs = recheckComponents.stream().mapToInt(i -> i).toArray();
 //        Set<Integer> constrainedComponents = new LinkedHashSet<>();
 
-
-        stats.getMatchedConstraintIdxSet();
 
         // Assumption: Leaf nodes contain domain objects
         // TODO This code will break if the  assumption is lifted
         if (accessor.getChildren().isEmpty()) {
-            Streamer<?, D> contentStream = accessor
+            Streamer<?, D> contentStreamer = accessor
                     .streamerForContent(tupleQuery.getPattern(), List::get);
 
+            if (recheckIdxs.length != 0) {
+                Streamer<?, D> tmp = contentStreamer;
+                contentStreamer = store -> tmp.streamRaw(store)
+                        .filter(domainItem -> recheckCondition(
+                                domainItem,
+                                domainAccessor,
+                                recheckIdxs,
+                                pattern,
+                                List::get));
+            }
+
             // Any projection needs to be served from the content
-
-
+            // TODO Check if all components are projected
+            if (projection != null) {
+                Function<D, Tuple<C>> projector = TupleOps.createProjector(projection, domainAccessor);
+                Streamer<?, D> tmp = contentStreamer;
+                Streamer<?, Tuple<C>> tupleStreamer = store -> tmp.streamRaw(store)
+                        .map(projector::apply);
+            }
 
         } else {
             if (projection.length == 1) {

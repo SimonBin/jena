@@ -7,6 +7,7 @@ import org.apache.jena.atlas.lib.tuple.TupleFactory;
 
 public class TupleOps {
 
+
     /**
      * Prepare and return a mapping function that projects specified components into {@link Tuple}s
      * from input tuple-like objects.
@@ -66,5 +67,41 @@ public class TupleOps {
             tuple[i] = accessor.get(domainObject, proj[i]);
         }
         return TupleFactory.create(tuple);
+    }
+
+
+    /**
+     * Convert to tuple
+     * @param <DomainType>
+     * @param <ComponentType>
+     * @param proj
+     * @param domainObject
+     * @param accessor
+     * @return
+     */
+    public static <D, C> Function<D, Tuple<C>> tupelizer(
+            TupleAccessor<? super D, ? extends C> accessor) {
+        Function<D, Tuple<C>> result;
+
+        int len = accessor.getRank();
+        switch(len) {
+        case 1: result = domain -> TupleFactory.create1(
+                accessor.get(domain, 0)); break;
+        case 2: result = domain -> TupleFactory.create2(
+                accessor.get(domain, 0),
+                accessor.get(domain, 1)); break;
+        case 3: result = domain -> TupleFactory.create3(
+                accessor.get(domain, 0),
+                accessor.get(domain, 1),
+                accessor.get(domain, 2)); break;
+        case 4: result = domain -> TupleFactory.create4(
+                accessor.get(domain, 0),
+                accessor.get(domain, 1),
+                accessor.get(domain, 2),
+                accessor.get(domain, 3)); break;
+        default: result = domain -> TupleFactory.create(accessor.toComponentArray(domain)); break;
+        }
+
+        return result;
     }
 }

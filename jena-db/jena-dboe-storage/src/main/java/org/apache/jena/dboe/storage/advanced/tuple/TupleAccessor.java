@@ -21,7 +21,7 @@ public interface TupleAccessor<DomainType, ComponentType>
      * @param accessor The accessor of components from the domain object
      * @return
      */
-    <T> DomainType restore(T obj, TupleAccessor<? super T, ? extends ComponentType> accessor);
+    <T> DomainType restore(T obj, TupleAccessorCore<? super T, ? extends ComponentType> accessor);
 
     default void validateRestoreArg(TupleAccessor<?, ?> accessor) {
         int cl = accessor.getRank();
