@@ -30,7 +30,7 @@ public class NodeStats<D, C> {
         return matchedComponents;
     }
 
-    public Set<Integer> getMatchedComponentsSet() {
+    public Set<Integer> getMatchedComponentSet() {
         return matchedComponentsSet;
     }
 

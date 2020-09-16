@@ -1,6 +1,7 @@
 package org.apache.jena.dboe.storage.advanced.tuple;
 
 import java.util.List;
+import java.util.Set;
 
 public interface TupleQuery<ComponentType> {
     /**
@@ -15,6 +16,8 @@ public interface TupleQuery<ComponentType> {
 
     void setConstraint(int idx, ComponentType value);
     ComponentType getConstraint(int idx);
+
+    Set<Integer> getConstrainedComponents();
 
     List<ComponentType> getPattern();
 

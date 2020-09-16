@@ -105,6 +105,8 @@ public interface StorageNode<D, C, V> {
     @SuppressWarnings("unchecked")
     default Object chooseSubStoreRaw(Object store, int subStoreIdx) {
         Object result;
+
+        // For performance the try/catch should only be active if a debug flag is set
         try {
             result = chooseSubStore((V)store, subStoreIdx);
         } catch (Exception e) {

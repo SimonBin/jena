@@ -1,7 +1,9 @@
 package org.apache.jena.dboe.storage.advanced.tuple;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class TupleQueryImpl<ComponentType>
     implements TupleQuery<ComponentType>
@@ -47,6 +49,7 @@ public class TupleQueryImpl<ComponentType>
     public ComponentType getConstraint(int idx) {
         return pattern.get(idx);
     }
+
     @Override
     public int[] getProject() {
         return projection;
@@ -65,5 +68,19 @@ public class TupleQueryImpl<ComponentType>
     @Override
     public boolean hasProject() {
         return projection != null;
+    }
+
+    @Override
+    public Set<Integer> getConstrainedComponents() {
+        Set<Integer> result = new LinkedHashSet<Integer>();
+        for (int i = 0; i < rank; ++i) {
+            ComponentType value = getConstraint(i);
+
+            // FIXME Check for 'ANY'
+            if (value != null) {
+                result.add(i);
+            }
+        }
+        return result;
     }
 }

@@ -5,17 +5,18 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.ResultStreamer;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
 import org.apache.jena.ext.com.google.common.collect.ComparisonChain;
 
 import com.github.andrewoma.dexx.collection.LinkedLists;
+import com.github.jsonldjava.shaded.com.google.common.collect.Sets;
 
 
 /**
@@ -50,8 +51,8 @@ class NodeStatsComparator<D, C>
 
     @Override
     public int compare(NodeStats<D, C> a, NodeStats<D, C> b) {
-        int[] matchesA = a.getMatchedComponentsSet().stream().mapToInt(x -> x).toArray();
-        int[] matchesB = b.getMatchedComponentsSet().stream().mapToInt(x -> x).toArray();
+        int[] matchesA = a.getMatchedComponentSet().stream().mapToInt(x -> x).toArray();
+        int[] matchesB = b.getMatchedComponentSet().stream().mapToInt(x -> x).toArray();
 
         int result = ComparisonChain.start()
             .compare(matchesA.length, matchesB.length)
@@ -181,7 +182,7 @@ public class TupleQueryAnalyzer {
             // of the requested projection
             for (NodeStats<D, C> candidate : new ArrayList<>(patternMatches)) {
 
-                boolean canServeProjection = candidate.getMatchedComponentsSet()
+                boolean canServeProjection = candidate.getMatchedComponentSet()
                         .containsAll(proj);
 
                 if (canServeProjection) {
@@ -205,7 +206,7 @@ public class TupleQueryAnalyzer {
 
                             // Abort if true
                             (nextNode, p) -> {
-                                boolean canExpansionServeProjection = nextNode.getMatchedComponentsSet().containsAll(proj);
+                                boolean canExpansionServeProjection = nextNode.getMatchedComponentSet().containsAll(proj);
 
                                 // Beware of the side effect!!!
                                 // We found a better match than the parent so
@@ -323,36 +324,70 @@ public class TupleQueryAnalyzer {
     }
 
 
+    /**
+     * Creates a streamer for the results of a tuple query.
+     * The accessor must be a suitable candidate for answering the query!
+     * A simple way to obtain one is with {@link #analyze(TupleQuery, StoreAccessor, int[])}
+     *
+     *
+     * @param <D>
+     * @param <C>
+     * @param <X>
+     * @param <T>
+     * @param accessor
+     * @param distinct
+     * @param projection
+     * @param pattern
+     * @param patternAccessor
+     * @return
+     */
     public static <D, C, X, T> ResultStreamer<D, C, X> createResultStreamer(
-            StoreAccessor<D, C> accessor,
-            int[] projection,
-            T pattern,
-            TupleAccessorCore<? super T, ? extends C> patternAccessor
+            NodeStats<D, C> stats,
+            TupleQuery<C> tupleQuery
             ) {
 
-//    	TupleQue
+        List<C> pattern = tupleQuery.getPattern();
+        int[] projection = tupleQuery.getProject();
+        boolean isDistinct = tupleQuery.isDistinct();
+
+
+        StoreAccessor<D, C> accessor = stats.getAccessor();
+
+        // Find out for which components we need to recheck the filter condition (if any)
+
+        Set<Integer> constrainedComponents = tupleQuery.getConstrainedComponents();
+        Set<Integer> indexedComponents = stats.getMatchedComponentSet();
+
+        Set<Integer> recheckComponents = Sets.difference(constrainedComponents, indexedComponents);
+        int[] rechekIdxs = recheckComponents.stream().mapToInt(i -> i).toArray();
+//        Set<Integer> constrainedComponents = new LinkedHashSet<>();
+
+
+        stats.getMatchedComponentSet();
 
         // Assumption: Leaf nodes contain domain objects
         // TODO This code will break if the  assumption is lifted
         if (accessor.getChildren().isEmpty()) {
             Streamer<?, D> contentStream = accessor
-                    .streamerForContent(pattern, patternAccessor);
+                    .streamerForContent(tupleQuery.getPattern(), List::get);
 
             // Any projection needs to be served from the content
+
+
 
         } else {
             if (projection.length == 1) {
                 // Here we assume that the accessor node is positioned on the one the holds the
                 // keys we want to project
                 Streamer<?, C> componentStream = accessor
-                        .streamerForKeys(pattern, patternAccessor, null, KeyReducers.projectOnly(accessor.depth()));
+                        .streamerForKeys(pattern, List::get, null, KeyReducers.projectOnly(accessor.depth()));
             } else {
                 // We need to project tuples
                 KeyReducerTuple<C> keyToTupleReducer = KeyReducerTuple.createForProjection(accessor, projection);
 
                 Streamer<?, Tuple<C>> tupleStream = store -> accessor.cartesianProduct(
                         pattern,
-                        patternAccessor,
+                        List::get,
                         //Quad.create(Node.ANY, Node.ANY, Node.ANY, q4.getObject()),
                         keyToTupleReducer.newAccumulator(),
                         keyToTupleReducer)

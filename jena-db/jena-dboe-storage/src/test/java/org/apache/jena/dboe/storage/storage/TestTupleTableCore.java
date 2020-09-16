@@ -189,6 +189,8 @@ public class TestTupleTableCore {
         System.out.println("BEGIN OF REPORTS");
         NodeStats<Quad, Node> bestMatch = TupleQueryAnalyzer.analyze(tupleQuery, rootAccessor, new int[] {10, 10, 1, 100});
 
+        TupleQueryAnalyzer.createResultStreamer(bestMatch, tupleQuery);
+
         System.out.println("Best match: " + bestMatch);
         System.out.println("END OF REPORTS");
 
