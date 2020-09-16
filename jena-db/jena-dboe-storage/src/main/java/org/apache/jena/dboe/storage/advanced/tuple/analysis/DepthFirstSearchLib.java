@@ -1,6 +1,7 @@
 package org.apache.jena.dboe.storage.advanced.tuple.analysis;
 
 import java.util.Collection;
+import java.util.Stack;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
@@ -58,5 +59,6 @@ public class DepthFirstSearchLib {
                     .map(child -> wrapperFn.apply(child, start))
                     .flatMap(child -> conditionalDepthFirstInOrderWithParentAndIndirectChildren(child, start, successorsFunction, wrapperFn, stopIfTrue));
     }
+
 
 }

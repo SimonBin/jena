@@ -1,7 +1,11 @@
 package org.apache.jena.dboe.storage.advanced.tuple.analysis;
 
 import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
 import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -81,6 +85,53 @@ public class BreadthFirstSearchLib {
                result = node;
                break;
            }
+       }
+
+       return result;
+   }
+
+
+
+   /**
+    * Item must not be null!
+    *
+    * @param <N>
+    * @param <C>
+    * @param start
+    * @param successorsFunction
+    * @param wrapChild
+    * @param predicate
+    * @return
+    */
+   public static <N, C> N breadthFirstFindFirstIndirect(
+           N start,
+           Function<? super N, ? extends Iterable<? extends C>> successorsFunction,
+           BiFunction<? super C, ? super N, ? extends N> wrapChild,
+           BiPredicate<? super N, ? super N> predicate
+           ) {
+
+       N result = null;
+
+       java.util.List<N> children = new ArrayList<>();
+       for(C rawChild : successorsFunction.apply(start)) {
+           N child = wrapChild.apply(rawChild, start);
+           boolean matches = predicate.test(child, start);
+           if (matches) {
+               result = child;
+               break;
+           }
+
+           children.add(child);
+       }
+
+       if (result == null) {
+           for (N child : children) {
+               result = breadthFirstFindFirstIndirect(child, successorsFunction, wrapChild, predicate);
+               if (result != null) {
+                   break;
+               }
+           }
+
        }
 
        return result;

@@ -51,8 +51,8 @@ class NodeStatsComparator<D, C>
 
     @Override
     public int compare(NodeStats<D, C> a, NodeStats<D, C> b) {
-        int[] matchesA = a.getMatchedComponentSet().stream().mapToInt(x -> x).toArray();
-        int[] matchesB = b.getMatchedComponentSet().stream().mapToInt(x -> x).toArray();
+        int[] matchesA = a.getMatchedConstraintIdxSet().stream().mapToInt(x -> x).toArray();
+        int[] matchesB = b.getMatchedConstraintIdxSet().stream().mapToInt(x -> x).toArray();
 
         int result = ComparisonChain.start()
             .compare(matchesA.length, matchesB.length)
@@ -148,6 +148,13 @@ public class TupleQueryAnalyzer {
         List<NodeStats<D, C>> patternMatches = new ArrayList<>();
         analyzeForPattern(tupleQuery, node, LinkedLists.of(), patternMatches);
 
+        System.out.println("Candidate indexes for " + tupleQuery);
+        int l = patternMatches.size();
+        for (int i = 0; i < l; ++i) {
+            NodeStats<D, C> cand = patternMatches.get(i);
+            System.out.println("Cand " + (i + 1) + "/" + l + ": " + cand);
+        }
+
         if (patternMatches.isEmpty()) {
             throw new RuntimeException("Found 0 nodes in the index structure to answer request; index is empty or internal error");
         }
@@ -180,9 +187,11 @@ public class TupleQueryAnalyzer {
 
             // By 'deepening' the found candidates we may be able to serve remaining components
             // of the requested projection
-            for (NodeStats<D, C> candidate : new ArrayList<>(patternMatches)) {
 
-                boolean canServeProjection = candidate.getMatchedComponentSet()
+            // Only for the best match
+            for (NodeStats<D, C> candidate : Collections.singleton(patternMatches.get(0))) {
+
+                boolean canServeProjection = candidate.getMatchedConstraintIdxSet()
                         .containsAll(proj);
 
                 if (canServeProjection) {
@@ -190,32 +199,32 @@ public class TupleQueryAnalyzer {
                 } else {
                     // Check whether by deepening the current node to its descendants would cover the projection
                     // Performs depth first pre order search
-                    projectionMatches = DepthFirstSearchLib.conditionalDepthFirstInOrderWithParentAndIndirectChildren(
+                    NodeStats<D, C> betterCandidate = BreadthFirstSearchLib.breadthFirstFindFirstIndirect(
                             candidate,
-                            null,
                             // Indirect access to children
                             stats -> stats.getAccessor().getChildren(),
 
-                            // Construction of succcessor node from indirect child and parent
-                            (child, parent) -> { // non-reflexive; parent is never null
-                                com.github.andrewoma.dexx.collection.List<Integer> cover = parent.getMatchedComponents();
-                                com.github.andrewoma.dexx.collection.List<Integer> nextCover = plus(cover, child);
-                                NodeStats<D, C> nextNode = new NodeStats<>(child, nextCover);
+                            // Construction of successor node from indirect child and parent
+                            (rawChild, parent) -> { // non-reflexive; parent is never null
+                                com.github.andrewoma.dexx.collection.List<Integer> cover = parent.getMatchedProjectIdxs();
+                                com.github.andrewoma.dexx.collection.List<Integer> nextCover = plus(cover, rawChild);
+
+                                NodeStats<D, C> nextNode = new NodeStats<>(rawChild, parent.getMatchedConstraintIdxs(), nextCover);
                                 return nextNode;
                             },
 
                             // Abort if true
-                            (nextNode, p) -> {
-                                boolean canExpansionServeProjection = nextNode.getMatchedComponentSet().containsAll(proj);
-
-                                // Beware of the side effect!!!
-                                // We found a better match than the parent so
-                                // remove a possible priorly matched parent
-                                patternMatches.remove(p);
-                                patternMatches.add(nextNode);
+                            (child, parent) -> {
+                                boolean canExpansionServeProjection =
+                                        child.getMatchedProjectIdxSet().containsAll(proj);
 
                                 return canExpansionServeProjection;
-                            }).collect(Collectors.toList());
+                            });
+
+                    if (betterCandidate != null) {
+                        projectionMatches.remove(candidate);
+                        projectionMatches.add(betterCandidate);
+                    }
                 }
 
                 if (!projectionMatches.isEmpty()) {
@@ -235,7 +244,7 @@ public class TupleQueryAnalyzer {
         if (result == null) {
             NodeStats<D, C> bestMatchForPattern = patternMatches.get(0);
             StoreAccessor<D, C> accessorForContent = bestMatchForPattern.getAccessor().leastNestedChildOrSelf();
-            result = new NodeStats<>(accessorForContent, LinkedLists.of());
+            result = new NodeStats<>(accessorForContent, LinkedLists.of(), LinkedLists.of());
         }
 
         return result;
@@ -272,19 +281,20 @@ public class TupleQueryAnalyzer {
      * @param <ComponentType>
      * @param tupleQuery
      * @param node
-     * @param matchedComponents
+     * @param matchedConstraintIdxs
      * @param candidates
      * @return
      */
     public static <D, C> boolean analyzeForPattern(
             TupleQuery<C> tupleQuery,
             StoreAccessor<D, C> node,
-            com.github.andrewoma.dexx.collection.List<Integer> matchedComponents,
+            com.github.andrewoma.dexx.collection.List<Integer> matchedConstraintIdxs,
             List<NodeStats<D, C>> candidates
             ) {
 
         int[] currentIxds = node.getStorage().getKeyTupleIdxs();
 
+        boolean suitableForIndexLookup = currentIxds.length > 0;
         boolean canDoIndexedLookup = true;
         for (int i = 0; i < currentIxds.length; ++i) {
             int componentIdx = currentIxds[i];
@@ -298,7 +308,7 @@ public class TupleQueryAnalyzer {
         boolean foundEvenBetterCandidate = false;
 
         if (canDoIndexedLookup) {
-            com.github.andrewoma.dexx.collection.List<Integer> newMatchedComponents = matchedComponents;
+            com.github.andrewoma.dexx.collection.List<Integer> newMatchedComponents = matchedConstraintIdxs;
             for (int i = 0; i < currentIxds.length; ++i) {
                 newMatchedComponents = newMatchedComponents.append(currentIxds[i]);
             }
@@ -313,14 +323,17 @@ public class TupleQueryAnalyzer {
                         newMatchedComponents,
                         candidates);
             }
-            if (!foundEvenBetterCandidate) {
+
+            if (!foundEvenBetterCandidate && suitableForIndexLookup) {
                 // candidates.add(betterCandidate);
-                NodeStats<D, C> candidate = new NodeStats<>(node, matchedComponents);
+                NodeStats<D, C> candidate = new NodeStats<>(node, newMatchedComponents, newMatchedComponents);
                 candidates.add(candidate);
             }
         }
 
-        return canDoIndexedLookup && !foundEvenBetterCandidate;
+        boolean result =
+                !foundEvenBetterCandidate && canDoIndexedLookup && suitableForIndexLookup;
+        return result;
     }
 
 
@@ -356,14 +369,14 @@ public class TupleQueryAnalyzer {
         // Find out for which components we need to recheck the filter condition (if any)
 
         Set<Integer> constrainedComponents = tupleQuery.getConstrainedComponents();
-        Set<Integer> indexedComponents = stats.getMatchedComponentSet();
+        Set<Integer> indexedComponents = stats.getMatchedConstraintIdxSet();
 
         Set<Integer> recheckComponents = Sets.difference(constrainedComponents, indexedComponents);
         int[] rechekIdxs = recheckComponents.stream().mapToInt(i -> i).toArray();
 //        Set<Integer> constrainedComponents = new LinkedHashSet<>();
 
 
-        stats.getMatchedComponentSet();
+        stats.getMatchedConstraintIdxSet();
 
         // Assumption: Leaf nodes contain domain objects
         // TODO This code will break if the  assumption is lifted

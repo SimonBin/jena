@@ -5,8 +5,11 @@ import java.util.Set;
 
 public class NodeStats<D, C> {
     protected StoreAccessor<D, C> accessor;
-    protected com.github.andrewoma.dexx.collection.List<Integer> matchedComponents;
-    protected Set<Integer> matchedComponentsSet;
+    protected com.github.andrewoma.dexx.collection.List<Integer> matchedConstraintIdxs;
+    protected com.github.andrewoma.dexx.collection.List<Integer> matchedProjectIdxs;
+
+    protected Set<Integer> matchedConstraintIdxSet;
+    protected Set<Integer> matchedProjectIdxSet;
 
 //    public NodeStats(StoreAccessor<D, C> accessor, int[] matches) {
 //        super();
@@ -14,11 +17,17 @@ public class NodeStats<D, C> {
 //        this.matches = matches;
 //    }
 
-    public NodeStats(StoreAccessor<D, C> accessor, com.github.andrewoma.dexx.collection.List<Integer> matchedComponents) {
+    public NodeStats(
+            StoreAccessor<D, C> accessor,
+            com.github.andrewoma.dexx.collection.List<Integer> matchedConstraintIdxs,
+            com.github.andrewoma.dexx.collection.List<Integer> matchedProjectIdxs) {
         super();
         this.accessor = accessor;
-        this.matchedComponents = matchedComponents;
-        this.matchedComponentsSet = new LinkedHashSet<>(matchedComponents.asList());
+        this.matchedConstraintIdxs = matchedConstraintIdxs;
+        this.matchedProjectIdxs = matchedProjectIdxs;
+
+        this.matchedConstraintIdxSet = new LinkedHashSet<>(matchedConstraintIdxs.asList());
+        this.matchedProjectIdxSet = new LinkedHashSet<>(matchedProjectIdxs.asList());
     }
 
 
@@ -26,12 +35,20 @@ public class NodeStats<D, C> {
     /** Component indices */
      // protected Set<Integer> matches;
 
-    public com.github.andrewoma.dexx.collection.List<Integer> getMatchedComponents() {
-        return matchedComponents;
+    public com.github.andrewoma.dexx.collection.List<Integer> getMatchedConstraintIdxs() {
+        return matchedConstraintIdxs;
     }
 
-    public Set<Integer> getMatchedComponentSet() {
-        return matchedComponentsSet;
+    public com.github.andrewoma.dexx.collection.List<Integer> getMatchedProjectIdxs() {
+        return matchedProjectIdxs;
+    }
+
+    public Set<Integer> getMatchedConstraintIdxSet() {
+        return matchedConstraintIdxSet;
+    }
+
+    public Set<Integer> getMatchedProjectIdxSet() {
+        return matchedProjectIdxSet;
     }
 
     public StoreAccessor<D, C> getAccessor() {
@@ -42,9 +59,9 @@ public class NodeStats<D, C> {
 
     @Override
     public String toString() {
-        return "NodeStats [accessor=" + accessor + ", matchedComponents=" + matchedComponents
-                + ", matchedComponentsSet=" + matchedComponentsSet + "]";
+        return "NodeStats [accessor=" + accessor + ", matchedConstraintIdxs=" + matchedConstraintIdxs
+                + ", matchedProjectIdxs=" + matchedProjectIdxs + ", matchedConstraintIdxSet=" + matchedConstraintIdxSet
+                + ", matchedProjectIdxSet=" + matchedProjectIdxSet + "]";
     }
-
 
 }

@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class TupleQueryImpl<ComponentType>
     implements TupleQuery<ComponentType>
@@ -81,6 +83,23 @@ public class TupleQueryImpl<ComponentType>
                 result.add(i);
             }
         }
+        return result;
+    }
+
+
+    @Override
+    public String toString() {
+        String result
+            = (isDistinct() ? "DISTINCT " : "")
+            + (projection == null
+                ? "*"
+                : IntStream.of(projection)
+                    .mapToObj(Integer::toString).collect(Collectors.joining(" ")))
+            + " WHERE "
+            + (getConstrainedComponents().isEmpty() ? "TRUE" :
+                getConstrainedComponents().stream().map(idx -> "" + idx + "=" + getConstraint(idx))
+                .collect(Collectors.joining(" AND ")));
+
         return result;
     }
 }
