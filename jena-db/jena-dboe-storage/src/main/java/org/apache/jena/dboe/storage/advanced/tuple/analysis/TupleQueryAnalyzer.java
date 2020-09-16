@@ -12,11 +12,11 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
-import org.apache.jena.dboe.storage.advanced.tuple.ResultStreamer;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleOps;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
+import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamer;
 import org.apache.jena.ext.com.google.common.collect.ComparisonChain;
 
 import com.github.andrewoma.dexx.collection.LinkedLists;

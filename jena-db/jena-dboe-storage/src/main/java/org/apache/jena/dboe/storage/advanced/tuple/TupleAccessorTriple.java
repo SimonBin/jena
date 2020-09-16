@@ -41,8 +41,8 @@ public class TupleAccessorTriple
 //    }
 
     @Override
-    public <T> Triple restore(T obj, TupleAccessor<? super T, ? extends Node> accessor) {
-        validateRestoreArg(accessor);
+    public <T> Triple restore(T obj, TupleAccessorCore<? super T, ? extends Node> accessor) {
+//        validateRestoreArg(accessor);
 
         return new Triple(
                 accessor.get(obj, 0),

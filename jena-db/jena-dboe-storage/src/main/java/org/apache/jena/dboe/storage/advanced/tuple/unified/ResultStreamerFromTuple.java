@@ -1,9 +1,8 @@
-package org.apache.jena.dboe.storage.advanced.tuple.analysis;
+package org.apache.jena.dboe.storage.advanced.tuple.unified;
 
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
-import org.apache.jena.dboe.storage.advanced.tuple.ResultStreamer;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
 

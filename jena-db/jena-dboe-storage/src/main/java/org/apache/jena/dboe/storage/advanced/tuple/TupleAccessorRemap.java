@@ -32,7 +32,7 @@ public class TupleAccessorRemap<TupleType, ComponentType>
     }
 
     @Override
-    public <T> TupleType restore(T obj, TupleAccessor<? super T, ? extends ComponentType> accessor) {
+    public <T> TupleType restore(T obj, TupleAccessorCore<? super T, ? extends ComponentType> accessor) {
         //return delegate.restore(obj, accessor);
         throw new RuntimeException("implement me");
 

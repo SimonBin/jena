@@ -40,11 +40,11 @@ public class TupleAccessorQuad
 
 
     @Override
-    public <T> Quad restore(T obj, TupleAccessor<? super T, ? extends Node> accessor) {
+    public <T> Quad restore(T obj, TupleAccessorCore<? super T, ? extends Node> accessor) {
 //        if (accessor.getRank() != this.getRank()) {
 //            throw new IllegalArgumentException("Ranks differ");
 //        }
-        validateRestoreArg(accessor);
+        // validateRestoreArg(accessor);
 
         return new Quad(
                 accessor.get(obj, 3),
