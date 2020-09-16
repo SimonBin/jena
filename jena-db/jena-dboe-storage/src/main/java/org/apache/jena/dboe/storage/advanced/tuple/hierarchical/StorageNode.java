@@ -110,8 +110,8 @@ public interface StorageNode<D, C, V> {
         } catch (Exception e) {
             throw new RuntimeException("Mismatch of data and schema;"
                     + "could not access alt " + subStoreIdx
-                    + " at a store of type " + this.getClass()
-                    + " " +  store.getClass()
+                    + " at a schema of type " + this.getClass()
+                    + " for data of type " +  store.getClass()
                     + " " + store, e);
         }
         return result;
@@ -122,6 +122,17 @@ public interface StorageNode<D, C, V> {
     }
 
 
+    /**
+     * Returns an object that can extract the stream of values at an index node under constraints
+     *
+     * map: { entry.value | entry in map and entry.key matches condition}
+     * leafSet: set.entries.stream() A leaf set does not have any keys that could affect the result stream
+     *
+     * @param <T>
+     * @param pattern
+     * @param accessor
+     * @return
+     */
     <T> Streamer<V, ?> streamerForValues(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 
     /**

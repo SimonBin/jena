@@ -59,25 +59,30 @@ abstract class Meta2NodeMapBase<D, C, K, V>
     }
 
 
+    public static <T, C> Object[] projectTupleToArray(int[] tupleIdxs, T tupleLike, TupleAccessorCore<T, C> tupleAccessor) {
+        Object[] result = new Object[tupleIdxs.length];
+        for (int i = 0; i < tupleIdxs.length; ++i) {
+            C componentValue = tupleAccessor.get(tupleLike, tupleIdxs[i]);
+            if (componentValue == null) {
+                result = null;
+                break;
+            }
+            result[i] = componentValue;
+        }
+
+        return result;
+    }
+
+
     public <T> Streamer<Map<K, V>, K> streamerForKeysUnderConstraints(
             T tupleLike,
             TupleAccessorCore<? super T, ? extends C> tupleAccessor)
     {
-        Object[] tmp = new Object[tupleIdxs.length];
-        boolean eligibleAsKey = true;
-        for (int i = 0; i < tupleIdxs.length; ++i) {
-            C componentValue = tupleAccessor.get(tupleLike, i);
-            if (componentValue == null) {
-                eligibleAsKey = false;
-                break;
-            }
-            tmp[i] = componentValue;
-        }
-
         Streamer<Map<K, V>, K> result;
 
-        if (eligibleAsKey) {
-            K key = keyFunction.map(tmp, (x, i) -> (C)x[i]);
+        Object[] keyComponents = projectTupleToArray(tupleIdxs, tupleLike, tupleAccessor);
+        if (keyComponents != null) {
+            K key = keyFunction.map(keyComponents, (x, i) -> (C)x[i]);
 
             result = argMap -> argMap.containsKey(key)
                     ? Stream.of(key)
@@ -88,6 +93,29 @@ abstract class Meta2NodeMapBase<D, C, K, V>
 
         return result;
     }
+
+
+    public <T> Streamer<Map<K, V>, V> streamerForValuesUnderConstraints(
+            T tupleLike,
+            TupleAccessorCore<? super T, ? extends C> tupleAccessor)
+    {
+        Streamer<Map<K, V>, V> result;
+
+        Object[] keyComponents = projectTupleToArray(tupleIdxs, tupleLike, tupleAccessor);
+        if (keyComponents != null) {
+            K key = keyFunction.map(keyComponents, (x, i) -> (C)x[i]);
+
+            result = argMap -> argMap.containsKey(key)
+                    ? Stream.of(argMap.get(key))
+                    : Stream.empty();
+        } else {
+            result = argMap -> argMap.values().stream();
+        }
+
+        return result;
+    }
+
+
 
     public <T> Streamer<Map<K, V>, Entry<K, V>> streamerForEntriesUnderConstraints(
             T tupleLike,
@@ -133,10 +161,11 @@ abstract class Meta2NodeMapBase<D, C, K, V>
 
     @Override
     public <T> Streamer<Map<K, V>, V> streamerForValues(T pattern, TupleAccessorCore<? super T, ? extends C> accessor) {
-        Streamer<Map<K, V>, K> baseStreamer = streamerForKeysUnderConstraints(pattern, accessor);
-
-        // The base streamer ensures that the key exists in the map
-        return argMap -> baseStreamer.stream(argMap).map(key -> argMap.get(key));
+        return streamerForValuesUnderConstraints(pattern, accessor);
+//        Streamer<Map<K, V>, K> baseStreamer = streamerForKeysUnderConstraints(pattern, accessor);
+//
+//        // The base streamer ensures that the key exists in the map
+//        return argMap -> baseStreamer.stream(argMap).map(key -> argMap.get(key));
     }
 
 

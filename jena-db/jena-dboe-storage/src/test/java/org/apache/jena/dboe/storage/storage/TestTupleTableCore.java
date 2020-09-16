@@ -137,6 +137,11 @@ public class TestTupleTableCore {
 //            .streamRaw(root).forEach(x -> System.out.println("CARTPROD1: " + x.getKey()));
 //
 
+        rootAccessor.child(0).child(0).child(0).child(0).child(0).streamContent(
+                Quad.create(Node.ANY, q1.getSubject(), Node.ANY, Node.ANY),
+                TupleAccessorQuadAnyToNull.INSTANCE)
+        .streamRaw(root).forEach(x -> System.out.println("CONTENT2: " + x));
+
         rootAccessor.leastNestedChildOrSelf().streamContent(
                 Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY),
                 TupleAccessorQuadAnyToNull.INSTANCE)
@@ -148,6 +153,8 @@ public class TestTupleTableCore {
                 null,
                 toPairs)
         .streamRaw(root).forEach(x -> System.out.println("CARTPROD2: " + x.getKey()));
+
+
 
 
         StoreAccessor<Quad, Node> oAccessor = rootAccessor.child(0).child(0).child(0).child(0).child(0);
