@@ -28,6 +28,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleQueryImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexPathReport;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.KeyReducer;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.KeyReducerTuple;
+import org.apache.jena.dboe.storage.advanced.tuple.analysis.NodeStats;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
@@ -184,12 +185,11 @@ public class TestTupleTableCore {
         tupleQuery.setProject(1);
 
 
-        System.out.println("BEGIN OF REPORTS");
-        List<IndexPathReport> reports = TupleQueryAnalyzer.analyze(tupleQuery, rootAccessor, new int[] {10, 10, 1, 100});
 
-        for (IndexPathReport report : reports) {
-            System.out.println(report);
-        }
+        System.out.println("BEGIN OF REPORTS");
+        NodeStats<Quad, Node> bestMatch = TupleQueryAnalyzer.analyze(tupleQuery, rootAccessor, new int[] {10, 10, 1, 100});
+
+        System.out.println("Best match: " + bestMatch);
         System.out.println("END OF REPORTS");
 
 

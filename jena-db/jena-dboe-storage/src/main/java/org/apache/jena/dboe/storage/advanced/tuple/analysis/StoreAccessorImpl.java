@@ -44,6 +44,16 @@ public class StoreAccessorImpl<D, C>
         return id;
     }
 
+    @Override
+    public int depth() {
+        return depth;
+    }
+
+    @Override
+    public int id() {
+        return id;
+    }
+
     public void setId(int id) {
         this.id = id;
     }
@@ -165,6 +175,8 @@ public class StoreAccessorImpl<D, C>
             ) {
         return cartesianProduct(pattern, accessor, initialAccumulator, keyReducer, 0);
     }
+
+
 
     public <T, K> Streamer<?, ? extends Entry<K, ?>> cartesianProduct(
             T pattern,

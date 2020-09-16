@@ -25,6 +25,9 @@ public interface StoreAccessor<D, C> {
     List<? extends StoreAccessor<D, C>> getChildren();
     StoreAccessor<D, C> child(int idx);
     int childCount();
+    int depth();
+    int id();
+
 
     StorageNode<D, C, ?> getStorage();
 

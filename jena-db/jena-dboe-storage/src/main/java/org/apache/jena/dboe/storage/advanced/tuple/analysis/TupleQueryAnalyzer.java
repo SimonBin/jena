@@ -1,20 +1,112 @@
 package org.apache.jena.dboe.storage.advanced.tuple.analysis;
 
 import java.util.ArrayList;
-import java.util.IdentityHashMap;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.apache.jena.atlas.lib.persistent.PSet;
-import org.apache.jena.atlas.lib.persistent.PersistentSet;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
+import org.apache.jena.ext.com.google.common.collect.ComparisonChain;
+
+import com.github.andrewoma.dexx.collection.LinkedLists;
+
+
+/**
+ * Compare NodeStats instances by selectivty w.r.t. componentWeights
+ *
+ * Uses a very simple heuristic
+ * <ol>
+ * <li>Number of matched components</li>
+ * <li>Component weight</li>
+ * <li>Depth of the index node</li> (e.g. prefers ([SP] ->[]) over ([S] -> ([P] -> [])
+ * </li>On tie: node id for determinism</li>
+ * </ol>
+ *
+ * @author raven
+ *
+ * @param <D>
+ * @param <C>
+ */
+class NodeStatsComparator<D, C>
+    implements Comparator<NodeStats<D, C>>
+{
+    protected int[] componentWeights;
+
+    public NodeStatsComparator(int[] componentWeights) {
+        super();
+        this.componentWeights = componentWeights;
+    }
+
+    public static <D, C> NodeStatsComparator<D, C> forWeights(int[] componentWeights) {
+        return new NodeStatsComparator<D, C>(componentWeights);
+    }
+
+    @Override
+    public int compare(NodeStats<D, C> a, NodeStats<D, C> b) {
+        int[] matchesA = a.getMatchedComponentsSet().stream().mapToInt(x -> x).toArray();
+        int[] matchesB = b.getMatchedComponentsSet().stream().mapToInt(x -> x).toArray();
+
+        int result = ComparisonChain.start()
+            .compare(matchesA.length, matchesB.length)
+            .compare(matchesA, matchesB, (x, y) -> compareIndirect(x, y, componentWeights))
+            .compare(a.getAccessor().depth(), b.getAccessor().depth())
+            .compare(a.getAccessor().id(), b.getAccessor().id())
+            .result();
+
+        return result;
+    }
+
+    public static int compareIndirect(int[] a, int[] b, int[] weights) {
+        int result = 0;
+        int l = Math.min(a.length, b.length);
+        for(int i = 0; i < l; ++i) {
+            int itemA = a[i];
+            int itemB = b[i];
+
+            int weightA = weights[itemA];
+            int weightB = weights[itemB];
+
+            int delta = weightB - weightA;
+            if (delta != 0) {
+                result = delta;
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * SPOG
+     * [ 1000, 1, 1000000, 10000]
+     *
+     *
+     *
+     * @param matchedTupleIdxs
+     * @param componentWeights
+     */
+//    public static selectivityScore(int[] matchedTupleIdxs, int[] componentWeights) {
+//        for (int i = 0; i < matchedTupleIdxs.length; ++i) {
+//            int tupleIdx = matchedTupleIdxs[i];
+//            int weight = componentWeights[i];
+//
+//
+//        }
+//    }
+}
 
 
 public class TupleQueryAnalyzer {
+
+
+//    public static createPlanForTuples(TupleQuery<ComponentType> tupleQuery,
+//            StoreAccessor<TupleLike, ComponentType> node,
+//            int[] componentWeights) {
+//
+//
+//    }
 
     /**
      * Simple analysis a tuple query against an index structure.
@@ -28,24 +120,35 @@ public class TupleQueryAnalyzer {
      * [10, 1, 100]
      * This is used as a basis for pair-wise cardinality estimates e.g. s to o would be 10:1000
      *
-     * @param <TupleLike>
-     * @param <ComponentType>
+     * @param <D>
+     * @param <C>
      * @param node
      * @param tupleQuery
      * @param int[] componentWeights
      * @return
      */
-    public static <TupleLike, ComponentType> List<IndexPathReport> analyze(
-            TupleQuery<ComponentType> tupleQuery,
-            StoreAccessor<TupleLike, ComponentType> node,
+    public static <D, C> NodeStats<D, C> analyze(
+            TupleQuery<C> tupleQuery,
+            StoreAccessor<D, C> node,
             int[] componentWeights) {
+
+
+        // The best candidate
+        NodeStats<D, C> result = null;
 
         // First we look for candidates that answer the constraints efficiently
         // Then check whether it is possible to also answer the projection
 
-        Map<StoreAccessor<TupleLike, ComponentType>, PersistentSet<Integer>> patternMatches = new IdentityHashMap<>();
+        List<NodeStats<D, C>> patternMatches = new ArrayList<>();
+        analyzeForPattern(tupleQuery, node, LinkedLists.of(), patternMatches);
 
-        analyzeForPattern(tupleQuery, node, PSet.empty(), patternMatches);
+        if (patternMatches.isEmpty()) {
+            throw new RuntimeException("Found 0 nodes in the index structure to answer request; index is empty or internal error");
+        }
+
+        NodeStatsComparator<D, C> nodeStatsComparator = NodeStatsComparator.forWeights(componentWeights);
+
+        Collections.sort(patternMatches, nodeStatsComparator);
 
         // If there are suitable index nodes then pick the one deemed to be most selective
         // The component weights are use for this purpose
@@ -62,79 +165,74 @@ public class TupleQueryAnalyzer {
         boolean applyDistinctOnResult = tupleQuery.isDistinct();
 
 
+        List<NodeStats<D, C>> projectionMatches = new ArrayList<>();
+
         if (tupleQuery.isDistinct() && tupleQuery.hasProject()) {
 
             int[] project = tupleQuery.getProject();
-            Set<Integer> proj = IntStream.of(project).boxed().collect(Collectors.toSet());
-
-            List<StoreAccessor<TupleLike, ComponentType>> projectionMatches = new ArrayList<>();
+            java.util.Set<Integer> proj = IntStream.of(project).boxed().collect(Collectors.toSet());
 
             // By 'deepening' the found candidates we may be able to serve remaining components
             // of the requested projection
-            for (Entry<StoreAccessor<TupleLike, ComponentType>, PersistentSet<Integer>> candidate : new ArrayList<>(patternMatches.entrySet())) {
+            for (NodeStats<D, C> candidate : new ArrayList<>(patternMatches)) {
 
-                boolean canServeProjection = candidate.getValue().asSet()
+                boolean canServeProjection = candidate.getMatchedComponentsSet()
                         .containsAll(proj);
 
                 if (canServeProjection) {
-                    projectionMatches.add(candidate.getKey());
+                    projectionMatches.add(candidate);
                 } else {
                     // Check whether by deepening the current node to its descendants would cover the projection
                     // Performs depth first pre order search
-                    projectionMatches = DepthFirstSearchLib.conditionalDepthFirstInOrderWithParent(
-                            candidate.getKey(),
+                    projectionMatches = DepthFirstSearchLib.conditionalDepthFirstInOrderWithParentAndIndirectChildren(
+                            candidate,
                             null,
-                            StoreAccessor::getChildren,
-                            (n, parent) -> { // non-reflexive; parent is never null
+                            // Indirect access to children
+                            stats -> stats.getAccessor().getChildren(),
 
-                                // Beware of the side effects!
-                                PersistentSet<Integer> cover = patternMatches.get(parent);
-                                PersistentSet<Integer> nextCover = plus(cover, n);
-                                patternMatches.put(n, nextCover);
+                            // Construction of succcessor node from indirect child and parent
+                            (child, parent) -> { // non-reflexive; parent is never null
+                                com.github.andrewoma.dexx.collection.List<Integer> cover = parent.getMatchedComponents();
+                                com.github.andrewoma.dexx.collection.List<Integer> nextCover = plus(cover, child);
+                                NodeStats<D, C> nextNode = new NodeStats<>(child, nextCover);
+                                return nextNode;
+                            },
 
-                                boolean canExpansionServeProjection = nextCover.asSet().containsAll(proj);
+                            // Abort if true
+                            (nextNode, p) -> {
+                                boolean canExpansionServeProjection = nextNode.getMatchedComponentsSet().containsAll(proj);
 
-                                // System.out.println("Expansion for projection: " + n + " can serve " + canExpansionServeProjection + " " + nextCover.asSet() + " requested " + proj);
+                                // Beware of the side effect!!!
+                                // We found a better match than the parent so
+                                // remove a possible priorly matched parent
+                                patternMatches.remove(p);
+                                patternMatches.add(nextNode);
 
-                                // True indicates successful match and terminates the search on the branch
                                 return canExpansionServeProjection;
                             }).collect(Collectors.toList());
+                }
 
+                if (!projectionMatches.isEmpty()) {
+                    // Sort the projection matches by depth
+                    Collections.sort(projectionMatches, (a, b) -> b.getAccessor().depth() - a.getAccessor().depth());
+
+                    // Pick first match
+                    result = projectionMatches.get(0);
+                    System.out.println("Can serve projection " + proj + " from " + projectionMatches);
+                    break;
                 }
             }
-
-            System.out.println("Can serve projection " + proj + " from " + projectionMatches);
-
         }
 
         // If no best candidate for the pattern was found we need to scan all tuples anyway
         // For this purpose scan the content of the least-nested leaf node
-        if (true) {
-            node.leastNestedChildOrSelf();
-
-            // We need the following access mechanisms:
-            // (.) stream the key set of some nested map (TODO the key must be tuple like so we can restore components!)
-            // (.) get the leaf values at some path (i.e. the quads themselves - skipping any keys in between)
-            // (.) stream several surface components of inner maps to create result tuples
-            //        this is a cartesian product like operation w.r.t. a given pattern
-
-            //
-            // So how to get the data out for surfaces efficiently?
-            // (a) create nested tuples such as Tuple.create(parent, newKey, newValue)
-            //    This is actually done right now with streamEntries
-            //
-            // (b) create flat tuples for each stream
-            //   create a surface stream up to a certain depth - then
-            //   surfaceStream.map(??? -> ???)
-            // Or
-
-//            node.buildStream()
-//            	.path(leastNestedIndexe)
-//            	.
-
+        if (result == null) {
+            NodeStats<D, C> bestMatchForPattern = patternMatches.get(0);
+            StoreAccessor<D, C> accessorForContent = bestMatchForPattern.getAccessor().leastNestedChildOrSelf();
+            result = new NodeStats<>(accessorForContent, LinkedLists.of());
         }
 
-        return new ArrayList<>();
+        return result;
     }
 
 
@@ -148,11 +246,11 @@ public class TupleQueryAnalyzer {
      * @param node
      * @return
      */
-    public static <D, C> PersistentSet<Integer> plus(PersistentSet<Integer> matchedComponents, StoreAccessor<D, C> node) {
-        PersistentSet<Integer> result = matchedComponents;
+    public static <D, C> com.github.andrewoma.dexx.collection.List<Integer> plus(com.github.andrewoma.dexx.collection.List<Integer> matchedComponents, StoreAccessor<D, C> node) {
+        com.github.andrewoma.dexx.collection.List<Integer> result = matchedComponents;
         int[] currentIdxs = node.getStorage().getKeyTupleIdxs();
         for (int i = 0; i < currentIdxs.length; ++i) {
-            result = result.plus(currentIdxs[i]);
+            result = result.append(currentIdxs[i]);
         }
         return result;
     }
@@ -172,21 +270,19 @@ public class TupleQueryAnalyzer {
      * @param candidates
      * @return
      */
-    public static <TupleLike, ComponentType> boolean analyzeForPattern(
-            TupleQuery<ComponentType> tupleQuery,
-            StoreAccessor<TupleLike, ComponentType> node,
-            PersistentSet<Integer> matchedComponents,
-            Map<? super StoreAccessor<TupleLike, ComponentType>, PersistentSet<Integer>> candidates
+    public static <D, C> boolean analyzeForPattern(
+            TupleQuery<C> tupleQuery,
+            StoreAccessor<D, C> node,
+            com.github.andrewoma.dexx.collection.List<Integer> matchedComponents,
+            List<NodeStats<D, C>> candidates
             ) {
-
-//        PathReport result = new PathReport(parent, altIdx);
 
         int[] currentIxds = node.getStorage().getKeyTupleIdxs();
 
         boolean canDoIndexedLookup = true;
         for (int i = 0; i < currentIxds.length; ++i) {
             int componentIdx = currentIxds[i];
-            ComponentType c = tupleQuery.getConstraint(componentIdx);
+            C c = tupleQuery.getConstraint(componentIdx);
             if (c == null) {
                 canDoIndexedLookup = false;
             }
@@ -196,18 +292,15 @@ public class TupleQueryAnalyzer {
         boolean foundEvenBetterCandidate = false;
 
         if (canDoIndexedLookup) {
-            PersistentSet<Integer> newMatchedComponents = matchedComponents;
+            com.github.andrewoma.dexx.collection.List<Integer> newMatchedComponents = matchedComponents;
             for (int i = 0; i < currentIxds.length; ++i) {
-                newMatchedComponents = newMatchedComponents.plus(currentIxds[i]);
+                newMatchedComponents = newMatchedComponents.append(currentIxds[i]);
             }
 
-            //IndexPathReport betterCandidate = new IndexPathReport(parent, altIdx, node, newMatchedComponents);
-
             // If none of the children matches any more components than return this
-//            for(Meta2Node<TupleLike, ComponentType, ?> child : node.getChildren()) {
-            List<? extends StoreAccessor<TupleLike, ComponentType>> children = node.getChildren();
+            List<? extends StoreAccessor<D, C>> children = node.getChildren();
             for (int childIdx = 0; childIdx < children.size(); ++childIdx) {
-                StoreAccessor<TupleLike, ComponentType> child = children.get(childIdx);
+                StoreAccessor<D, C> child = children.get(childIdx);
                 foundEvenBetterCandidate = foundEvenBetterCandidate || analyzeForPattern(
                         tupleQuery,
                         child,
@@ -216,7 +309,8 @@ public class TupleQueryAnalyzer {
             }
             if (!foundEvenBetterCandidate) {
                 // candidates.add(betterCandidate);
-                candidates.put(node, matchedComponents);
+                NodeStats<D, C> candidate = new NodeStats<>(node, matchedComponents);
+                candidates.add(candidate);
             }
         }
 
