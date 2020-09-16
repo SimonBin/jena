@@ -12,11 +12,15 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleOps;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
 import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamer;
+import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamerFromComponent;
+import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamerFromDomain;
+import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamerFromTuple;
 import org.apache.jena.ext.com.google.common.collect.ComparisonChain;
 
 import com.github.andrewoma.dexx.collection.LinkedLists;
@@ -377,11 +381,15 @@ public class TupleQueryAnalyzer {
      * @param patternAccessor
      * @return
      */
-    public static <D, C, X, T> ResultStreamer<D, C, X> createResultStreamer(
+    public static <D, C, T> ResultStreamer<D, C, Tuple<C>> createResultStreamer(
             NodeStats<D, C> stats,
             TupleQuery<C> tupleQuery,
-            TupleAccessorCore<D, C> domainAccessor
+            TupleAccessor<D, C> domainAccessor
             ) {
+
+
+        ResultStreamer<D, C, Tuple<C>> result;
+
 
         List<C> pattern = tupleQuery.getPattern();
         int[] projection = tupleQuery.getProject();
@@ -423,19 +431,26 @@ public class TupleQueryAnalyzer {
                 Streamer<?, D> tmp = contentStreamer;
                 Streamer<?, Tuple<C>> tupleStreamer = store -> tmp.streamRaw(store)
                         .map(projector::apply);
+
+                result = new ResultStreamerFromTuple<D, C>(projection.length, tupleStreamer, domainAccessor);
+            } else {
+                result = new ResultStreamerFromDomain<D, C>(contentStreamer, domainAccessor);
             }
 
         } else {
             if (projection.length == 1) {
                 // Here we assume that the accessor node is positioned on the one the holds the
                 // keys we want to project
-                Streamer<?, C> componentStream = accessor
+                Streamer<?, C> componentStreamer = accessor
                         .streamerForKeys(pattern, List::get, null, KeyReducers.projectOnly(accessor.depth()));
+
+                result = new ResultStreamerFromComponent<D, C>(componentStreamer, domainAccessor);
+
             } else {
                 // We need to project tuples
                 KeyReducerTuple<C> keyToTupleReducer = KeyReducerTuple.createForProjection(accessor, projection);
 
-                Streamer<?, Tuple<C>> tupleStream = store -> accessor.cartesianProduct(
+                Streamer<?, Tuple<C>> tupleStreamer = store -> accessor.cartesianProduct(
                         pattern,
                         List::get,
                         //Quad.create(Node.ANY, Node.ANY, Node.ANY, q4.getObject()),
@@ -443,13 +458,12 @@ public class TupleQueryAnalyzer {
                         keyToTupleReducer)
                 .streamRaw(store).map(Entry::getKey).map(keyToTupleReducer::makeTuple);
 
+                result = new ResultStreamerFromTuple<D, C>(projection.length, tupleStreamer, domainAccessor);
             }
         }
 
 
-
-
-        return null;
+        return result;
     }
 
 }

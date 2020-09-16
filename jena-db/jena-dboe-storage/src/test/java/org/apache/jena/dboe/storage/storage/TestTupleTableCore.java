@@ -25,7 +25,6 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuad;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuadAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQueryImpl;
-import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexPathReport;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.KeyReducer;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.KeyReducerTuple;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.NodeStats;
@@ -33,6 +32,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2NodeCompound;
+import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamer;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.sse.SSE;
@@ -188,10 +188,12 @@ public class TestTupleTableCore {
 
         System.out.println("BEGIN OF REPORTS");
         NodeStats<Quad, Node> bestMatch = TupleQueryAnalyzer.analyze(tupleQuery, rootAccessor, new int[] {10, 10, 1, 100});
-
-        TupleQueryAnalyzer.createResultStreamer(bestMatch, tupleQuery, TupleAccessorQuadAnyToNull.INSTANCE);
-
         System.out.println("Best match: " + bestMatch);
+
+        ResultStreamer<Quad, Node, Tuple<Node>> rs = TupleQueryAnalyzer.createResultStreamer(bestMatch, tupleQuery, TupleAccessorQuadAnyToNull.INSTANCE);
+
+        rs.streamAsTuple(storage).forEach(tuple -> System.out.println("GOT TUPLE: " + tuple));
+
         System.out.println("END OF REPORTS");
 
 
