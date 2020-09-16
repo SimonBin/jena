@@ -23,9 +23,9 @@ public interface ResultStreamer<D, C, T> {
 //        COMPONENT
 //    }
 
-    Stream<D> streamAsDomainObjects(Object store);
-    Stream<C> streamAsComponent(Object store);
-    Stream<T> streamAsTuple(Object store);
+    Stream<D> streamAsDomainObjects();
+    Stream<C> streamAsComponent();
+    Stream<T> streamAsTuple();
 
     /**
      * A set describing which methods are valid to invoke

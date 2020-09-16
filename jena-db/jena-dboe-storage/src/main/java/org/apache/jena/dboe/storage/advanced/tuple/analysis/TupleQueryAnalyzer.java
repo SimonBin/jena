@@ -2,7 +2,6 @@ package org.apache.jena.dboe.storage.advanced.tuple.analysis;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -18,98 +17,13 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleOps;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
 import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamer;
+import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamerBinder;
 import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamerFromComponent;
 import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamerFromDomain;
 import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamerFromTuple;
-import org.apache.jena.ext.com.google.common.collect.ComparisonChain;
 
 import com.github.andrewoma.dexx.collection.LinkedLists;
 import com.github.jsonldjava.shaded.com.google.common.collect.Sets;
-
-
-/**
- * Compare NodeStats instances by selectivty w.r.t. componentWeights
- *
- * Uses a very simple heuristic
- * <ol>
- * <li>Number of matched components</li>
- * <li>Component weight</li>
- * <li>Depth of the index node</li> (e.g. prefers ([SP] ->[]) over ([S] -> ([P] -> [])
- * </li>On tie: node id for determinism</li>
- * </ol>
- *
- * @author raven
- *
- * @param <D>
- * @param <C>
- */
-class NodeStatsComparator<D, C>
-    implements Comparator<NodeStats<D, C>>
-{
-    protected int[] componentWeights;
-
-    public NodeStatsComparator(int[] componentWeights) {
-        super();
-        this.componentWeights = componentWeights;
-    }
-
-    public static <D, C> NodeStatsComparator<D, C> forWeights(int[] componentWeights) {
-        return new NodeStatsComparator<D, C>(componentWeights);
-    }
-
-    @Override
-    public int compare(NodeStats<D, C> a, NodeStats<D, C> b) {
-        int[] matchesA = a.getMatchedConstraintIdxSet().stream().mapToInt(x -> x).toArray();
-        int[] matchesB = b.getMatchedConstraintIdxSet().stream().mapToInt(x -> x).toArray();
-
-        int result = ComparisonChain.start()
-            .compare(matchesA.length, matchesB.length)
-            .compare(matchesA, matchesB, (x, y) -> compareIndirect(x, y, componentWeights))
-            .compare(a.getAccessor().depth(), b.getAccessor().depth())
-            .compare(a.getAccessor().id(), b.getAccessor().id())
-            .result();
-
-        return result;
-    }
-
-    public static int compareIndirect(int[] a, int[] b, int[] weights) {
-        int result = 0;
-        int l = Math.min(a.length, b.length);
-        for(int i = 0; i < l; ++i) {
-            int itemA = a[i];
-            int itemB = b[i];
-
-            int weightA = weights[itemA];
-            int weightB = weights[itemB];
-
-            int delta = weightB - weightA;
-            if (delta != 0) {
-                result = delta;
-                break;
-            }
-        }
-
-        return result;
-    }
-
-    /**
-     * SPOG
-     * [ 1000, 1, 1000000, 10000]
-     *
-     *
-     *
-     * @param matchedTupleIdxs
-     * @param componentWeights
-     */
-//    public static selectivityScore(int[] matchedTupleIdxs, int[] componentWeights) {
-//        for (int i = 0; i < matchedTupleIdxs.length; ++i) {
-//            int tupleIdx = matchedTupleIdxs[i];
-//            int weight = componentWeights[i];
-//
-//
-//        }
-//    }
-}
 
 
 public class TupleQueryAnalyzer {
@@ -206,7 +120,8 @@ public class TupleQueryAnalyzer {
                     projectionMatches.add(candidate);
                 } else {
                     // Check whether by deepening the current node to its descendants would cover the projection
-                    // Performs depth first pre order search
+                    // Performs breadth first search and stops and the first candidate
+                    // Note that if for a request of [S] the candidate [S P] comes before [S] then this one is used
                     NodeStats<D, C> betterCandidate = BreadthFirstSearchLib.breadthFirstFindFirstIndirect(
                             candidate,
                             // Indirect access to children
@@ -261,7 +176,8 @@ public class TupleQueryAnalyzer {
 
 
     /**
-     * Helper function to add the tuple indices of an index node to an existing persistent set of indices
+     * Helper function to succinctly add the tuple indices of an index node
+     * to an existing persistent list of indices
      *
      * @param <D>
      * @param <C>
@@ -304,48 +220,67 @@ public class TupleQueryAnalyzer {
 
         boolean suitableForIndexLookup = currentIxds.length > 0;
         boolean canDoIndexedLookup = true;
+
+        // Check that we are not facing redundant indexing by the same components
+        // boolean contributesToCover = false;
         for (int i = 0; i < currentIxds.length; ++i) {
             int componentIdx = currentIxds[i];
             C c = tupleQuery.getConstraint(componentIdx);
             if (c == null) {
                 canDoIndexedLookup = false;
+
+
             }
         }
 
         // Iterate through alternative subindexes whether any is more specific for the pattern than the current match
         boolean foundEvenBetterCandidate = false;
 
+        com.github.andrewoma.dexx.collection.List<Integer> newMatchedComponents = matchedConstraintIdxs;
         if (canDoIndexedLookup) {
-            com.github.andrewoma.dexx.collection.List<Integer> newMatchedComponents = matchedConstraintIdxs;
             for (int i = 0; i < currentIxds.length; ++i) {
                 newMatchedComponents = newMatchedComponents.append(currentIxds[i]);
             }
-
-            // If none of the children matches any more components than return this
-            List<? extends StoreAccessor<D, C>> children = node.getChildren();
-            for (int childIdx = 0; childIdx < children.size(); ++childIdx) {
-                StoreAccessor<D, C> child = children.get(childIdx);
-                foundEvenBetterCandidate = foundEvenBetterCandidate || analyzeForPattern(
-                        tupleQuery,
-                        child,
-                        newMatchedComponents,
-                        candidates);
-            }
-
-            if (!foundEvenBetterCandidate && suitableForIndexLookup) {
-                // candidates.add(betterCandidate);
-                NodeStats<D, C> candidate = new NodeStats<>(node, newMatchedComponents, newMatchedComponents);
-                candidates.add(candidate);
-            }
         }
 
-        boolean result =
-                !foundEvenBetterCandidate && canDoIndexedLookup && suitableForIndexLookup;
+        // If none of the children matches any more components than return this
+        List<? extends StoreAccessor<D, C>> children = node.getChildren();
+        for (int childIdx = 0; childIdx < children.size(); ++childIdx) {
+            StoreAccessor<D, C> child = children.get(childIdx);
+            foundEvenBetterCandidate = foundEvenBetterCandidate || analyzeForPattern(
+                    tupleQuery,
+                    child,
+                    newMatchedComponents,
+                    candidates);
+        }
+
+        boolean result = !foundEvenBetterCandidate && canDoIndexedLookup && suitableForIndexLookup;
+
+        if (result) {
+            // candidates.add(betterCandidate);
+            NodeStats<D, C> candidate = new NodeStats<>(node, newMatchedComponents, newMatchedComponents);
+            candidates.add(candidate);
+        }
+
         return result;
     }
 
 
 
+    /**
+     * Checks whether a domain tuple's components match those of a given pattern tuple.
+     * Both tuples are assumed to have the same dimension
+     *
+     * @param <D>
+     * @param <C>
+     * @param <P>
+     * @param domainItem
+     * @param domainAccessor
+     * @param recheckIdxs
+     * @param pattern
+     * @param patternAccessor
+     * @return
+     */
     public static <D, C, P> boolean recheckCondition(
             D domainItem,
             TupleAccessorCore<D, C> domainAccessor,
@@ -381,14 +316,14 @@ public class TupleQueryAnalyzer {
      * @param patternAccessor
      * @return
      */
-    public static <D, C, T> ResultStreamer<D, C, Tuple<C>> createResultStreamer(
+    public static <D, C, T> ResultStreamerBinder<D, C, Tuple<C>> createResultStreamer(
             NodeStats<D, C> stats,
             TupleQuery<C> tupleQuery,
             TupleAccessor<D, C> domainAccessor
             ) {
 
 
-        ResultStreamer<D, C, Tuple<C>> result;
+        ResultStreamerBinder<D, C, Tuple<C>> result;
 
 
         List<C> pattern = tupleQuery.getPattern();
@@ -432,9 +367,10 @@ public class TupleQueryAnalyzer {
                 Streamer<?, Tuple<C>> tupleStreamer = store -> tmp.streamRaw(store)
                         .map(projector::apply);
 
-                result = new ResultStreamerFromTuple<D, C>(projection.length, tupleStreamer, domainAccessor);
+                result = store -> new ResultStreamerFromTuple<D, C>(projection.length, () -> tupleStreamer.streamRaw(store), domainAccessor);
             } else {
-                result = new ResultStreamerFromDomain<D, C>(contentStreamer, domainAccessor);
+                Streamer<?, D> tmp = contentStreamer;
+                result = store -> new ResultStreamerFromDomain<D, C>(() -> tmp.streamRaw(store), domainAccessor);
             }
 
         } else {
@@ -444,7 +380,7 @@ public class TupleQueryAnalyzer {
                 Streamer<?, C> componentStreamer = accessor
                         .streamerForKeys(pattern, List::get, null, KeyReducers.projectOnly(accessor.depth()));
 
-                result = new ResultStreamerFromComponent<D, C>(componentStreamer, domainAccessor);
+                result = store -> new ResultStreamerFromComponent<D, C>(() -> componentStreamer.streamRaw(store), domainAccessor);
 
             } else {
                 // We need to project tuples
@@ -458,7 +394,7 @@ public class TupleQueryAnalyzer {
                         keyToTupleReducer)
                 .streamRaw(store).map(Entry::getKey).map(keyToTupleReducer::makeTuple);
 
-                result = new ResultStreamerFromTuple<D, C>(projection.length, tupleStreamer, domainAccessor);
+                result = store -> new ResultStreamerFromTuple<D, C>(projection.length, () -> tupleStreamer.streamRaw(store), domainAccessor);
             }
         }
 

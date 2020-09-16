@@ -32,11 +32,10 @@ import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2NodeCompound;
-import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamer;
+import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamerBinder;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.sse.SSE;
-import org.apache.jena.vocabulary.RDF;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -121,6 +120,38 @@ public class TestTupleTableCore {
 
         StoreAccessor<Quad, Node> rootAccessor = StoreAccessorImpl.createForStore(storage);
 
+
+
+        TupleQuery<Node> tupleQuery = new TupleQueryImpl<>(4);
+        tupleQuery.setDistinct(true);
+        tupleQuery.setConstraint(0, q1.getSubject());
+        // tupleQuery.setConstraint(3, RDF.Nodes.type);
+        tupleQuery.setProject(1);
+
+
+
+        System.out.println("BEGIN OF REPORTS");
+        NodeStats<Quad, Node> bestMatch = TupleQueryAnalyzer.analyze(
+                tupleQuery,
+                rootAccessor,
+                new int[] {10, 10, 1, 100});
+        System.out.println("Best match: " + bestMatch);
+
+        ResultStreamerBinder<Quad, Node, Tuple<Node>> rs = TupleQueryAnalyzer.createResultStreamer(
+                bestMatch,
+                tupleQuery,
+                TupleAccessorQuadAnyToNull.INSTANCE);
+
+        rs.bind(root).streamAsComponent()
+            .forEach(tuple -> System.out.println("GOT TUPLE: " + tuple));
+
+        System.out.println("END OF REPORTS =====================");
+
+        if (true) {
+            return;
+        }
+
+
         KeyReducer<Entry<?, ?>> toPairs = (p, i, k) -> Maps.immutableEntry(p, k);
 
 //        rootAccessor.child(0).cartesianProduct(
@@ -178,23 +209,6 @@ public class TestTupleTableCore {
             .streamRaw(root.getKey()).forEach(x -> System.out.println("KEY: " + x));
 
 
-        TupleQuery<Node> tupleQuery = new TupleQueryImpl<>(4);
-        tupleQuery.setDistinct(true);
-//        tupleQuery.setConstraint(3, RDF.Nodes.type);
-        tupleQuery.setConstraint(3, RDF.Nodes.first);
-        tupleQuery.setProject(1);
-
-
-
-        System.out.println("BEGIN OF REPORTS");
-        NodeStats<Quad, Node> bestMatch = TupleQueryAnalyzer.analyze(tupleQuery, rootAccessor, new int[] {10, 10, 1, 100});
-        System.out.println("Best match: " + bestMatch);
-
-        ResultStreamer<Quad, Node, Tuple<Node>> rs = TupleQueryAnalyzer.createResultStreamer(bestMatch, tupleQuery, TupleAccessorQuadAnyToNull.INSTANCE);
-
-        rs.streamAsTuple(storage).forEach(tuple -> System.out.println("GOT TUPLE: " + tuple));
-
-        System.out.println("END OF REPORTS");
 
 
 //        StoreAccessor<Quad, Node> oAccessor = rootAccessor.child(0).child(0).child(0).child(0).child(0);
