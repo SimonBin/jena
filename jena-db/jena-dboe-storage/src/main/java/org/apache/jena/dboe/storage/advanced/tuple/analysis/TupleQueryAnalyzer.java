@@ -4,10 +4,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.jena.atlas.lib.tuple.Tuple;
+import org.apache.jena.dboe.storage.advanced.tuple.ResultStreamer;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
 import org.apache.jena.ext.com.google.common.collect.ComparisonChain;
 
 import com.github.andrewoma.dexx.collection.LinkedLists;
@@ -316,4 +321,50 @@ public class TupleQueryAnalyzer {
 
         return canDoIndexedLookup && !foundEvenBetterCandidate;
     }
+
+
+    public static <D, C, X, T> ResultStreamer<D, C, X> createResultStreamer(
+            StoreAccessor<D, C> accessor,
+            int[] projection,
+            T pattern,
+            TupleAccessorCore<? super T, ? extends C> patternAccessor
+            ) {
+
+//    	TupleQue
+
+        // Assumption: Leaf nodes contain domain objects
+        // TODO This code will break if the  assumption is lifted
+        if (accessor.getChildren().isEmpty()) {
+            Streamer<?, D> contentStream = accessor
+                    .streamerForContent(pattern, patternAccessor);
+
+            // Any projection needs to be served from the content
+
+        } else {
+            if (projection.length == 1) {
+                // Here we assume that the accessor node is positioned on the one the holds the
+                // keys we want to project
+                Streamer<?, C> componentStream = accessor
+                        .streamerForKeys(pattern, patternAccessor, null, KeyReducers.projectOnly(accessor.depth()));
+            } else {
+                // We need to project tuples
+                KeyReducerTuple<C> keyToTupleReducer = KeyReducerTuple.createForProjection(accessor, projection);
+
+                Streamer<?, Tuple<C>> tupleStream = store -> accessor.cartesianProduct(
+                        pattern,
+                        patternAccessor,
+                        //Quad.create(Node.ANY, Node.ANY, Node.ANY, q4.getObject()),
+                        keyToTupleReducer.newAccumulator(),
+                        keyToTupleReducer)
+                .streamRaw(store).map(Entry::getKey).map(keyToTupleReducer::makeTuple);
+
+            }
+        }
+
+
+
+
+        return null;
+    }
+
 }

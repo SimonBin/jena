@@ -259,7 +259,7 @@ public class StoreAccessorImpl<D, C>
 
 
     @Override
-    public <T> Streamer<?, D> streamContent(T pattern, TupleAccessorCore<? super T, ? extends C> accessor) {
+    public <T> Streamer<?, D> streamerForContent(T pattern, TupleAccessorCore<? super T, ? extends C> accessor) {
 
         StorageNode<D, C, ?> storageNode = getStorage();
 
@@ -372,7 +372,25 @@ public class StoreAccessorImpl<D, C>
         return "[(node" + id + "; " + storage + ")]";
     }
 
-    //void cart()
+    @Override
+    public <T, K> Streamer<?, K> streamerForKeys(T pattern, TupleAccessorCore<? super T, ? extends C> accessor,
+            K initialAccumulator, KeyReducer<K> keyReducer) {
+
+        StorageNode<D, C, ?> storageNode = getStorage();
+
+        Streamer<?, ?> keysStreamer = storageNode.streamerForKeys(pattern, accessor);
+
+        Streamer<?, ? extends Entry<K, ?>> cartesianProduct =
+                getParent().cartesianProduct(pattern, accessor, initialAccumulator, keyReducer, childIndex);
+
+        return store -> cartesianProduct.streamRaw(store).flatMap(e -> {
+            K accumulator = e.getKey();
+            Object storeAlts = e.getValue();
+            Object valueStore = storageNode.chooseSubStoreRaw(storeAlts, 0);
+
+            return keysStreamer.streamRaw(valueStore).map(key -> keyReducer.reduce(accumulator, depth, key));
+        });
+    }
 
 
 }

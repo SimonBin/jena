@@ -75,10 +75,10 @@ public class Meta2NodeLeafSet<D, C, V>
         return argSet -> argSet.stream();
     }
 
-    @Override
-    public Streamer<Set<V>, V> streamerForValues() {
-        return argSet -> argSet.stream();
-    }
+//    @Override
+//    public Streamer<Set<V>, V> streamerForValues() {
+//        return argSet -> argSet.stream();
+//    }
 
 
     @Override

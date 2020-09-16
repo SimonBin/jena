@@ -169,10 +169,10 @@ abstract class Meta2NodeMapBase<D, C, K, V>
     }
 
 
-    @Override
-    public Streamer<Map<K, V>, V> streamerForValues() {
-        return argMap -> argMap.values().stream();
-    }
+//    @Override
+//    public Streamer<Map<K, V>, V> streamerForValues() {
+//        return argMap -> argMap.values().stream();
+//    }
 
 
     @Override

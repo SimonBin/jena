@@ -57,9 +57,16 @@ public interface StoreAccessor<D, C> {
             );
 
 
-    public <T> Streamer<?, D> streamContent(
+    public <T> Streamer<?, D> streamerForContent(
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor);
 
+
+    public <T, K> Streamer<?, K> streamerForKeys(
+            T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor,
+            K initialAccumulator,
+            KeyReducer<K> keyReducer
+            );
 
 }

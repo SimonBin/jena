@@ -117,10 +117,6 @@ public interface StorageNode<D, C, V> {
         return result;
     }
 
-    default Streamer<V, ?> streamerForValues() {
-        throw new RuntimeException("not implemented");
-    }
-
 
     /**
      * Returns an object that can extract the stream of values at an index node under constraints
@@ -144,8 +140,8 @@ public interface StorageNode<D, C, V> {
      * {@link UnsupportedOperationException}.
      *
      * To extract a specific alternative from the substore use {@link #chooseSubStore(Object, int)}.
-     * There are as many substore indices as there are {@link #getChildren()}
-     * If there are no children then calling this method will raise an {@link UnsupportedOperationException}.
+     * If {@link #getChildren()} is not empty then there are as many substore indices as there are children
+     * If there are no children then there is an implicit single sub store with index 0
      *
      *
      * @param <T>
@@ -154,21 +150,17 @@ public interface StorageNode<D, C, V> {
      * @return
      */
     <T> Streamer<V, ? extends Entry<?, ?>> streamerForKeyAndSubStoreAlts(
-            //int altIdx,
             T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 
 
-//    default <T> Streamer<Object, Entry<?, ?>> streamerForKeyAndSubStoresRaw(
-//            T pattern, TupleAccessorCore<? super T, ? extends C> accessor) {
-//
-//        Streamer<V, ? extends Entry<?, ?>> streamer = streamerForKeyAndSubStores(pattern, accessor);
-//        Object x = null;
-//        Stream<? extends Entry<?, ?>> fo = streamer.streamRaw((V)x);
-//
-//        return store ->fo;
-//    }
 
-    // <T> Streamer<V, Tuple<C>> streamerForE(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
+    /*
+     * Methods for immediately iterating the content - useful for debugging but not intended
+     * for building upon
+     *
+     * Use the streamerFor* methods for production code
+     *
+     */
 
     /**
      * Stream all entries under equality constraints obtained from a tuple-like pattern
@@ -185,22 +177,6 @@ public interface StorageNode<D, C, V> {
     default <T> Stream<?> streamEntriesRaw(Object store, T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
         return streamEntries((V)store, tupleLike, tupleAccessor);
     }
-
-
-
-    /**
-     *
-     *
-     * @param <T>
-     * @param store
-     * @param tupleLike
-     * @param tupleAccessor
-     * @param path
-     * @param currentIndex
-     * @return
-     */
-//    <T> Stream<?> streamSurface(Object store, T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor,
-//            List<Integer> path, int currentIndex);
 
     /**
      * Generic method to stream the content - mainly for debugging

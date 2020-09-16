@@ -138,12 +138,12 @@ public class TestTupleTableCore {
 //            .streamRaw(root).forEach(x -> System.out.println("CARTPROD1: " + x.getKey()));
 //
 
-        rootAccessor.child(0).child(0).child(0).child(0).child(0).streamContent(
+        rootAccessor.child(0).child(0).child(0).child(0).child(0).streamerForContent(
                 Quad.create(Node.ANY, q1.getSubject(), Node.ANY, Node.ANY),
                 TupleAccessorQuadAnyToNull.INSTANCE)
         .streamRaw(root).forEach(x -> System.out.println("CONTENT2: " + x));
 
-        rootAccessor.leastNestedChildOrSelf().streamContent(
+        rootAccessor.leastNestedChildOrSelf().streamerForContent(
                 Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY),
                 TupleAccessorQuadAnyToNull.INSTANCE)
             .streamRaw(root).forEach(x -> System.out.println("CONTENT: " + x));
@@ -192,6 +192,18 @@ public class TestTupleTableCore {
         System.out.println("Best match: " + bestMatch);
         System.out.println("END OF REPORTS");
 
+
+//        StoreAccessor<Quad, Node> oAccessor = rootAccessor.child(0).child(0).child(0).child(0).child(0);
+//        KeyReducerTuple<Node> fancyKeyReducer = KeyReducerTuple.createForProjection(oAccessor, new int[] {0, 0, 3, 2, 0});
+//
+//        oAccessor.cartesianProduct(
+//                Quad.create(Node.ANY, Node.ANY, Node.ANY, q4.getObject()),
+//                TupleAccessorQuadAnyToNull.INSTANCE,
+//                fancyKeyReducer.newAccumulator(),
+//                fancyKeyReducer)
+//        .streamRaw(root).map(Entry::getKey).map(fancyKeyReducer::makeTuple)
+//        .forEach(x -> System.out.println("CARTPROD3: " + x));
+//        bestMatch.getAccessor().cartesianProduct(pattern, accessor, initialAccumulator, keyReducer)
 
 
 
