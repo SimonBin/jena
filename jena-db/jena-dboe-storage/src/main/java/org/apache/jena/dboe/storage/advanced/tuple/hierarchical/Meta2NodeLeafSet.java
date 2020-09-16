@@ -3,6 +3,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -11,6 +12,7 @@ import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.atlas.lib.tuple.TupleFactory;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.ext.com.google.common.collect.Maps;
 
 
 public class Meta2NodeLeafSet<D, C, V>
@@ -74,14 +76,20 @@ public class Meta2NodeLeafSet<D, C, V>
         return argSet -> argSet.stream();
     }
 
+    @Override
+    public Streamer<Set<V>, V> streamerForValues() {
+        return argSet -> argSet.stream();
+    }
+
 
     @Override
-    public <T> Streamer<Set<V>, ? extends Entry<?, ?>> streamerForKeyAndSubStores(
+    public <T> Streamer<Set<V>, ? extends Entry<?, ?>> streamerForKeyAndSubStoreAlts(
 //            int altIdx,
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {
-//        return argSet -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), argSet));
-        throw new UnsupportedOperationException("leaf sets do not have a sub store");
+        return argSet -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), argSet));
+//        throw new UnsupportedOperationException("leaf sets do not have a sub store");
+//    	return argSet -> argSet.stream().map(item -> Entry<>);
     }
 
     @Override
@@ -101,8 +109,19 @@ public class Meta2NodeLeafSet<D, C, V>
         throw new RuntimeException("Key is an empty tuple - there are no key components");
     }
 
+//    @Override
+//    public Object chooseSubStore(Set<V> store, int subStoreIdx) {
+//        throw new UnsupportedOperationException("leaf sets do not have a sub store");
+//    }
+
     @Override
     public Object chooseSubStore(Set<V> store, int subStoreIdx) {
-        throw new UnsupportedOperationException("leaf sets do not have a sub store");
+        if (subStoreIdx != 0) {
+            throw new IndexOutOfBoundsException("Index must be 0 for inner maps");
+        }
+
+        // Return the store itself
+        return store;
     }
+
 }

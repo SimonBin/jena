@@ -122,19 +122,25 @@ public class TestTupleTableCore {
 
         KeyReducer<Entry<?, ?>> toPairs = (p, i, k) -> Maps.immutableEntry(p, k);
 
-        rootAccessor.child(0).cartesianProduct(
-                Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY),
-                TupleAccessorQuadAnyToNull.INSTANCE,
-                null,
-                toPairs)
-        .streamRaw(root).forEach(x -> System.out.println("CARTPROD0: " + x.getKey()));
+//        rootAccessor.child(0).cartesianProduct(
+//                Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY),
+//                TupleAccessorQuadAnyToNull.INSTANCE,
+//                null,
+//                toPairs)
+//        .streamRaw(root).forEach(x -> System.out.println("CARTPROD0: " + x.getKey()));
+//
+//        rootAccessor.child(0).child(0).child(0).cartesianProduct(
+//                Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY),
+//                TupleAccessorQuadAnyToNull.INSTANCE,
+//                null,
+//                toPairs)
+//            .streamRaw(root).forEach(x -> System.out.println("CARTPROD1: " + x.getKey()));
+//
 
-        rootAccessor.child(0).child(0).child(0).cartesianProduct(
+        rootAccessor.leastNestedChildOrSelf().streamContent(
                 Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY),
-                TupleAccessorQuadAnyToNull.INSTANCE,
-                null,
-                toPairs)
-            .streamRaw(root).forEach(x -> System.out.println("CARTPROD1: " + x.getKey()));
+                TupleAccessorQuadAnyToNull.INSTANCE)
+            .streamRaw(root).forEach(x -> System.out.println("CONTENT: " + x));
 
         rootAccessor.child(0).child(0).child(0).child(0).child(0).cartesianProduct(
                 Quad.create(Node.ANY, q1.getSubject(), Node.ANY, Node.ANY),

@@ -53,10 +53,16 @@ public abstract class Meta2NodeNoKeyBase<D, C, V>
         return argStore -> Stream.of(TupleFactory.create0());
     }
 
+    /**
+     * Stream a single entry of the store alts themselves
+     * children can then pick an alternative based on their index
+     *
+     */
     @Override
-    public <T> Streamer<V, ? extends Entry<?, ?>> streamerForKeyAndSubStores(
+    public <T> Streamer<V, ? extends Entry<?, ?>> streamerForKeyAndSubStoreAlts(
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {
+
         return argStore -> Stream.of(Maps.immutableEntry(TupleFactory.create0(), argStore));
     }
 

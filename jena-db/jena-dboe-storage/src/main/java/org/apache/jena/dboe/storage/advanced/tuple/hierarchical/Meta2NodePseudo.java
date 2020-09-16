@@ -32,7 +32,7 @@ public class Meta2NodePseudo<D, C, V>
     }
 
     @Override
-    public <T> Streamer<V, ? extends Entry<?, ?>> streamerForKeyAndSubStores(T pattern,
+    public <T> Streamer<V, ? extends Entry<?, ?>> streamerForKeyAndSubStoreAlts(T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {
         return null;
     }

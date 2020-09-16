@@ -139,6 +139,13 @@ abstract class Meta2NodeMapBase<D, C, K, V>
         return argMap -> baseStreamer.stream(argMap).map(key -> argMap.get(key));
     }
 
+
+    @Override
+    public Streamer<Map<K, V>, V> streamerForValues() {
+        return argMap -> argMap.values().stream();
+    }
+
+
     @Override
     public <T> Streamer<Map<K, V>, Tuple<C>> streamerForKeysAsTuples(
             T pattern,
@@ -154,7 +161,7 @@ abstract class Meta2NodeMapBase<D, C, K, V>
 
 
     @Override
-    public <T> Streamer<Map<K, V>, Entry<K, V>> streamerForKeyAndSubStores(
+    public <T> Streamer<Map<K, V>, Entry<K, V>> streamerForKeyAndSubStoreAlts(
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {
         // TODO Assert that altIdx == 0
@@ -171,6 +178,7 @@ abstract class Meta2NodeMapBase<D, C, K, V>
         C result = keyToComponent.get(key, idx);
         return result;
     }
+
 
     @Override
     public Object chooseSubStore(Map<K, V> store, int subStoreIdx) {

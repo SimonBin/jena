@@ -104,8 +104,23 @@ public interface StorageNode<D, C, V> {
 
     @SuppressWarnings("unchecked")
     default Object chooseSubStoreRaw(Object store, int subStoreIdx) {
-        return chooseSubStore((V)store, subStoreIdx);
+        Object result;
+        try {
+            result = chooseSubStore((V)store, subStoreIdx);
+        } catch (Exception e) {
+            throw new RuntimeException("Mismatch of data and schema;"
+                    + "could not access alt " + subStoreIdx
+                    + " at a store of type " + this.getClass()
+                    + " " +  store.getClass()
+                    + " " + store, e);
+        }
+        return result;
     }
+
+    default Streamer<V, ?> streamerForValues() {
+        throw new RuntimeException("not implemented");
+    }
+
 
     <T> Streamer<V, ?> streamerForValues(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 
@@ -127,7 +142,7 @@ public interface StorageNode<D, C, V> {
      * @param accessor
      * @return
      */
-    <T> Streamer<V, ? extends Entry<?, ?>> streamerForKeyAndSubStores(
+    <T> Streamer<V, ? extends Entry<?, ?>> streamerForKeyAndSubStoreAlts(
             //int altIdx,
             T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 
@@ -159,6 +174,7 @@ public interface StorageNode<D, C, V> {
     default <T> Stream<?> streamEntriesRaw(Object store, T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
         return streamEntries((V)store, tupleLike, tupleAccessor);
     }
+
 
 
     /**
