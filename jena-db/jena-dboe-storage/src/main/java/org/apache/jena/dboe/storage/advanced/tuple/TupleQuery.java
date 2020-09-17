@@ -4,17 +4,13 @@ import java.util.List;
 import java.util.Set;
 
 public interface TupleQuery<ComponentType> {
-    /**
-     * The rank of the conceptual tuple table this query is intended for
-     *
-     * @return
-     */
-    int getRank();
+    /** The dimension (number of columns) of the conceptual tuple table this query is intended for */
+    int getDimension();
 
-    void setDistinct(boolean onOrOff);
+    TupleQuery<ComponentType> setDistinct(boolean onOrOff);
     boolean isDistinct();
 
-    void setConstraint(int idx, ComponentType value);
+    TupleQuery<ComponentType> setConstraint(int idx, ComponentType value);
     ComponentType getConstraint(int idx);
 
     Set<Integer> getConstrainedComponents();
@@ -33,5 +29,5 @@ public interface TupleQuery<ComponentType> {
 
     boolean hasProject();
 
-    void setProject(int... tupleIdxs);
+    TupleQuery<ComponentType> setProject(int... tupleIdxs);
 }

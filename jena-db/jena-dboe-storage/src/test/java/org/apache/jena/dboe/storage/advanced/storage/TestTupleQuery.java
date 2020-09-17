@@ -87,11 +87,12 @@ public class TestTupleQuery {
 
 
         TupleQuery<Node> tupleQuery = new TupleQueryImpl<>(4);
-        tupleQuery.setDistinct(true);
-        tupleQuery.setConstraint(0, q1.getSubject());
-        tupleQuery.setConstraint(2, q1.getObject());
+        tupleQuery
+            .setDistinct(true)
+            .setConstraint(0, q1.getSubject())
+            .setConstraint(2, q1.getObject())
+            .setProject(3, 0, 1, 2);
         // tupleQuery.setConstraint(3, RDF.Nodes.type);
-        tupleQuery.setProject(3, 0, 1, 2);
 
 
         NodeStats<Quad, Node> bestMatch = TupleQueryAnalyzer.analyze(

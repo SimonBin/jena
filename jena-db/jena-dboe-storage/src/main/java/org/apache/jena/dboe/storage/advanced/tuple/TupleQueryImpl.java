@@ -10,10 +10,14 @@ import java.util.stream.IntStream;
 public class TupleQueryImpl<ComponentType>
     implements TupleQuery<ComponentType>
 {
-    protected int rank;
+    protected int dimension;
     protected List<ComponentType> pattern;
     protected boolean distinct = false;
     protected int[] projection = null;
+
+//    public static <C> TupleQuery<C> create(int dimension) {
+//        return new TupleQueryImpl<>(dimension);
+//    }
 
     public static <T> List<T> listOfNulls(int size) {
         List<T> result = new ArrayList<>();
@@ -21,20 +25,21 @@ public class TupleQueryImpl<ComponentType>
         return result;
     }
 
-    public TupleQueryImpl(int rank) {
+    public TupleQueryImpl(int dimension) {
         super();
-        this.rank = rank;
-        this.pattern = listOfNulls(rank);
+        this.dimension = dimension;
+        this.pattern = listOfNulls(dimension);
     }
 
     @Override
-    public int getRank() {
-        return rank;
+    public int getDimension() {
+        return dimension;
     }
 
     @Override
-    public void setDistinct(boolean onOrOff) {
+    public TupleQuery<ComponentType> setDistinct(boolean onOrOff) {
         this.distinct = onOrOff;
+        return this;
     }
 
     @Override
@@ -43,8 +48,9 @@ public class TupleQueryImpl<ComponentType>
     }
 
     @Override
-    public void setConstraint(int idx, ComponentType value) {
+    public TupleQuery<ComponentType> setConstraint(int idx, ComponentType value) {
         pattern.set(idx, value);
+        return this;
     }
 
     @Override
@@ -63,8 +69,9 @@ public class TupleQueryImpl<ComponentType>
     }
 
     @Override
-    public void setProject(int... tupleIdxs) {
+    public TupleQuery<ComponentType> setProject(int... tupleIdxs) {
         projection = tupleIdxs;
+        return this;
     }
 
     @Override
@@ -75,7 +82,7 @@ public class TupleQueryImpl<ComponentType>
     @Override
     public Set<Integer> getConstrainedComponents() {
         Set<Integer> result = new LinkedHashSet<Integer>();
-        for (int i = 0; i < rank; ++i) {
+        for (int i = 0; i < dimension; ++i) {
             ComponentType value = getConstraint(i);
 
             // FIXME Check for 'ANY'
