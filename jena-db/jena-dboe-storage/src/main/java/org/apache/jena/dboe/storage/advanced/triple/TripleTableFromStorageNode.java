@@ -2,6 +2,7 @@ package org.apache.jena.dboe.storage.advanced.triple;
 
 import java.util.stream.Stream;
 
+import org.apache.jena.dboe.storage.advanced.tuple.TupleTableCore;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleTableFromStorageNodeBase;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.graph.Node;
@@ -32,7 +33,12 @@ public class TripleTableFromStorageNode<V>
 
     @Override
     public Stream<Triple> find(Node s, Node p, Node o) {
-        return newFinder().eq(0, s).eq(1, p).eq(2, o).stream();
+//        return newFinder().eq(0, s).eq(1, p).eq(2, o).stream();
+        return newFinder()
+                .eq(0, TupleTableCore.anyToNull(s))
+                .eq(1, TupleTableCore.anyToNull(p))
+                .eq(2, TupleTableCore.anyToNull(o))
+                .stream();
     }
 
     // TODO We need to be wary of nulls / any!!!

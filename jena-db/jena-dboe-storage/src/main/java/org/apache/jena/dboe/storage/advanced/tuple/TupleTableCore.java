@@ -135,8 +135,13 @@ public interface TupleTableCore<TupleType, ComponentType>
 
 
 
-     public static Node nullToAny(Node n) {
-         return n == null ? Node.ANY : n;
-     }
+    // Does not belong here because tuples are generic and ANY is a domain value
+    public static Node nullToAny(Node n) {
+        return n == null ? Node.ANY : n;
+    }
+
+    public static Node anyToNull(Node n) {
+        return Node.ANY.equals(n) ? null : n;
+    }
 
 }

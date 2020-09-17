@@ -2,6 +2,7 @@ package org.apache.jena.dboe.storage.advanced.quad;
 
 import java.util.stream.Stream;
 
+import org.apache.jena.dboe.storage.advanced.tuple.TupleTableCore;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleTableFromStorageNodeBase;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.graph.Node;
@@ -26,7 +27,12 @@ public class QuadTableFromStorageNode<V>
 
     @Override
     public Stream<Quad> find(Node g, Node s, Node p, Node o) {
-        return newFinder().eq(0, s).eq(1, p).eq(2, o).eq(3, g).stream();
+        return newFinder()
+                .eq(0, TupleTableCore.anyToNull(s))
+                .eq(1, TupleTableCore.anyToNull(p))
+                .eq(2, TupleTableCore.anyToNull(o))
+                .eq(3, TupleTableCore.anyToNull(g))
+                .stream();
     }
 
     @Override

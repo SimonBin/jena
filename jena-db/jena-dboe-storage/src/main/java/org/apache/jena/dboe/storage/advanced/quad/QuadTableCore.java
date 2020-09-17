@@ -22,10 +22,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuad;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuadAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleTableCore;
 import org.apache.jena.graph.Node;
-import org.apache.jena.graph.Triple;
 import org.apache.jena.sparql.core.Quad;
 
 /**
@@ -74,7 +73,7 @@ public interface QuadTableCore
 
     @Override
     default TupleAccessor<Quad, Node> getTupleAccessor() {
-        return TupleAccessorQuad.INSTANCE;
+        return TupleAccessorQuadAnyToNull.INSTANCE;
     }
 
     /**

@@ -84,7 +84,8 @@ public class TupleQueryAnalyzer {
         }
 
         if (patternMatches.isEmpty()) {
-            throw new RuntimeException("Found 0 nodes in the index structure to answer request; index is empty or internal error");
+//             throw new RuntimeException("Found 0 nodes in the index structure to answer request; index is empty or internal error");
+            patternMatches.add(new NodeStats<D, C>(node, LinkedLists.of(), LinkedLists.of()));
         }
 
         NodeStatsComparator<D, C> nodeStatsComparator = NodeStatsComparator.forWeights(componentWeights);
@@ -228,14 +229,14 @@ public class TupleQueryAnalyzer {
         boolean canDoIndexedLookup = true;
 
         // Check that we are not facing redundant indexing by the same components
-        // boolean contributesToCover = false;
+        boolean contributesToCover = false;
         for (int i = 0; i < currentIxds.length; ++i) {
             int componentIdx = currentIxds[i];
             C c = tupleQuery.getConstraint(componentIdx);
             if (c == null) {
                 canDoIndexedLookup = false;
-
-
+            } else {
+                contributesToCover = contributesToCover || !matchedConstraintIdxs.asList().contains(componentIdx);
             }
         }
 
@@ -260,7 +261,7 @@ public class TupleQueryAnalyzer {
                     candidates);
         }
 
-        boolean result = !foundEvenBetterCandidate && canDoIndexedLookup && suitableForIndexLookup;
+        boolean result = contributesToCover && !foundEvenBetterCandidate && canDoIndexedLookup && suitableForIndexLookup;
 
         if (result) {
             // candidates.add(betterCandidate);
