@@ -23,9 +23,8 @@ import org.apache.jena.dboe.storage.advanced.triple.TripleTableCoreFromNestedMap
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCoreFromSet;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuad;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.MapSupplier;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuadAnyToNull;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.dboe.storage.simple.StoragePrefixesMem;
 import org.apache.jena.dboe.storage.system.DatasetGraphStorage;
@@ -37,11 +36,39 @@ import org.apache.jena.sparql.core.TransactionalLock;
 import org.apache.jena.sparql.expr.NodeValue;
 
 public class TupleDataset {
-    public static DatasetGraph createOrderPreserving() {
-        return createOrderPreserving(false, false);
+
+    public static DatasetGraph createOrderAwareDatasetGraph() {
+        return createOrderAwareDatasetGraph(true, true);
     }
 
-    public static DatasetGraph createOrderPreserving(boolean strictOrderOnQuads, boolean strictOrderOnTriples) {
+    public static DatasetGraph createOrderAwareDatasetGraph(
+            boolean strictOrderOnTriples,
+            boolean strictOrderOnQuads) {
+
+        StorageRDF storage = createOrderAwareStorageRDF(strictOrderOnTriples, strictOrderOnQuads);
+        DatasetGraph result = new DatasetGraphStorage(
+                storage,
+                new StoragePrefixesMem(),
+                TransactionalLock.createMRSW());
+
+        return result;
+    }
+
+
+    /** Can be used in specification of a storage layout
+     *  in conjunction with TreeSets */
+    public static class NodeComparatorViaNodeValue implements Comparator<Node> {
+        @Override
+        public int compare(Node o1, Node o2)
+        {
+            return NodeValue.compareAlways(NodeValue.makeNode(o1), NodeValue.makeNode(o2));
+        }
+    }
+
+
+    /** Kept as a temporary reference to show the difference between the approach on the
+    /* domain tables vs the tuple storage */
+    public static DatasetGraph createOrderPreservingOld(boolean strictOrderOnQuads, boolean strictOrderOnTriples) {
         Supplier<TripleTableCore> tripleTableSupplier = strictOrderOnTriples
                 ? () -> new TripleTableCore2(new TripleTableCoreFromNestedMapsImpl(), new TripleTableCoreFromSet())
                 : () -> new TripleTableCoreFromNestedMapsImpl();
@@ -58,46 +85,74 @@ public class TupleDataset {
     }
 
 
-    public static class NodeComparatorViaNodeValue implements Comparator<Node> {
-        @Override
-        public int compare(Node o1, Node o2)
-        {
-            return NodeValue.compareAlways(NodeValue.makeNode(o1), NodeValue.makeNode(o2));
-        }
-    }
 
+    public static <T> StorageNodeMutable<T, Node, ?> createTripleStorage(
+            boolean strictOrder,
+            TupleAccessor<T, Node> tupleAccessors) {
 
-    public static <T> StorageNodeMutable<T, Node, ?> createTripleStorage(TupleAccessor<T, Node> tupleAccessors) {
+        // Preliminary result is nested linked hash maps - S -> P -> O
         StorageNodeMutable<T, Node, ?> result =
-            alt2(
-                innerMap(0, LinkedHashMap::new,
-                    innerMap(1, MapSupplier.forTreeMap(new NodeComparatorViaNodeValue()),
-                        leafMap(2, tupleAccessors, LinkedHashMap::new))),
-                leafSet(tupleAccessors, LinkedHashSet::new));
+            innerMap(0, LinkedHashMap::new,
+                    innerMap(1, LinkedHashMap::new,
+                        leafMap(2, tupleAccessors, LinkedHashMap::new)));
+
+        // Note that predicates could be stored sorted by name like this:
+        // innerMap(1, MapSupplier.forTreeMap(new NodeComparatorViaNodeValue()), ...
+
+        if (strictOrder) {
+            // Modify the result to keep all triples in an additional linked hash set
+            // Requests without constraints
+            // (i.e. ?s ?p ?o) will be served from this set
+            result = alt2(result, leafSet(tupleAccessors, LinkedHashSet::new));
+        }
 
         return result;
     }
 
-    public static StorageRDF createTestStorage() {
+    public static <T> StorageNodeMutable<T, Node, ?> createQuadStorage(
+            boolean strictOrder,
+            TupleAccessor<T, Node> tupleAccessors) {
 
-        StorageNodeMutable<Triple, Node, ?> tripleStorage = createTripleStorage(TupleAccessorTriple.INSTANCE);
+        StorageNodeMutable<T, Node, ?> result =
+                innerMap(3, LinkedHashMap::new,
+                    innerMap(0, LinkedHashMap::new,
+                        innerMap(1, LinkedHashMap::new,
+                            leafMap(2, tupleAccessors, LinkedHashMap::new))));
 
-        StorageNodeMutable<Quad, Node, ?> quadStorage = alt2(
-            innerMap(3, LinkedHashMap::new,
-                    createTripleStorage(TupleAccessorQuad.INSTANCE)),
-            leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new));
+        if (strictOrder) {
+            result = alt2(result, leafSet(tupleAccessors, LinkedHashSet::new));
+        }
 
+        return result;
+    }
+
+
+    public static StorageRDF createOrderAwareStorageRDF(
+            boolean strictOrderOnTriples,
+            boolean strictOrderOnQuads) {
+
+        StorageNodeMutable<Triple, Node, ?> tripleStorage = createTripleStorage(
+                strictOrderOnTriples, TupleAccessorTripleAnyToNull.INSTANCE);
+
+        StorageNodeMutable<Quad, Node, ?> quadStorage = createQuadStorage(
+                strictOrderOnQuads, TupleAccessorQuadAnyToNull.INSTANCE);
 
         TripleTableCore tripleTable = TripleTableFromStorageNode.create(tripleStorage);
         QuadTableCore quadTable = QuadTableFromStorageNode.create(quadStorage);
+
         return new StorageRDFTriplesQuads(tripleTable, quadTable);
     }
 
-    public static DatasetGraph createTestDatasetGraph() {
-        StorageRDF storage = createTestStorage();
-        DatasetGraph result = new DatasetGraphStorage(storage, new StoragePrefixesMem(), TransactionalLock.createMRSW());
-        return result;
+    /*
+     * Testing
+     */
+
+    public static StorageRDF createTestStorageRDF() {
+        return createOrderAwareStorageRDF(true, true);
     }
 
-
+    public static DatasetGraph createTestDatasetGraph() {
+        return new DatasetGraphStorage(createTestStorageRDF(),
+                new StoragePrefixesMem(), TransactionalLock.createMRSW());
+    }
 }

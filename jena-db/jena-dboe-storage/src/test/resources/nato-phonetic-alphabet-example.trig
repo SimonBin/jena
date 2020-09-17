@@ -1,0 +1,67 @@
+# A test dataset mainly for assessing ordering when loaded into
+# insert-order aware dataset implementations
+
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix dc: <http://purl.org/dc/terms/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix eg: <http://example.org/> .
+
+eg:alfa
+    {
+       _:b foaf:name "Alfa" .
+       _:b foaf:mbox <mailto:alfa@work.example.org> .
+    }
+
+eg:bravo
+    {
+       _:a foaf:name "Bravo" .
+       _:a foaf:mbox <mailto:bravo@oldcorp.example.org> .
+       _:a foaf:knows _:b .
+       _:a foaf:name "Bravissimo" .
+    }
+
+eg:charlie
+    {
+       _:c foaf:name "Charlie" .
+       _:c foaf:mbox <mailto:charlie@work.example.org> .
+    }
+
+eg:delta
+    {
+       eg:delta foaf:name "Delta" .
+       eg:delta foaf:mbox <mailto:delta@work.example.org> .
+    }
+
+eg:echo
+    {
+       _:e foaf:name "Echo" .
+       _:e foaf:mbox <mailto:echo@work.example.org> .
+    }
+
+eg:foxtrot
+    {
+       _:f foaf:name "Foxtrot" .
+       _:f foaf:mbox <mailto:foxtrot@work.example.org> .
+    }
+
+eg:golf
+    {
+       _:a foaf:name "Golf" .
+       _:a foaf:mbox <mailto:golf@oldcorp.example.org> .
+       _:a foaf:knows _:b .
+    }
+
+eg:hotel
+    {
+       _:a foaf:name "Hotel" .
+       _:a foaf:mbox <mailto:hotel@oldcorp.example.org> .
+    }
+
+eg:india
+    {
+       _:a foaf:name "India" .
+       _:a foaf:mbox <mailto:india@oldcorp.example.org> .
+       _:a foaf:knows _:b .
+    }
+
+

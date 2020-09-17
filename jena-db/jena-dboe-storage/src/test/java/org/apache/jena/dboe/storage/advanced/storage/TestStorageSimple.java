@@ -23,6 +23,6 @@ import org.apache.jena.dboe.storage.storage.BaseTestStorageRDF;
 public class TestStorageSimple extends BaseTestStorageRDF {
     @Override
     protected StorageRDF create() {
-        return TupleDataset.createTestStorage();
+        return TupleDataset.createTestStorageRDF();
     }
 }

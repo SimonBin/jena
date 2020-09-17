@@ -97,7 +97,8 @@ public class TupleQueryImpl<ComponentType>
     @Override
     public String toString() {
         String result
-            = (isDistinct() ? "DISTINCT " : "")
+            = "SELECT "
+            + (isDistinct() ? "DISTINCT " : "")
             + (projection == null
                 ? "*"
                 : IntStream.of(projection)

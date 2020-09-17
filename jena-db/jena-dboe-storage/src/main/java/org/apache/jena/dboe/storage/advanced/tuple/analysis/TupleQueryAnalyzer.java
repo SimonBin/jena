@@ -16,7 +16,6 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleOps;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
-import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinder;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerFromComponent;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerFromDomain;
@@ -76,11 +75,11 @@ public class TupleQueryAnalyzer {
         List<NodeStats<D, C>> patternMatches = new ArrayList<>();
         analyzeForPattern(tupleQuery, node, LinkedLists.of(), patternMatches);
 
-        System.out.println("Candidate indexes for " + tupleQuery);
+        System.err.println("Candidate indexes for " + tupleQuery);
         int l = patternMatches.size();
         for (int i = 0; i < l; ++i) {
             NodeStats<D, C> cand = patternMatches.get(i);
-            System.out.println("Cand " + (i + 1) + "/" + l + ": " + cand);
+            System.err.println("Cand " + (i + 1) + "/" + l + ": " + cand);
         }
 
         if (patternMatches.isEmpty()) {
@@ -91,6 +90,8 @@ public class TupleQueryAnalyzer {
         NodeStatsComparator<D, C> nodeStatsComparator = NodeStatsComparator.forWeights(componentWeights);
 
         Collections.sort(patternMatches, nodeStatsComparator);
+
+        System.err.println("Chose candidate: " + patternMatches.get(0));
 
         // If there are suitable index nodes then pick the one deemed to be most selective
         // The component weights are use for this purpose

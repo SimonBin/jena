@@ -40,10 +40,10 @@ public class NodeStatsComparator<D, C>
         int[] matchesB = b.getMatchedConstraintIdxSet().stream().mapToInt(x -> x).toArray();
 
         int result = ComparisonChain.start()
-            .compare(matchesA.length, matchesB.length)
-            .compare(matchesA, matchesB, (x, y) -> compareIndirect(x, y, componentWeights))
-            .compare(a.getAccessor().depth(), b.getAccessor().depth())
-            .compare(a.getAccessor().id(), b.getAccessor().id())
+            .compare(matchesB.length, matchesA.length) // greater length =>  more covers => better
+            .compare(matchesB, matchesA, (x, y) -> compareIndirect(x, y, componentWeights)) // higher weight => better
+            .compare(a.getAccessor().depth(), b.getAccessor().depth()) // lower depth => better
+            .compare(a.getAccessor().id(), b.getAccessor().id()) // deterministic tie breaker
             .result();
 
         return result;
