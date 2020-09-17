@@ -1,11 +1,11 @@
-package org.apache.jena.dboe.storage.advanced.quad;
+package org.apache.jena.dboe.storage.advanced.triple;
 
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleTableFromStorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.graph.Node;
-import org.apache.jena.sparql.core.Quad;
+import org.apache.jena.graph.Triple;
 
 /**
  * Adaption of a tuple table to the domain of quads
@@ -14,24 +14,19 @@ import org.apache.jena.sparql.core.Quad;
  *
  * @param <V>
  */
-public class QuadTableFromStorageNode<V>
-    extends TupleTableFromStorageNode<Quad, Node, V>
-    implements QuadTableCore
+public class TripleTableFromStorageNode<V>
+    extends TupleTableFromStorageNode<Triple, Node, V>
+    implements TripleTableCore
 {
-    public QuadTableFromStorageNode(
-            StorageNodeMutable<Quad, Node, V> rootStorageNode,
+    public TripleTableFromStorageNode(
+            StorageNodeMutable<Triple, Node, V> rootStorageNode,
             V store) {
         super(rootStorageNode, store);
     }
 
     @Override
-    public Stream<Quad> find(Node g, Node s, Node p, Node o) {
-        return newFinder().eq(0, s).eq(1, p).eq(2, o).eq(3, g).stream();
-    }
-
-    @Override
-    public Stream<Node> listGraphNodes() {
-        return newFinder().projectOnly(3).distinct().stream();
+    public Stream<Triple> find(Node s, Node p, Node o) {
+        return newFinder().eq(0, s).eq(1, p).eq(2, o).stream();
     }
 
     // TODO We need to be wary of nulls / any!!!
