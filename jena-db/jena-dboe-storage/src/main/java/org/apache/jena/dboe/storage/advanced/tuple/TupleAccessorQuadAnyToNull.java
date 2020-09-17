@@ -26,7 +26,7 @@ public class TupleAccessorQuadAnyToNull
         case 1: return anyToNull(quad.getPredicate());
         case 2: return anyToNull(quad.getObject());
         case 3: return anyToNull(quad.getGraph());
-        default: throw new IndexOutOfBoundsException("Cannot access index " + idx + " of a triple");
+        default: throw new IndexOutOfBoundsException("Cannot access index " + idx + " of a quad");
         }
     }
 

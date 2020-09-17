@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleTableCore;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
@@ -70,7 +71,7 @@ public interface TripleTableCore
 
     @Override
     default TupleAccessor<Triple, Node> getTupleAccessor() {
-        return TupleAccessorTriple.INSTANCE;
+        return TupleAccessorTripleAnyToNull.INSTANCE;
     }
 
 //  Note: We may want to add try-with-resources in order to ensure closing underlying resources
