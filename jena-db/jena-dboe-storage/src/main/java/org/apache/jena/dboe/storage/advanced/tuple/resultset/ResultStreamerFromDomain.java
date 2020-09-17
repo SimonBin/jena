@@ -1,4 +1,4 @@
-package org.apache.jena.dboe.storage.advanced.tuple.unified;
+package org.apache.jena.dboe.storage.advanced.tuple.resultset;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -7,7 +7,19 @@ import java.util.stream.Stream;
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleOps;
+import org.apache.jena.sparql.core.Quad;
 
+
+/**
+ * Implementation backed by a supplier of streams of domain objects such as {@link Quad}s.
+ * Can convert to tuple and component representation (if applicable).
+ * Domain objects can only be converted to component representation if they are logical 1-tuples.
+ *
+ * @author raven
+ *
+ * @param <D>
+ * @param <C>
+ */
 public class ResultStreamerFromDomain<D, C>
     implements ResultStreamer<D, C, Tuple<C>>
 {

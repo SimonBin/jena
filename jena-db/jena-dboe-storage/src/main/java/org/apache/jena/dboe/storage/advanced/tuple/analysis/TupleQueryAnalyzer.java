@@ -16,11 +16,11 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleOps;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
-import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamer;
-import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamerBinder;
-import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamerFromComponent;
-import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamerFromDomain;
-import org.apache.jena.dboe.storage.advanced.tuple.unified.ResultStreamerFromTuple;
+import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
+import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinder;
+import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerFromComponent;
+import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerFromDomain;
+import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerFromTuple;
 
 import com.github.andrewoma.dexx.collection.LinkedLists;
 import com.github.jsonldjava.shaded.com.google.common.collect.Sets;

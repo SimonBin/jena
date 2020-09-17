@@ -1,4 +1,4 @@
-package org.apache.jena.dboe.storage.advanced.tuple.unified;
+package org.apache.jena.dboe.storage.advanced.tuple.resultset;
 
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -6,6 +6,15 @@ import java.util.stream.Stream;
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 
+/**
+ * Implementation backed by a supplier of streams of {@link Tuple}s.
+ * Can convert to domain and component representation (if applicable).
+ *
+ * @author raven
+ *
+ * @param <D>
+ * @param <C>
+ */
 public class ResultStreamerFromTuple<D, C>
     implements ResultStreamer<D, C, Tuple<C>>
 {
