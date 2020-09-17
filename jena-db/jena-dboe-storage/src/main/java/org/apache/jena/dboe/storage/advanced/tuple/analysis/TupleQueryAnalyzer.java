@@ -306,6 +306,14 @@ public class TupleQueryAnalyzer {
         return result;
     }
 
+
+    public static <D, C, P> StreamTransform<D, D> transformRecheckCondition(
+            TupleAccessorCore<D, C> domainAccessor,
+            int[] recheckIdxs,
+            P pattern,
+            TupleAccessorCore<P, C> patternAccessor) {
+        return inStream -> inStream.filter(domainItem -> recheckCondition(domainItem, domainAccessor, recheckIdxs, pattern, patternAccessor));
+    }
     /**
      * Creates a streamer for the results of a tuple query.
      * The accessor must be a suitable candidate for answering the query!
@@ -351,6 +359,8 @@ public class TupleQueryAnalyzer {
 
         // Assumption: Leaf nodes contain domain objects
         // TODO This code will break if the  assumption is lifted
+
+        // We are returning domain objects so uniqueness is assumeds
         if (accessor.getChildren().isEmpty()) {
             Streamer<?, D> contentStreamer = accessor
                     .streamerForContent(tupleQuery.getPattern(), List::get);
@@ -396,7 +406,6 @@ public class TupleQueryAnalyzer {
                 Streamer<?, Tuple<C>> tupleStreamer = store -> accessor.cartesianProduct(
                         pattern,
                         List::get,
-                        //Quad.create(Node.ANY, Node.ANY, Node.ANY, q4.getObject()),
                         keyToTupleReducer.newAccumulator(),
                         keyToTupleReducer)
                 .streamRaw(store).map(Entry::getKey).map(keyToTupleReducer::makeTuple);

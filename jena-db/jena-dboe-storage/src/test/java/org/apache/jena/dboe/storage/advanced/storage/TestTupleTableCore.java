@@ -25,7 +25,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuad;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuadAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQueryImpl;
-import org.apache.jena.dboe.storage.advanced.tuple.analysis.KeyReducer;
+import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexedKeyReducer;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.KeyReducerTuple;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.NodeStats;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
@@ -112,7 +112,7 @@ public class TestTupleTableCore {
         }
 
 
-        KeyReducer<Entry<?, ?>> toPairs = (p, i, k) -> Maps.immutableEntry(p, k);
+        IndexedKeyReducer<Entry<?, ?>> toPairs = (p, i, k) -> Maps.immutableEntry(p, k);
 
 //        rootAccessor.child(0).cartesianProduct(
 //                Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY),

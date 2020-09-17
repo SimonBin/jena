@@ -5,7 +5,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
 import com.github.andrewoma.dexx.collection.List;
 
 public class KeyReducerList<C>
-    implements KeyReducer2<List<C>>
+    implements KeyReducer<List<C>>
 {
     protected StoreAccessor<?, C> accessor;
     protected StorageNode<?, C, ?> storage;

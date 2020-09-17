@@ -6,7 +6,7 @@ import org.apache.jena.ext.com.google.common.collect.Maps;
 
 
 public class KeyReducers {
-    public static final KeyReducer<Entry<?, ?>> toPairs = (p, i, k) -> Maps.immutableEntry(p, k);
+    public static final IndexedKeyReducer<Entry<?, ?>> toPairs = (p, i, k) -> Maps.immutableEntry(p, k);
 
 //    public static final KeyReducer<Entry<?, ?>> ignoreAll = (p, i, k) -> Maps.immutableEntry(p, k);
 
@@ -20,7 +20,7 @@ public class KeyReducers {
      * @return
      */
     @SuppressWarnings("unchecked")
-    public static <C> KeyReducer<C> projectOnly(int idx) {
+    public static <C> IndexedKeyReducer<C> projectOnly(int idx) {
         return (acc, i, obj) -> {
             // If a non-null value has been accumulated then pass it on
             // Otherwise check if the obj at index i match idx - if so return it as the accumulated value

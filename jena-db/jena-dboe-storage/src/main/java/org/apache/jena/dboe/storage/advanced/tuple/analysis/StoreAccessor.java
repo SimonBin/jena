@@ -40,7 +40,7 @@ public interface StoreAccessor<D, C> {
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,
             K initialAccumulator,
-            KeyReducer<K> keyReducer);
+            IndexedKeyReducer<K> keyReducer);
 
 
     /**
@@ -60,7 +60,7 @@ public interface StoreAccessor<D, C> {
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,
             K initialAccumulator,
-            KeyReducer<K> keyReducer
+            IndexedKeyReducer<K> keyReducer
             );
 
 
@@ -74,7 +74,7 @@ public interface StoreAccessor<D, C> {
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,
             K initialAccumulator,
-            KeyReducer<K> keyReducer
+            IndexedKeyReducer<K> keyReducer
             );
 
 }

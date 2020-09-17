@@ -14,18 +14,18 @@ import org.apache.jena.ext.com.google.common.collect.Multimap;
 import com.github.andrewoma.dexx.collection.LinkedLists;
 
 public class KeyReducerTuple<C>
-    implements KeyReducer<com.github.andrewoma.dexx.collection.List<C>>
+    implements IndexedKeyReducer<com.github.andrewoma.dexx.collection.List<C>>
 {
 
     protected int[] projection;
-    protected List<KeyReducer2<com.github.andrewoma.dexx.collection.List<C>>> reducers = new ArrayList<>();
+    protected List<KeyReducer<com.github.andrewoma.dexx.collection.List<C>>> reducers = new ArrayList<>();
     protected Multimap<Integer, Integer> tupleIdxToProjSlots;
     protected int[] reducedKeyIdxToTupleIdx;
 //    protected Function<? super com.github.andrewoma.dexx.collection.List<C>, ? extends Tuple<C>> tupleFactory;
 
     public KeyReducerTuple(
             int[] projection,
-            List<KeyReducer2<com.github.andrewoma.dexx.collection.List<C>>> reducers,
+            List<KeyReducer<com.github.andrewoma.dexx.collection.List<C>>> reducers,
             Multimap<Integer, Integer> tupleIdxToProjSlots,
             int[] reducedKeyIdxToTupleIdx) {
         super();
@@ -75,7 +75,7 @@ public class KeyReducerTuple<C>
             com.github.andrewoma.dexx.collection.List<C> accumulator,
             int indexNode,
             Object value) {
-        KeyReducer2<com.github.andrewoma.dexx.collection.List<C>> reducer = reducers.get(indexNode);
+        KeyReducer<com.github.andrewoma.dexx.collection.List<C>> reducer = reducers.get(indexNode);
         com.github.andrewoma.dexx.collection.List<C> result = reducer.reduce(accumulator, value);
         return result;
     }
@@ -91,7 +91,7 @@ public class KeyReducerTuple<C>
      */
     public static <C> KeyReducerTuple<C> createForProjection(StoreAccessor<?, C> accessorNode, int[] projection) {
 
-        List<KeyReducer2<com.github.andrewoma.dexx.collection.List<C>>> reducers = new ArrayList<>();
+        List<KeyReducer<com.github.andrewoma.dexx.collection.List<C>>> reducers = new ArrayList<>();
 
 
         // Inverted projection which maps projected tuple ids to the slots
@@ -137,9 +137,9 @@ public class KeyReducerTuple<C>
 
             // If none of the keys are relevant to the projection just pass on whatever components
             // we collected
-            KeyReducer2<com.github.andrewoma.dexx.collection.List<C>> nodeReducer = !keyComponentIdxsToAppend.isEmpty()
+            KeyReducer<com.github.andrewoma.dexx.collection.List<C>> nodeReducer = !keyComponentIdxsToAppend.isEmpty()
                     ? new KeyReducerList<C>(node, keyComponentIdxsToAppend.stream().mapToInt(x -> x).toArray())
-                    : KeyReducer2::passOn;
+                    : KeyReducer::passThrough;
 
             reducers.add(nodeReducer);
         }
