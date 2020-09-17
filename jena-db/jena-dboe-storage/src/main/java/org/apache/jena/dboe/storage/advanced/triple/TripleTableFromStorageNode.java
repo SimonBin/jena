@@ -14,6 +14,7 @@
  *  See the NOTICE file distributed with this work for additional
  *  information regarding copyright ownership.
  */
+
 package org.apache.jena.dboe.storage.advanced.triple;
 
 import java.util.stream.Stream;
@@ -27,7 +28,7 @@ import org.apache.jena.graph.Triple;
 /**
  * Adaption of a tuple table to the domain of quads
  *
- * @author raven
+ * @author Claus Stadler 11/09/2020
  *
  * @param <V>
  */

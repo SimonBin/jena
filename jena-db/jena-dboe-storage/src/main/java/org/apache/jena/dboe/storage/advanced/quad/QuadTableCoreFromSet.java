@@ -14,6 +14,7 @@
  *  See the NOTICE file distributed with this work for additional
  *  information regarding copyright ownership.
  */
+
 package org.apache.jena.dboe.storage.advanced.quad;
 
 import java.util.stream.Stream;
@@ -26,7 +27,7 @@ import org.apache.jena.sparql.core.Quad;
 /**
  * Basic Quad T
  *
- * @author raven
+ * @author Claus Stadler 11/09/2020
  *
  */
 public class QuadTableCoreFromSet

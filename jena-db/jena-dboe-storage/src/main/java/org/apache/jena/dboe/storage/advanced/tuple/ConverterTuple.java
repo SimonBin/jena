@@ -14,6 +14,7 @@
  *  See the NOTICE file distributed with this work for additional
  *  information regarding copyright ownership.
  */
+
 package org.apache.jena.dboe.storage.advanced.tuple;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
@@ -23,7 +24,7 @@ import org.apache.jena.ext.com.google.common.base.Converter;
 /**
  * A converter from any domain object type to Tuple<ComponentType> via a TupleAccessor
  *
- * @author raven
+ * @author Claus Stadler 11/09/2020
  *
  * @param <DomainType>
  * @param <ComponentType>

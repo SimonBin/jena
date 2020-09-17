@@ -14,6 +14,7 @@
  *  See the NOTICE file distributed with this work for additional
  *  information regarding copyright ownership.
  */
+
 package org.apache.jena.dboe.storage.advanced.triple;
 
 import java.util.stream.Stream;
@@ -22,6 +23,10 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleTableCoreFromSet;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 
+/**
+ *
+ * @author Claus Stadler 11/09/2020
+ */
 public class TripleTableCoreFromSet
     extends TupleTableCoreFromSet<Triple, Node>
     implements TripleTableCore
