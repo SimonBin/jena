@@ -1,4 +1,4 @@
-package org.apache.jena.dboe.storage.storage;
+package org.apache.jena.dboe.storage.advanced.storage;
 
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.alt2;
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.altN;
@@ -43,56 +43,10 @@ import com.github.jsonldjava.shaded.com.google.common.collect.Maps;
 
 
 public class TestTupleTableCore {
-//    @Test
-    public void test1() {
-        Quad q1 = SSE.parseQuad("(:g1 :s1 :g1p1 :g1o1)");
-        Quad q2 = SSE.parseQuad("(:g1 :s1 :g1p2 :g1o2)");
-        Quad q3 = SSE.parseQuad("(:g2 :s2 :g2p1 :g2o1)");
-        Quad q4 = SSE.parseQuad("(:g2 :s2 :g2p2 :g2o2)");
-
-        QuadTableCore table = new QuadTableCoreFromMapOfTripleTableCore(TripleTableCoreFromNestedMapsImpl::new);
-        table.add(q1);
-        table.add(q2);
-        table.add(q3);
-        table.add(q4);
-
-        Node g1 = q1.getGraph();
-        Node s1 = q1.getSubject();
-        Node g2 = q3.getGraph();
-        Node s2 = q3.getSubject();
-
-        // lr = lookup result
-        List<Quad> lr0a = table.newFinder().stream().collect(Collectors.toList());
-        Assert.assertEquals(Arrays.asList(q1, q2, q3, q4), lr0a);
-
-
-        List<Quad> lr0b = table.newFinder().eq(0, s1).stream().collect(Collectors.toList());
-        Assert.assertEquals(Arrays.asList(q1, q2), lr0b);
-
-        List<Node> lr1 = table.newFinder().projectOnly(3).distinct().stream().collect(Collectors.toList());
-        Assert.assertEquals(Arrays.asList(g1, g2), lr1);
-
-        List<Tuple<Node>> lr2 = table.newFinder().project(3, 0).stream().collect(Collectors.toList());
-        Assert.assertEquals(Arrays.asList(
-                TupleFactory.create2(g1, s1),
-                TupleFactory.create2(g1, s1),
-                TupleFactory.create2(g2, s2),
-                TupleFactory.create2(g2, s2)),
-                lr2);
-
-        List<Tuple<Node>> lr3 = table.newFinder().project(3, 0).distinct().stream().collect(Collectors.toList());
-        Assert.assertEquals(Arrays.asList(
-                TupleFactory.create2(g1, s1),
-                TupleFactory.create2(g2, s2)),
-                lr3);
-    }
 
     @Test
     public void test2() {
 
-        // Hooray - ugly complex nested type expression - exactly what I would have wanted for Sparqlify's
-        // source selection index like 8 years ago - but back then I constructed a similar nested expression starting from the root
-        // This time I do it bottom-up and it is so much better!
         Meta2NodeCompound<Quad, Node, Entry<Map<Node, Entry<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>> storage =
             alt2(
                 innerMap(3, LinkedHashMap::new,
@@ -118,15 +72,16 @@ public class TestTupleTableCore {
         storage.add(root, q3);
         storage.add(root, q4);
 
-        StoreAccessor<Quad, Node> rootAccessor = StoreAccessorImpl.createForStore(storage);
+        StoreAccessor<Quad, Node> rootAccessor = StoreAccessorImpl.createForStorage(storage);
 
 
 
         TupleQuery<Node> tupleQuery = new TupleQueryImpl<>(4);
         tupleQuery.setDistinct(true);
         tupleQuery.setConstraint(0, q1.getSubject());
+        tupleQuery.setConstraint(2, q1.getObject());
         // tupleQuery.setConstraint(3, RDF.Nodes.type);
-        tupleQuery.setProject(1);
+        tupleQuery.setProject(3, 0, 1, 2);
 
 
 
@@ -142,7 +97,7 @@ public class TestTupleTableCore {
                 tupleQuery,
                 TupleAccessorQuadAnyToNull.INSTANCE);
 
-        rs.bind(root).streamAsComponent()
+        rs.bind(root).streamAsTuple()
             .forEach(tuple -> System.out.println("GOT TUPLE: " + tuple));
 
         System.out.println("END OF REPORTS =====================");
@@ -346,4 +301,49 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
             System.out.println(entry);
         }
     }
+
+//  @Test
+  public void test1() {
+      Quad q1 = SSE.parseQuad("(:g1 :s1 :g1p1 :g1o1)");
+      Quad q2 = SSE.parseQuad("(:g1 :s1 :g1p2 :g1o2)");
+      Quad q3 = SSE.parseQuad("(:g2 :s2 :g2p1 :g2o1)");
+      Quad q4 = SSE.parseQuad("(:g2 :s2 :g2p2 :g2o2)");
+
+      QuadTableCore table = new QuadTableCoreFromMapOfTripleTableCore(TripleTableCoreFromNestedMapsImpl::new);
+      table.add(q1);
+      table.add(q2);
+      table.add(q3);
+      table.add(q4);
+
+      Node g1 = q1.getGraph();
+      Node s1 = q1.getSubject();
+      Node g2 = q3.getGraph();
+      Node s2 = q3.getSubject();
+
+      // lr = lookup result
+      List<Quad> lr0a = table.newFinder().stream().collect(Collectors.toList());
+      Assert.assertEquals(Arrays.asList(q1, q2, q3, q4), lr0a);
+
+
+      List<Quad> lr0b = table.newFinder().eq(0, s1).stream().collect(Collectors.toList());
+      Assert.assertEquals(Arrays.asList(q1, q2), lr0b);
+
+      List<Node> lr1 = table.newFinder().projectOnly(3).distinct().stream().collect(Collectors.toList());
+      Assert.assertEquals(Arrays.asList(g1, g2), lr1);
+
+      List<Tuple<Node>> lr2 = table.newFinder().project(3, 0).stream().collect(Collectors.toList());
+      Assert.assertEquals(Arrays.asList(
+              TupleFactory.create2(g1, s1),
+              TupleFactory.create2(g1, s1),
+              TupleFactory.create2(g2, s2),
+              TupleFactory.create2(g2, s2)),
+              lr2);
+
+      List<Tuple<Node>> lr3 = table.newFinder().project(3, 0).distinct().stream().collect(Collectors.toList());
+      Assert.assertEquals(Arrays.asList(
+              TupleFactory.create2(g1, s1),
+              TupleFactory.create2(g2, s2)),
+              lr3);
+  }
+
 }

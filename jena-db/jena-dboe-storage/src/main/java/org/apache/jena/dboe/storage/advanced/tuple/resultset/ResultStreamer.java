@@ -17,7 +17,7 @@ import java.util.stream.Stream;
  */
 public interface ResultStreamer<D, C, T> {
 
-    Stream<D> streamAsDomainObjects();
+    Stream<D> streamAsDomainObject();
     Stream<C> streamAsComponent();
     Stream<T> streamAsTuple();
 

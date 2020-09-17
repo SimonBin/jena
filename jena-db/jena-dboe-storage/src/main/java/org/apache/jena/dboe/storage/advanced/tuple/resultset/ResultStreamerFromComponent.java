@@ -33,7 +33,7 @@ public class ResultStreamerFromComponent<D, C>
      * Only works if the accessor can create domain objects with a single component
      */
     @Override
-    public Stream<D> streamAsDomainObjects() {
+    public Stream<D> streamAsDomainObject() {
         int domainDimension = domainAccessor.getRank();
         if (domainDimension != 1) {
             throw new UnsupportedOperationException("Cannot convert component into a domain object of dimension != 1; has" + domainDimension);

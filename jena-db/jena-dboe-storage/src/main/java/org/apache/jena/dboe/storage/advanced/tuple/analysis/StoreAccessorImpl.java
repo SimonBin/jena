@@ -95,7 +95,7 @@ public class StoreAccessorImpl<D, C>
     }
 
 
-    public static <D, C> StoreAccessorImpl<D, C> createForStore(StorageNode<D, C, ?> root) {
+    public static <D, C> StoreAccessorImpl<D, C> createForStorage(StorageNode<D, C, ?> root) {
 
         // Wrap each storage node with an accessor
         StoreAccessorImpl<D, C> result = TreeLib.<StorageNode<D, C, ?>, StoreAccessorImpl<D, C>>createTreePreOrder(

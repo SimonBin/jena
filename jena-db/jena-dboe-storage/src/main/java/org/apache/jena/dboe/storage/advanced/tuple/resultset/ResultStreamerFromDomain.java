@@ -33,7 +33,7 @@ public class ResultStreamerFromDomain<D, C>
     }
 
     @Override
-    public Stream<D> streamAsDomainObjects() {
+    public Stream<D> streamAsDomainObject() {
         return domainStreamer.get();
     }
 
@@ -43,12 +43,12 @@ public class ResultStreamerFromDomain<D, C>
             throw new UnsupportedOperationException("Cannot stream domain objects with dimension != 1 as a component");
         }
 
-        return streamAsDomainObjects().map(item -> domainAccessor.get(item,0));
+        return streamAsDomainObject().map(item -> domainAccessor.get(item,0));
     }
 
     @Override
     public Stream<Tuple<C>> streamAsTuple() {
         Function<D, Tuple<C>> tupelizer = TupleOps.tupelizer(domainAccessor);
-        return streamAsDomainObjects().map(tupelizer);
+        return streamAsDomainObject().map(tupelizer);
     }
 }

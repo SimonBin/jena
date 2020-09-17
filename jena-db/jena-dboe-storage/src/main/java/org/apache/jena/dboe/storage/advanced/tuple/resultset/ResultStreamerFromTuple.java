@@ -37,7 +37,7 @@ public class ResultStreamerFromTuple<D, C>
      * Only works if the accessor can create domain objects with a single component
      */
     @Override
-    public Stream<D> streamAsDomainObjects() {
+    public Stream<D> streamAsDomainObject() {
         int domainDimension = domainAccessor.getRank();
         if (domainDimension != tupleDimension) {
             throw new UnsupportedOperationException("Tuple dimension " + tupleDimension + " does not match domain dimension " + domainDimension);
