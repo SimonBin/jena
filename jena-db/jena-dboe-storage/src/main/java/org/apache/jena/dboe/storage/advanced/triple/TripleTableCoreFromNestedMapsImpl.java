@@ -14,7 +14,6 @@
  *  See the NOTICE file distributed with this work for additional
  *  information regarding copyright ownership.
  */
-
 package org.apache.jena.dboe.storage.advanced.triple;
 
 import java.util.Collections;

@@ -14,14 +14,12 @@
  *  See the NOTICE file distributed with this work for additional
  *  information regarding copyright ownership.
  */
-
 package org.apache.jena.dboe.storage.advanced.triple;
 
 import java.util.List;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleTableCore;
 import org.apache.jena.graph.Node;
