@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
@@ -167,7 +166,7 @@ public class StoreAccessorImpl<D, C>
      *
      */
     @Override
-    public <T, K> Streamer<?, ? extends Entry<K, ?>> cartesianProduct(
+    public <T, K> Streamer<?, Entry<K, ?>> cartesianProduct(
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,
             K initialAccumulator,
@@ -177,88 +176,94 @@ public class StoreAccessorImpl<D, C>
     }
 
 
+//    @Override
+//    public <T, K> Streamer<?, ? extends Entry<K, ?>> cartesianProductOfParent(
+//            T pattern,
+//            TupleAccessorCore<? super T, ? extends C> accessor,
+//            K initialAccumulator,
+//            KeyReducer<K> keyReducer
+//        ) {
+//
+//        Streamer<?, ? extends Entry<K, ?>> result = parent == null
+//            ? rootStoreAlts -> Stream.of(Maps.immutableEntry(initialAccumulator, rootStoreAlts))
+//            : parent.cartesianProduct(pattern, accessor, initialAccumulator, keyReducer, childIndex);
+//
+//        return result;
+//    };
+//
 
-    public <T, K> Streamer<?, ? extends Entry<K, ?>> cartesianProduct(
+    @Override
+    public <T, K> Streamer<?, Entry<K, ?>> cartesianProductOfParent(T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor, K initialAccumulator, KeyReducer<K> keyReducer) {
+
+        Streamer<?, Entry<K, ?>> result = parent == null
+                ? rootStoreAlts -> Stream.of(Maps.immutableEntry(initialAccumulator, rootStoreAlts))
+                : parent.cartesianProduct(pattern, accessor, initialAccumulator, keyReducer, childIndex);
+
+        return result;
+    }
+
+
+//    @Override
+    public <T, K> Streamer<?, Entry<K, ?>> cartesianProduct(
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,
             K initialAccumulator,
             KeyReducer<K> keyReducer,
-            int lastAltIdxChoice
-            ) {
+            int lastAltIdxChoice) {
 
-        // Gather this node's ancestors in a list
-        // Root is first element in the list because of depthFirstPostOrder
-        List<StoreAccessorImpl<D, C>> ancestors = ancestors();
 
-        List<Streamer<?, ? extends Entry<?, ?>>> nodeStreamers = new ArrayList<>(ancestors.size());
-        for (int i = 0; i < ancestors.size(); ++i) {
-            StorageNode<D, C, ?> strg = ancestors.get(i).getStorage();
-            Streamer<?, ? extends Entry<?, ?>> r = strg.streamerForKeyAndSubStoreAlts(pattern, accessor);
-            nodeStreamers.add(r);
-        }
+        StreamTransform<Entry<K, ?>, Entry<K, ?>> streamXform = cartesianProductStreamTransform(
+                pattern, accessor, keyReducer, lastAltIdxChoice);
 
-        Streamer<?, ? extends Entry<K, ?>>  result = rootStore -> {
-            Entry<K, ?> rootEntry = Maps.immutableEntry(initialAccumulator, rootStore);
-            return recursiveCartesianProduct(rootEntry, ancestors, nodeStreamers, keyReducer, 0, lastAltIdxChoice);
+        Streamer<?, Entry<K, ?>> result = rootStoreAlts -> {
+            Entry<K, ?> rootEntry = Maps.immutableEntry(initialAccumulator, rootStoreAlts);
+            Stream<Entry<K, ?>> rootStream = Stream.of(rootEntry);
+            Stream<Entry<K, ?>> r = streamXform.transform(rootStream);
+            return r;
         };
 
         return result;
-    };
 
+    }
 
-    /**
-     * Input is a pair whose first element is the keys assembled so far
-     * and the second one is the next one corresponds to store alternatives
-     *
-     * @param <T>
-     * @param keysAndStoreAlts
-     * @param ancestors
-     * @param nodeStreamers
-     * @param i
-     * @return
-     */
-    public <T, K> Stream<Entry<K, ?>> recursiveCartesianProduct(
-            Entry<K, ?> keyAccumulatorAndStoreAlts,
-            List<StoreAccessorImpl<D, C>> ancestors,
-            List<Streamer<?, ? extends Entry<?, ?>>> nodeStreamers,
+    public <T, K> StreamTransform<Entry<K, ?>, Entry<K, ?>> cartesianProductStreamTransform(
+            T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor,
             KeyReducer<K> keyReducer,
-            int i,
-            int lastAltIdx) {
-        Stream<Entry<K, ?>> result;
+            int altIdx
+        ) {
 
-//        System.out.println("GOT KEYS AND STORE ALTS: " + keysAndStoreAlts.getValue().getClass() + " " + keysAndStoreAlts.getValue());
-        if (i >= ancestors.size()) {
-            result = Stream.of(keyAccumulatorAndStoreAlts);
-        } else {
-            StoreAccessorImpl<D, C> node = ancestors.get(i);
-//            StorageNode<D, C, ?> parentStorage = i == 0
-//                    ? null
-//                    : node.getParent().getStorage();
+        Streamer<?, ? extends Entry<?, ?>> thisStreamer =
+                storage.streamerForKeyAndSubStoreAlts(pattern, accessor);
 
-            StorageNode<D, C, ?> storage = node.getStorage();
-            Object storeAlts = keyAccumulatorAndStoreAlts.getValue();
-            int altIdx = (i + 1 >= ancestors.size()) ? lastAltIdx : ancestors.get(i + 1).getChildIndex();
+        StreamTransform<Entry<K, ?>, Entry<K, ?>> parentXform = parent == null
+                ? x -> x
+                : parent.cartesianProductStreamTransform(pattern, accessor, keyReducer, childIndex);
 
-            Object store = storage.chooseSubStoreRaw(storeAlts, altIdx);
+        StreamTransform<Entry<K, ?>, Entry<K, ?>> result =
+                inStream -> parentXform.transform(inStream)
+                .flatMap(keyAccumulatorAndStoreAlts -> {
+                    K keyAcumulator = keyAccumulatorAndStoreAlts.getKey();
+                    Object storeAlts = keyAccumulatorAndStoreAlts.getValue();
 
+                    Object store = storage.chooseSubStoreRaw(storeAlts, altIdx);
 
-            K keyAcumulator = keyAccumulatorAndStoreAlts.getKey();
+                    Stream<Entry<K, ?>> r = thisStreamer.streamRaw(store)
+                        .map(keyContribAndNextStoreAlts -> {
+                            Object keyContrib = keyContribAndNextStoreAlts.getKey();
+                            Object nextStoreAlts = keyContribAndNextStoreAlts.getValue();
 
-            Streamer<?, ? extends Entry<?, ?>> streamer = nodeStreamers.get(i);
+                            K nextKeyAccumulator = keyReducer.reduce(keyAcumulator, depth, keyContrib);
 
-            return streamer.streamRaw(store)
-                .map(keyContribAndStoreAlts -> {
-                    Object keyContrib = keyContribAndStoreAlts.getKey();
-                    K nextKeyAccumulator = keyReducer.reduce(keyAcumulator, i, keyContrib);
-
-                    Object nextStoreAlts = keyContribAndStoreAlts.getValue();
-                    return Maps.immutableEntry(nextKeyAccumulator, nextStoreAlts);
-                })
-                .flatMap(e -> recursiveCartesianProduct(e, ancestors, nodeStreamers, keyReducer, i + 1, lastAltIdx));
-        }
+                            return Maps.immutableEntry(nextKeyAccumulator, nextStoreAlts);
+                        });
+                   return r;
+                });
 
         return result;
     }
+
 
 
     @Override
@@ -269,8 +274,8 @@ public class StoreAccessorImpl<D, C>
         Streamer<?, ?> valuesStreamer = storageNode.streamerForValues(pattern, accessor);
 
         // The cartesian product is invoked on the parent
-        Streamer<?, ? extends Entry<Object, ?>> cartesianProduct =
-                getParent().cartesianProduct(pattern, accessor, null, KeyReducers::passOn, childIndex);
+        Streamer<?, Entry<Object, ?>> cartesianProduct =
+                cartesianProductOfParent(pattern, accessor, null, KeyReducers::passOn);
 
         return store -> cartesianProduct.streamRaw(store).flatMap(e -> {
             Object storeAlts = e.getValue();
@@ -297,8 +302,8 @@ public class StoreAccessorImpl<D, C>
 
         Streamer<?, ?> keysStreamer = storageNode.streamerForKeys(pattern, accessor);
 
-        Streamer<?, ? extends Entry<K, ?>> cartesianProduct =
-                getParent().cartesianProduct(pattern, accessor, initialAccumulator, keyReducer, childIndex);
+        Streamer<?, Entry<K, ?>> cartesianProduct =
+                cartesianProductOfParent(pattern, accessor, initialAccumulator, keyReducer);
 
         return store -> cartesianProduct.streamRaw(store).flatMap(e -> {
             K accumulator = e.getKey();
@@ -309,6 +314,7 @@ public class StoreAccessorImpl<D, C>
             return keysStreamer.streamRaw(valueStore).map(key -> keyReducer.reduce(accumulator, depth, key));
         });
     }
+
 
 
     //
@@ -400,4 +406,78 @@ public class StoreAccessorImpl<D, C>
 //  Streamer<Entry<?, ?>, Entry<?, ?>> tmpp = currPairStreamer;
 //  return store -> tmpp.streamRaw(Maps.immutableEntry(null, store));
 //}
+
+
+
+
+
+/*
+
+    public <T, K> Streamer<?, ? extends Entry<K, ?>> cartesianProductOld(
+            T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor,
+            K initialAccumulator,
+            KeyReducer<K> keyReducer,
+            int lastAltIdxChoice
+            ) {
+
+        // Gather this node's ancestors in a list
+        // Root is first element in the list because of depthFirstPostOrder
+        List<StoreAccessorImpl<D, C>> ancestors = ancestors();
+
+        List<Streamer<?, ? extends Entry<?, ?>>> nodeStreamers = new ArrayList<>(ancestors.size());
+        for (int i = 0; i < ancestors.size(); ++i) {
+            StorageNode<D, C, ?> strg = ancestors.get(i).getStorage();
+            Streamer<?, ? extends Entry<?, ?>> r = strg.streamerForKeyAndSubStoreAlts(pattern, accessor);
+            nodeStreamers.add(r);
+        }
+
+        Streamer<?, ? extends Entry<K, ?>>  result = rootStore -> {
+            Entry<K, ?> rootEntry = Maps.immutableEntry(initialAccumulator, rootStore);
+            return recursiveCartesianProduct(rootEntry, ancestors, nodeStreamers, keyReducer, 0, lastAltIdxChoice);
+        };
+
+        return result;
+    };
+
+
+    public <T, K> Stream<Entry<K, ?>> recursiveCartesianProduct(
+            Entry<K, ?> keyAccumulatorAndStoreAlts,
+            List<StoreAccessorImpl<D, C>> ancestors,
+            List<Streamer<?, ? extends Entry<?, ?>>> nodeStreamers,
+            KeyReducer<K> keyReducer,
+            int i,
+            int lastAltIdx) {
+        Stream<Entry<K, ?>> result;
+
+        if (i >= ancestors.size()) {
+            result = Stream.of(keyAccumulatorAndStoreAlts);
+        } else {
+            StoreAccessorImpl<D, C> node = ancestors.get(i);
+
+            StorageNode<D, C, ?> storage = node.getStorage();
+            Object storeAlts = keyAccumulatorAndStoreAlts.getValue();
+            int altIdx = (i + 1 >= ancestors.size()) ? lastAltIdx : ancestors.get(i + 1).getChildIndex();
+
+            Object store = storage.chooseSubStoreRaw(storeAlts, altIdx);
+
+
+            K keyAcumulator = keyAccumulatorAndStoreAlts.getKey();
+
+            Streamer<?, ? extends Entry<?, ?>> streamer = nodeStreamers.get(i);
+
+            return streamer.streamRaw(store)
+                .map(keyContribAndStoreAlts -> {
+                    Object keyContrib = keyContribAndStoreAlts.getKey();
+                    K nextKeyAccumulator = keyReducer.reduce(keyAcumulator, i, keyContrib);
+
+                    Object nextStoreAlts = keyContribAndStoreAlts.getValue();
+                    return Maps.immutableEntry(nextKeyAccumulator, nextStoreAlts);
+                })
+                .flatMap(e -> recursiveCartesianProduct(e, ancestors, nodeStreamers, keyReducer, i + 1, lastAltIdx));
+        }
+
+        return result;
+    }
+*/
 }

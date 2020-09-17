@@ -36,6 +36,13 @@ public interface StoreAccessor<D, C> {
     StoreAccessor<D, C> leastNestedChildOrSelf();
 
 
+    <T, K> Streamer<?, Entry<K, ?>> cartesianProductOfParent(
+            T pattern,
+            TupleAccessorCore<? super T, ? extends C> accessor,
+            K initialAccumulator,
+            KeyReducer<K> keyReducer);
+
+
     /**
      * Create the cartesian product from the root until this node under
      * given equality constraints
@@ -49,12 +56,13 @@ public interface StoreAccessor<D, C> {
      * @param accessor
      * @return
      */
-    <T, K> Streamer<?, ? extends Entry<K, ?>> cartesianProduct(
+    <T, K> Streamer<?, Entry<K, ?>> cartesianProduct(
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,
             K initialAccumulator,
             KeyReducer<K> keyReducer
             );
+
 
 
     public <T> Streamer<?, D> streamerForContent(
