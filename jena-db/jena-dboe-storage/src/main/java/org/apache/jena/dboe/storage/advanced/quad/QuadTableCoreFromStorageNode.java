@@ -15,11 +15,11 @@ import org.apache.jena.sparql.core.Quad;
  *
  * @param <V>
  */
-public class QuadTableFromStorageNode<V>
+public class QuadTableCoreFromStorageNode<V>
     extends TupleTableFromStorageNodeBase<Quad, Node, V>
     implements QuadTableCore
 {
-    public QuadTableFromStorageNode(
+    public QuadTableCoreFromStorageNode(
             StorageNodeMutable<Quad, Node, V> rootStorageNode,
             V store) {
         super(rootStorageNode, store);
@@ -41,9 +41,9 @@ public class QuadTableFromStorageNode<V>
     }
 
 
-    public static <V> QuadTableFromStorageNode<V> create(StorageNodeMutable<Quad, Node, V> rootStorageNode) {
+    public static <V> QuadTableCoreFromStorageNode<V> create(StorageNodeMutable<Quad, Node, V> rootStorageNode) {
         V store = rootStorageNode.newStore();
-        return new QuadTableFromStorageNode<V>(rootStorageNode, store);
+        return new QuadTableCoreFromStorageNode<V>(rootStorageNode, store);
     }
 
     // TODO We need to be wary of nulls / any!!!

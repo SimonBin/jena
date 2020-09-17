@@ -15,7 +15,7 @@ import org.apache.jena.dboe.storage.advanced.quad.QuadTableCore;
 import org.apache.jena.dboe.storage.advanced.quad.QuadTableCore2;
 import org.apache.jena.dboe.storage.advanced.quad.QuadTableCoreFromMapOfTripleTableCore;
 import org.apache.jena.dboe.storage.advanced.quad.QuadTableCoreFromSet;
-import org.apache.jena.dboe.storage.advanced.quad.QuadTableFromStorageNode;
+import org.apache.jena.dboe.storage.advanced.quad.QuadTableCoreFromStorageNode;
 import org.apache.jena.dboe.storage.advanced.quad.StorageRDFTriplesQuads;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore2;
@@ -138,7 +138,7 @@ public class DatasetGraphFactoryOrdered {
                 strictOrderOnQuads, TupleAccessorQuadAnyToNull.INSTANCE);
 
         TripleTableCore tripleTable = TripleTableFromStorageNode.create(tripleStorage);
-        QuadTableCore quadTable = QuadTableFromStorageNode.create(quadStorage);
+        QuadTableCore quadTable = QuadTableCoreFromStorageNode.create(quadStorage);
 
         return new StorageRDFTriplesQuads(tripleTable, quadTable);
     }

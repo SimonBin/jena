@@ -7,5 +7,4 @@ public interface TupleQuerySupport<TupleType, ComponentType> {
 
      /** Method for running tuple queries */
      ResultStreamer<TupleType, ComponentType, Tuple<ComponentType>> find(TupleQuery<ComponentType> tupleQuery);
-
 }
