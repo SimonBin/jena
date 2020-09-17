@@ -1,11 +1,8 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Stream;
-
-import javax.swing.text.AsyncBoxView.ChildLocator;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;

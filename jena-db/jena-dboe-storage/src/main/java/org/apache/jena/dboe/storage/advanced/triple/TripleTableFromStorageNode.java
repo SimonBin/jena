@@ -2,7 +2,7 @@ package org.apache.jena.dboe.storage.advanced.triple;
 
 import java.util.stream.Stream;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleTableFromStorageNode;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleTableFromStorageNodeBase;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
@@ -15,7 +15,7 @@ import org.apache.jena.graph.Triple;
  * @param <V>
  */
 public class TripleTableFromStorageNode<V>
-    extends TupleTableFromStorageNode<Triple, Node, V>
+    extends TupleTableFromStorageNodeBase<Triple, Node, V>
     implements TripleTableCore
 {
     public TripleTableFromStorageNode(

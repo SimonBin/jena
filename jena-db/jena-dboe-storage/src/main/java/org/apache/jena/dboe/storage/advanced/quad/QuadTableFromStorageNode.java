@@ -2,7 +2,7 @@ package org.apache.jena.dboe.storage.advanced.quad;
 
 import java.util.stream.Stream;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleTableFromStorageNode;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleTableFromStorageNodeBase;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.Quad;
@@ -15,7 +15,7 @@ import org.apache.jena.sparql.core.Quad;
  * @param <V>
  */
 public class QuadTableFromStorageNode<V>
-    extends TupleTableFromStorageNode<Quad, Node, V>
+    extends TupleTableFromStorageNodeBase<Quad, Node, V>
     implements QuadTableCore
 {
     public QuadTableFromStorageNode(

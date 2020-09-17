@@ -1,5 +1,6 @@
 package org.apache.jena.dboe.storage.advanced.tuple.resultset;
 
+import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 
 /**
@@ -10,9 +11,9 @@ import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutab
  *
  * @author raven
  *
- * @param <D>
- * @param <C>
- * @param <T>
+ * @param <D> The domain tuple type
+ * @param <C> The component type
+ * @param <T> The tuple type such as {@link Tuple}
  */
 public interface ResultStreamerBinder<D, C, T>
 {

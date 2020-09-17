@@ -18,15 +18,15 @@ import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinde
  * @param <C> Component type such as Node
  * @param <V> Store type such as a Map<Node, Set<Triple>>
  */
-public abstract class TupleTableFromStorageNode<D, C, V>
-    implements TupleTableCore<D, C>
+public abstract class TupleTableFromStorageNodeBase<D, C, V>
+    implements TupleTableCoreFromStorageNode<D, C, V>
 {
     protected StorageNodeMutable<D, C, V> rootStorageNode;
     protected V store;
 
     protected StoreAccessor<D, C> storeAccessor;
 
-    public TupleTableFromStorageNode(
+    public TupleTableFromStorageNodeBase(
             StorageNodeMutable<D, C, V> rootStorageNode,
             V store) {
         super();
@@ -34,6 +34,16 @@ public abstract class TupleTableFromStorageNode<D, C, V>
         this.store = store;
 
         storeAccessor = StoreAccessorImpl.createForStorage(rootStorageNode);
+    }
+
+    @Override
+    public StorageNodeMutable<D, C, V> getStorageNode() {
+        return rootStorageNode;
+    }
+
+    @Override
+    public V getStore() {
+        return store;
     }
 
     @Override
