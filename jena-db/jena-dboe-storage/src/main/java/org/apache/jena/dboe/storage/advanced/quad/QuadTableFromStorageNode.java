@@ -34,6 +34,12 @@ public class QuadTableFromStorageNode<V>
         return newFinder().projectOnly(3).distinct().stream();
     }
 
+
+    public static <V> QuadTableFromStorageNode<V> create(StorageNodeMutable<Quad, Node, V> rootStorageNode) {
+        V store = rootStorageNode.newStore();
+        return new QuadTableFromStorageNode<V>(rootStorageNode, store);
+    }
+
     // TODO We need to be wary of nulls / any!!!
 
 //    @Override

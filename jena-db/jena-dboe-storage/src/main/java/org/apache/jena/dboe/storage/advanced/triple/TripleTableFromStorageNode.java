@@ -24,6 +24,12 @@ public class TripleTableFromStorageNode<V>
         super(rootStorageNode, store);
     }
 
+    public static <V> TripleTableFromStorageNode<V> create(StorageNodeMutable<Triple, Node, V> rootStorageNode) {
+        V store = rootStorageNode.newStore();
+        return new TripleTableFromStorageNode<V>(rootStorageNode, store);
+    }
+
+
     @Override
     public Stream<Triple> find(Node s, Node p, Node o) {
         return newFinder().eq(0, s).eq(1, p).eq(2, o).stream();

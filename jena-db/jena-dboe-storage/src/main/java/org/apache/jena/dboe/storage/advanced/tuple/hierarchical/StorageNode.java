@@ -58,6 +58,16 @@ public interface StorageNode<D, C, V> {
     int[] getKeyTupleIdxs();
 
 
+    /**
+     * Future: Allow the storageNode to answer how efficiently it can answer the constraints
+     * in a given constraint list
+     *
+     * E.g. O(1) or O(log(n)) or O(n)
+     *
+     * @return
+     */
+    // Complexity rateCoostraint(ConstraintPatter pattern);
+
     TupleAccessor<D, C> getTupleAccessor();
 
     /**

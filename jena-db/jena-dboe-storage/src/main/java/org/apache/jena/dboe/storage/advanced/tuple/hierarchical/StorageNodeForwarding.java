@@ -8,10 +8,10 @@ import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 
-public abstract class StorageNodeForwarding<D, C, V extends StorageNode<D, C, V>>
+public abstract class StorageNodeForwarding<D, C, V, X extends StorageNode<D, C, V>>
     implements StorageNode<D, C, V>
 {
-    abstract V getDelegate();
+    protected abstract X getDelegate();
 
     @Override
     public List<? extends StorageNode<D, C, ?>> getChildren() {

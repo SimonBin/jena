@@ -1,7 +1,7 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
-public abstract class StorageNodeMutableForwarding<D, C, V extends StorageNodeMutable<D,C,V>>
-    extends StorageNodeForwarding<D, C, V>
+public abstract class StorageNodeMutableForwarding<D, C, V, X extends StorageNodeMutable<D, C, V>>
+    extends StorageNodeForwarding<D, C, V, X>
     implements StorageNodeMutable<D, C, V>
 {
     @Override

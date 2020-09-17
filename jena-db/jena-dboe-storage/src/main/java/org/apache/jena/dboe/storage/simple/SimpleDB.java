@@ -18,19 +18,7 @@
 
 package org.apache.jena.dboe.storage.simple;
 
-import java.util.function.Supplier;
-
 import org.apache.jena.dboe.storage.DatabaseRDF;
-import org.apache.jena.dboe.storage.StorageRDF;
-import org.apache.jena.dboe.storage.advanced.quad.QuadTableCore;
-import org.apache.jena.dboe.storage.advanced.quad.QuadTableCore2;
-import org.apache.jena.dboe.storage.advanced.quad.QuadTableCoreFromMapOfTripleTableCore;
-import org.apache.jena.dboe.storage.advanced.quad.QuadTableCoreFromSet;
-import org.apache.jena.dboe.storage.advanced.quad.StorageRDFTriplesQuads;
-import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
-import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore2;
-import org.apache.jena.dboe.storage.advanced.triple.TripleTableCoreFromNestedMapsImpl;
-import org.apache.jena.dboe.storage.advanced.triple.TripleTableCoreFromSet;
 import org.apache.jena.dboe.storage.system.DatasetGraphStorage;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.TransactionalLock;
@@ -45,24 +33,5 @@ public class SimpleDB {
         public DatasetGraphSimpleDB() {
             super(new StorageMem(), new StoragePrefixesMem(), TransactionalLock.createMRSW());
         }
-    }
-    public static DatasetGraph createOrderPreserving() {
-        return createOrderPreserving(false, false);
-    }
-
-    public static DatasetGraph createOrderPreserving(boolean strictOrderOnQuads, boolean strictOrderOnTriples) {
-        Supplier<TripleTableCore> tripleTableSupplier = strictOrderOnTriples
-                ? () -> new TripleTableCore2(new TripleTableCoreFromNestedMapsImpl(), new TripleTableCoreFromSet())
-                : () -> new TripleTableCoreFromNestedMapsImpl();
-
-        QuadTableCore quadTable = new QuadTableCoreFromMapOfTripleTableCore(tripleTableSupplier);
-
-        if (strictOrderOnQuads) {
-            quadTable = new QuadTableCore2(quadTable, new QuadTableCoreFromSet());
-        }
-
-        StorageRDF storage = StorageRDFTriplesQuads.createWithQuadsOnly(quadTable);
-        DatasetGraph result = new DatasetGraphStorage(storage, new StoragePrefixesMem(), TransactionalLock.createMRSW());
-        return result;
     }
 }
