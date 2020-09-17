@@ -76,7 +76,7 @@ public class StoreAccessorImpl<D, C>
     @Override
     public StoreAccessor<D, C> leastNestedChildOrSelf() {
         if (leastNestedNode == null) {
-            leastNestedNode = (StoreAccessorImpl<D, C>) Meta2NodeLib.findLeastNestedIndexNode(this);
+            leastNestedNode = (StoreAccessorImpl<D, C>) StoreAccessor.findLeastNestedIndexNode(this);
         }
 
         return leastNestedNode;

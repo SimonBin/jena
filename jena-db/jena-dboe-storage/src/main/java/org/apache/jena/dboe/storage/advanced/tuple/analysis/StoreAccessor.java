@@ -77,4 +77,11 @@ public interface StoreAccessor<D, C> {
             IndexedKeyReducer<K> keyReducer
             );
 
+    static <D, C> StoreAccessor<D, C> findLeastNestedIndexNode(StoreAccessor<D, C> node) {
+        return BreadthFirstSearchLib.breadthFirstFindFirst(
+                node,
+                StoreAccessor::getChildren,
+                n -> n.childCount() == 0);
+    }
+
 }
