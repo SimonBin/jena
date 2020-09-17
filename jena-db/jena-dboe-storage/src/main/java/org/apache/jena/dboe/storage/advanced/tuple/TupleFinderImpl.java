@@ -95,9 +95,10 @@ public class TupleFinderImpl<ExposedType, DomainType, ComponentType>
         return new TupleFinderImpl<DomainType, DomainType, ComponentType>(
                     tupleTable,
                     new TupleQueryImpl<>(tupleTable.getDimension()),
+                    (table, query) -> table.find(query).streamAsDomainObject());
                     // Default strategy with a fresh TupleQueryImpl is to pass a null-value-filled
                     // pattern to the findTuple methods
-                    (table, query) -> table.findTuples(query.getPattern()));
+//                    (table, query) -> table.findTuples(query.getPattern()));
     }
 
     @Override

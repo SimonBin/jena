@@ -1,5 +1,8 @@
 package org.apache.jena.dboe.storage.advanced.tuple;
 
+import java.util.List;
+import java.util.stream.Stream;
+
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.NodeStats;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
@@ -61,6 +64,15 @@ public abstract class TupleTableFromStorageNodeBase<D, C, V>
         rootStorageNode.remove(store, domainTuple);
     }
 
+    @Override
+    public Stream<D> findTuples(List<C> pattern) {
+        TupleFinder<D, D, C> finder = newFinder();
+        for (int i = 0; i < pattern.size(); ++i) {
+            finder.eq(i, pattern.get(i));
+        }
+
+        return finder.stream();
+    }
 
     @Override
     public ResultStreamer<D, C, Tuple<C>> find(TupleQuery<C> tupleQuery) {
