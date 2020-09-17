@@ -11,7 +11,7 @@ public interface TupleFinder<ExposedType, DomainType, ComponentType> {
      *
      * @return
      */
-    int getBaseRank();
+    int getDimension();
 
     /**
      * Set an equals constraint on a component
@@ -66,17 +66,6 @@ public interface TupleFinder<ExposedType, DomainType, ComponentType> {
     boolean canAs(Class<?> viewClass);
 
     <T> T as(Class<T> viewClass);
-
-
-    /**
-     * Weight the current state of the TupleFinder as an estimate of the amount
-     * of work required for retrieval execution
-     *
-     * See also {@link TupleIndex}
-     *
-     * @return
-     */
-    int weight();
 
     /**
      * Execute the request

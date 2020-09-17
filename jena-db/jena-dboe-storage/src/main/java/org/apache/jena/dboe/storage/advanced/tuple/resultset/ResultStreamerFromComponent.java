@@ -34,7 +34,7 @@ public class ResultStreamerFromComponent<D, C>
      */
     @Override
     public Stream<D> streamAsDomainObject() {
-        int domainDimension = domainAccessor.getRank();
+        int domainDimension = domainAccessor.getDimension();
         if (domainDimension != 1) {
             throw new UnsupportedOperationException("Cannot convert component into a domain object of dimension != 1; has" + domainDimension);
         }

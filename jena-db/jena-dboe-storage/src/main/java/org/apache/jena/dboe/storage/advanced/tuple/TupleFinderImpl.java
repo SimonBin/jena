@@ -94,7 +94,7 @@ public class TupleFinderImpl<ExposedType, DomainType, ComponentType>
 
         return new TupleFinderImpl<DomainType, DomainType, ComponentType>(
                     tupleTable,
-                    new TupleQueryImpl<>(tupleTable.getRank()),
+                    new TupleQueryImpl<>(tupleTable.getDimension()),
                     // Default strategy with a fresh TupleQueryImpl is to pass a null-value-filled
                     // pattern to the findTuple methods
                     (table, query) -> table.findTuples(query.getPattern()));
@@ -123,12 +123,12 @@ public class TupleFinderImpl<ExposedType, DomainType, ComponentType>
     }
 
     @Override
-    public int getBaseRank() {
-        return tupleTable.getRank();
+    public int getDimension() {
+        return tupleTable.getDimension();
     }
 
     public void checkIndex(int idx) {
-        if (idx < 0 || idx >= getBaseRank()) {
+        if (idx < 0 || idx >= getDimension()) {
             throw new IndexOutOfBoundsException("" + idx);
         }
     }
@@ -153,12 +153,12 @@ public class TupleFinderImpl<ExposedType, DomainType, ComponentType>
      */
     @Override
     public TupleFinder<ComponentType, DomainType, ComponentType> plain() {
-        return newProjectedTupleFinder((table, query) -> table.find(query).map(t -> t.get(0)));
+        return newProjectedTupleFinder((table, query) -> table.find(query).streamAsComponent());
     }
 
     @Override
     public TupleFinder<Tuple<ComponentType>, DomainType, ComponentType> tuples() {
-        return newProjectedTupleFinder((table, query) -> table.find(query));
+        return newProjectedTupleFinder((table, query) -> table.find(query).streamAsTuple());
     }
 
 
@@ -166,6 +166,12 @@ public class TupleFinderImpl<ExposedType, DomainType, ComponentType>
     public TupleFinder<Tuple<ComponentType>, DomainType, ComponentType> project(int... componentIdx) {
         tupleQuery.setProject(componentIdx);
         return tuples();
+    }
+
+
+    @Override
+    public Stream<ExposedType> stream() {
+        return strategy.exec(tupleTable, tupleQuery);
     }
 
 
@@ -179,15 +185,5 @@ public class TupleFinderImpl<ExposedType, DomainType, ComponentType>
     public <T> T as(Class<T> viewClass) {
         // TODO Auto-generated method stub
         return null;
-    }
-
-    @Override
-    public Stream<ExposedType> stream() {
-        return strategy.exec(tupleTable, tupleQuery);
-    }
-
-    @Override
-    public int weight() {
-        return 0;
     }
 }

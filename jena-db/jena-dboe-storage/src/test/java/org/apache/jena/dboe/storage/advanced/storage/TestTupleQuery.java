@@ -91,7 +91,7 @@ public class TestTupleQuery {
             .setDistinct(true)
             .setConstraint(0, q1.getSubject())
             .setConstraint(2, q1.getObject())
-            .setProject(3, 0, 1, 2);
+            .setProject(0, 1, 2, 3);
         // tupleQuery.setConstraint(3, RDF.Nodes.type);
 
 

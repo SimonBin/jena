@@ -38,7 +38,7 @@ public class ResultStreamerFromTuple<D, C>
      */
     @Override
     public Stream<D> streamAsDomainObject() {
-        int domainDimension = domainAccessor.getRank();
+        int domainDimension = domainAccessor.getDimension();
         if (domainDimension != tupleDimension) {
             throw new UnsupportedOperationException("Tuple dimension " + tupleDimension + " does not match domain dimension " + domainDimension);
         }

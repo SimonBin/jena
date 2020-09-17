@@ -96,7 +96,7 @@ public interface QuadTableCore
         return newFinder().projectOnly(3).distinct().stream();
     }
 
-    default int getRank() {
+    default int getDimension() {
         return 4;
     }
 

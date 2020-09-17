@@ -19,9 +19,12 @@ package org.apache.jena.dboe.storage.advanced.tuple;
 
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
+import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
+import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerFromTuple;
 import org.apache.jena.graph.Node;
 
 /**
@@ -34,13 +37,16 @@ import org.apache.jena.graph.Node;
  *
  * @param <TupleType> The type of the tuples to hold
  */
-public interface TupleTableCore<TupleType, ComponentType> {
+public interface TupleTableCore<TupleType, ComponentType>
+    extends TupleQuerySupport<TupleType, ComponentType>
+{
     /**
      * Clear all entries
      *
-     * Optional operation. May fail with {@link UnsupportedOperationException} for views.
+     * Optional operation. May fail with {@link UnsupportedOperationException} for e.g. views.
      */
     void clear();
+
     void add(TupleType tuple);
     void delete(TupleType tuple);
     boolean contains(TupleType tuple);
@@ -64,35 +70,13 @@ public interface TupleTableCore<TupleType, ComponentType> {
     Stream<TupleType> findTuples(List<ComponentType> pattern);
 
     Stream<TupleType> findTuples();
-//    default Stream<TupleType> findTuples() {
-//        return findTuples((ComponentType[]) new Object[getRank()]);
-//    }
-
-
-    /**
-     * Implementing this method can avoid needless wrapping and unwrapping
-     * of components as Tuple1 objects
-     *
-     * The tuple query must project exactly one component
-     *
-     * @param distinct
-     * @param idx
-     * @return
-     */
-    default Stream<ComponentType> findComponent(TupleQuery<ComponentType> tupleQuery) {
-        if (!tupleQuery.hasProject() || tupleQuery.getProject().length != 1) {
-            throw new IllegalArgumentException("Tuple query for a specific component must project exactly 1 component");
-        }
-
-        return find(tupleQuery).map(x -> x.get(0));
-    }
 
     /**
      *
      *
      * @return
      */
-    default Stream<Tuple<ComponentType>> find(TupleQuery<ComponentType> tupleQuery) {
+    default ResultStreamer<TupleType, ComponentType, Tuple<ComponentType>> find(TupleQuery<ComponentType> tupleQuery) {
         List<ComponentType> pattern = tupleQuery.getPattern();
 
         // The projector is the function that projects a domain object into an appropriate tuple w.r.t.
@@ -100,14 +84,22 @@ public interface TupleTableCore<TupleType, ComponentType> {
         int[] project = tupleQuery.getProject();
         Function<TupleType, Tuple<ComponentType>> projector = TupleOps.createProjector(project, getTupleAccessor());
 
-        Stream<TupleType> domainStream = findTuples(pattern);
-        Stream<Tuple<ComponentType>> tupleStream = domainStream.map(projector::apply);
+        Supplier<Stream<Tuple<ComponentType>>> tupleStreamSupplier = () -> {
+            Stream<TupleType> domainStream = findTuples(pattern);
+            Stream<Tuple<ComponentType>> tupleStream = domainStream.map(projector::apply);
 
-        if (tupleQuery.isDistinct()) {
-            tupleStream = tupleStream.distinct();
-        }
+            if (tupleQuery.isDistinct()) {
+                tupleStream = tupleStream.distinct();
+            }
+            return tupleStream;
+        };
 
-        return tupleStream;
+        return new ResultStreamerFromTuple<>(getDimension(), tupleStreamSupplier, getTupleAccessor());
+    }
+
+    /** Convenience fluent API */
+    default TupleFinder<TupleType, TupleType, ComponentType> newFinder() {
+        return TupleFinderImpl.create(this);
     }
 
 
@@ -119,7 +111,7 @@ public interface TupleTableCore<TupleType, ComponentType> {
      * @return
      */
     default long size() {
-        return find(new TupleQueryImpl<>(getRank())).count();
+        return find(new TupleQueryImpl<>(getDimension())).streamAsTuple().count();
     }
 
     /**
@@ -134,22 +126,14 @@ public interface TupleTableCore<TupleType, ComponentType> {
      *
      * @return
      */
-    default int getRank() {
-        return getTupleAccessor().getRank();
+    default int getDimension() {
+        return getTupleAccessor().getDimension();
     }
 
 
     TupleAccessor<TupleType, ComponentType> getTupleAccessor();
 
 
-    /**
-     * A tuple finder allows matching, projecting and deduplicating tuples
-     *
-     * @return
-     */
-     default TupleFinder<TupleType, TupleType, ComponentType> newFinder() {
-         return TupleFinderImpl.create(this);
-     }
 
      public static Node nullToAny(Node n) {
          return n == null ? Node.ANY : n;

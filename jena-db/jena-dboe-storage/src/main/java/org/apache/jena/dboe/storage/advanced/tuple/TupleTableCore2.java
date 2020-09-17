@@ -41,8 +41,8 @@ public abstract class TupleTableCore2<DomainType, ComponentType, TableType exten
     }
 
     @Override
-    public int getRank() {
-        return primary.getRank();
+    public int getDimension() {
+        return primary.getDimension();
     }
 
 //    @Override

@@ -10,7 +10,7 @@ package org.apache.jena.dboe.storage.advanced.tuple;
 public interface TupleAccessor<DomainType, ComponentType>
     extends TupleAccessorCore<DomainType, ComponentType>
 {
-    int getRank();
+    int getDimension();
 
     /**
      * Restore a domain object from some other object with a corresponding accessor
@@ -24,8 +24,8 @@ public interface TupleAccessor<DomainType, ComponentType>
     <T> DomainType restore(T obj, TupleAccessorCore<? super T, ? extends ComponentType> accessor);
 
     default void validateRestoreArg(TupleAccessor<?, ?> accessor) {
-        int cl = accessor.getRank();
-        int r = getRank();
+        int cl = accessor.getDimension();
+        int r = getDimension();
 
         if (cl != r) {
             throw new IllegalArgumentException("components.length must equal rank but " + cl + " != " + r);
@@ -34,7 +34,7 @@ public interface TupleAccessor<DomainType, ComponentType>
     }
 
     default ComponentType[] toComponentArray(DomainType domainObject) {
-        int rank = getRank();
+        int rank = getDimension();
         @SuppressWarnings("unchecked")
         ComponentType[] result = (ComponentType[])new Object[rank];
 

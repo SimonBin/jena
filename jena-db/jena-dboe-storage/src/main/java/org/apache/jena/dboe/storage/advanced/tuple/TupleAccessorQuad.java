@@ -9,7 +9,7 @@ public class TupleAccessorQuad
     public static final TupleAccessorQuad INSTANCE = new TupleAccessorQuad();
 
     @Override
-    public int getRank() {
+    public int getDimension() {
         return 4;
     }
 

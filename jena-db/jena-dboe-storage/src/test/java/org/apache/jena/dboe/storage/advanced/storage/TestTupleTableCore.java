@@ -82,7 +82,8 @@ public class TestTupleTableCore {
             .setConstraint(0, q1.getSubject())
             .setConstraint(2, q1.getObject())
         // tupleQuery.setConstraint(3, RDF.Nodes.type);
-            .setProject(3, 0, 1, 2);
+            //.setProject(3, 0, 1, 2)
+            ;
 
 
 
@@ -100,6 +101,9 @@ public class TestTupleTableCore {
 
         rs.bind(root).streamAsTuple()
             .forEach(tuple -> System.out.println("GOT TUPLE: " + tuple));
+
+        rs.bind(root).streamAsDomainObject()
+            .forEach(quad -> System.out.println("GOT QUAD: " + quad));
 
         System.out.println("END OF REPORTS =====================");
 

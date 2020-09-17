@@ -31,7 +31,7 @@ public class ConverterTuple<DomainType, ComponentType>
     public ConverterTuple(TupleAccessor<DomainType, ComponentType> tupleAccessor) {
         super();
         this.domainAccessor = tupleAccessor;
-        this.identityAccessor = new TupleAccessorTuple<>(tupleAccessor.getRank());
+        this.identityAccessor = new TupleAccessorTuple<>(tupleAccessor.getDimension());
     }
 
     @Override

@@ -39,7 +39,7 @@ public class ResultStreamerFromDomain<D, C>
 
     @Override
     public Stream<C> streamAsComponent() {
-        if (domainAccessor.getRank() != 1) {
+        if (domainAccessor.getDimension() != 1) {
             throw new UnsupportedOperationException("Cannot stream domain objects with dimension != 1 as a component");
         }
 

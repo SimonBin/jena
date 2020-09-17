@@ -20,7 +20,7 @@ public class TupleAccessorRemap<TupleType, ComponentType>
     }
 
     @Override
-    public int getRank() {
+    public int getDimension() {
         return remap.length;
     }
 

@@ -9,7 +9,7 @@ public class TupleAccessorTriple
     public static final TupleAccessorTriple INSTANCE = new TupleAccessorTriple();
 
     @Override
-    public int getRank() {
+    public int getDimension() {
         return 3;
     }
 

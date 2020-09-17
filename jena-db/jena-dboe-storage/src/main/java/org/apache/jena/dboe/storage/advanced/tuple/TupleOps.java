@@ -83,7 +83,7 @@ public class TupleOps {
             TupleAccessor<? super D, ? extends C> accessor) {
         Function<D, Tuple<C>> result;
 
-        int len = accessor.getRank();
+        int len = accessor.getDimension();
         switch(len) {
         case 1: result = domain -> TupleFactory.create1(
                 accessor.get(domain, 0)); break;

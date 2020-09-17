@@ -54,7 +54,7 @@ public interface TripleTableCore
 //        return Node.ANY.equals(n) ? null : n;
 //    }
 
-    default int getRank() {
+    default int getDimension() {
         return 3;
     }
 

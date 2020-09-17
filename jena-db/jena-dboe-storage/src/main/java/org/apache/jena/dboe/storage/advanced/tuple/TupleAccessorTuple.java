@@ -17,7 +17,7 @@ public class TupleAccessorTuple<ComponentType>
     }
 
     @Override
-    public int getRank() {
+    public int getDimension() {
         return rank;
     }
 
