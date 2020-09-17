@@ -18,11 +18,12 @@
 package org.apache.jena.dboe.storage.advanced.storage;
 
 import org.apache.jena.dboe.storage.StorageRDF;
+import org.apache.jena.dboe.storage.advanced.core.DatasetGraphFactoryOrdered;
 import org.apache.jena.dboe.storage.storage.BaseTestStorageRDF;
 
 public class TestStorageSimple extends BaseTestStorageRDF {
     @Override
     protected StorageRDF create() {
-        return TupleDataset.createTestStorageRDF();
+        return DatasetGraphFactoryOrdered.createTestStorageRDF();
     }
 }

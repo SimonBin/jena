@@ -1,4 +1,4 @@
-package org.apache.jena.dboe.storage.advanced.storage;
+package org.apache.jena.dboe.storage.advanced.core;
 
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.alt2;
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.innerMap;
@@ -35,7 +35,7 @@ import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.core.TransactionalLock;
 import org.apache.jena.sparql.expr.NodeValue;
 
-public class TupleDataset {
+public class DatasetGraphFactoryOrdered {
 
     public static DatasetGraph createOrderAwareDatasetGraph() {
         return createOrderAwareDatasetGraph(true, true);
@@ -114,10 +114,10 @@ public class TupleDataset {
             TupleAccessor<T, Node> tupleAccessors) {
 
         StorageNodeMutable<T, Node, ?> result =
-                innerMap(3, LinkedHashMap::new,
-                    innerMap(0, LinkedHashMap::new,
-                        innerMap(1, LinkedHashMap::new,
-                            leafMap(2, tupleAccessors, LinkedHashMap::new))));
+            innerMap(3, LinkedHashMap::new,
+                innerMap(0, LinkedHashMap::new,
+                    innerMap(1, LinkedHashMap::new,
+                        leafMap(2, tupleAccessors, LinkedHashMap::new))));
 
         if (strictOrder) {
             result = alt2(result, leafSet(tupleAccessors, LinkedHashSet::new));

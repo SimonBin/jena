@@ -16,12 +16,13 @@
  */
 package org.apache.jena.dboe.storage.advanced.storage;
 
+import org.apache.jena.dboe.storage.advanced.core.DatasetGraphFactoryOrdered;
 import org.apache.jena.sparql.core.AbstractDatasetGraphTests;
 import org.apache.jena.sparql.core.DatasetGraph;
 
 public class TestDatasetGraphStorageTests extends AbstractDatasetGraphTests {
     @Override
     protected DatasetGraph emptyDataset() {
-        return TupleDataset.createTestDatasetGraph();
+        return DatasetGraphFactoryOrdered.createTestDatasetGraph();
     }
 }
