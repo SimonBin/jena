@@ -11,17 +11,17 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.ext.com.google.common.collect.Maps;
 
 
-public class Meta2NodeAlt2<D, C, V1, V2>
-    extends Meta2NodeNoKeyBase<D, C, Entry<V1, V2>>
-    implements Meta2NodeCompound<D, C, Entry<V1, V2>>
+public class StorageNodeAlt2<D, C, V1, V2>
+    extends StorageNodeNoKeyBase<D, C, Entry<V1, V2>>
+    implements StorageNodeCompound<D, C, Entry<V1, V2>>
 {
     // protected List<? extends Meta2NodeCompound<D, C, ?>> children;
-    protected Entry<? extends Meta2NodeCompound<D, C, V1>, ? extends Meta2NodeCompound<D, C, V2>> children;
+    protected Entry<? extends StorageNodeCompound<D, C, V1>, ? extends StorageNodeCompound<D, C, V2>> children;
 
-    public Meta2NodeAlt2(
+    public StorageNodeAlt2(
             TupleAccessor<D, C> tupleAccessor,
-            Meta2NodeCompound<D, C, V1> child1,
-            Meta2NodeCompound<D, C, V2> child2
+            StorageNodeCompound<D, C, V1> child1,
+            StorageNodeCompound<D, C, V2> child2
         ) {
         super(tupleAccessor);
         this.children = Maps.immutableEntry(child1, child2);
@@ -36,7 +36,7 @@ public class Meta2NodeAlt2<D, C, V1, V2>
     public <T> Stream<?> streamEntries(Entry<V1, V2> childStores, T tupleLike,
             TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
 
-        Meta2NodeCompound<D, C, ?> pickedChild = children.getKey();
+        StorageNodeCompound<D, C, ?> pickedChild = children.getKey();
         Object pickedChildStore = childStores.getKey();
 
         // Delegate always to the first entry - we would need external information to do better
@@ -59,7 +59,7 @@ public class Meta2NodeAlt2<D, C, V1, V2>
      */
     @Override
     public boolean isEmpty(Entry<V1, V2> childStores) {
-        Meta2NodeCompound<D, C, ?> pickedChild = children.getKey();
+        StorageNodeCompound<D, C, ?> pickedChild = children.getKey();
         Object pickedChildStore = childStores.getKey();
 
         boolean result = pickedChild.isEmptyRaw(pickedChildStore);

@@ -11,9 +11,9 @@ import java.util.stream.Stream;
  *
  * @author raven
  *
- * @param <D>
- * @param <C>
- * @param <T>
+ * @param <D> The domain type such as Quad
+ * @param <C> The component type such as Node
+ * @param <T> The tuple type such as Tuple
  */
 public interface ResultStreamer<D, C, T> {
 

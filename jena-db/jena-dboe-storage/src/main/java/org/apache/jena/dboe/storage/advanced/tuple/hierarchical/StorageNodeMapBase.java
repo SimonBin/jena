@@ -9,9 +9,9 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.ext.com.google.common.collect.Maps;
 
-abstract class Meta2NodeMapBase<D, C, K, V>
-    extends Meta2NodeBase<D, C, Map<K, V>>
-    implements Meta2NodeCompound<D, C, Map<K, V>>
+abstract class StorageNodeMapBase<D, C, K, V>
+    extends StorageNodeBase<D, C, Map<K, V>>
+    implements StorageNodeCompound<D, C, Map<K, V>>
 {
     protected MapSupplier mapSupplier;
     // protected TupleToKey<? extends K, C> keyFunction;
@@ -32,7 +32,7 @@ abstract class Meta2NodeMapBase<D, C, K, V>
 //    }
 
 
-    public Meta2NodeMapBase(
+    public StorageNodeMapBase(
             int[] tupleIdxs,
             TupleAccessor<D, C> tupleAccessor,
             MapSupplier mapSupplier,

@@ -14,12 +14,12 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.ext.com.google.common.collect.Maps;
 
 
-public class Meta2NodeLeafSet<D, C, V>
-    extends Meta2NodeSetBase<D, C, V>
+public class StorageNodeLeafSet<D, C, V>
+    extends StorageNodeSetBase<D, C, V>
 {
     protected TupleValueFunction<C, V> valueFunction;
 
-    public Meta2NodeLeafSet(
+    public StorageNodeLeafSet(
             TupleAccessor<D, C> tupleAccessor,
             SetSupplier setSupplier,
             TupleValueFunction<C, V> valueFunction

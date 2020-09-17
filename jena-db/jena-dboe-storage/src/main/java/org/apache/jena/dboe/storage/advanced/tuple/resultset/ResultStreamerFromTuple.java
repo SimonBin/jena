@@ -12,8 +12,8 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
  *
  * @author raven
  *
- * @param <D>
- * @param <C>
+ * @param <D> The domain type such as Quad
+ * @param <C> The component type such as Node
  */
 public class ResultStreamerFromTuple<D, C>
     implements ResultStreamer<D, C, Tuple<C>>

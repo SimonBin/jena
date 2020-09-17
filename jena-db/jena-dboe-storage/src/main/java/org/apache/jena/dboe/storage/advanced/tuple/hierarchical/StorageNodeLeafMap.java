@@ -6,84 +6,76 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 
-public class Meta2NodeInnerMap<D, C, K, V>
-    extends Meta2NodeMapBase<D, C, K, V>
+public class StorageNodeLeafMap<D, C, K, V>
+    extends StorageNodeMapBase<D, C, K, V>
 {
-    protected Meta2NodeCompound<D, C, V> child;
+    protected TupleValueFunction<C, V> valueFunction;
 
-    public Meta2NodeInnerMap(
+    public StorageNodeLeafMap(
             int[] tupleIdxs,
             TupleAccessor<D, C> tupleAccessor,
-            Meta2NodeCompound<D, C, V> child,
             MapSupplier mapSupplier,
             TupleValueFunction<C, K> keyFunction,
-            TupleAccessorCore<? super K, ? extends C> keyToComponent) {
+            TupleAccessorCore<? super K, ? extends C> keyToComponent,
+            TupleValueFunction<C, V> valueFunction
+            ) {
         super(tupleIdxs, tupleAccessor, mapSupplier, keyFunction, keyToComponent);
-        this.child = child;
+        this.valueFunction = valueFunction;
     }
-
 
     @Override
     public List<StorageNode<D, C, ?>> getChildren() {
-        return Collections.singletonList(child);
-    }
+        // TODO We need to declare a 'fake' child - so that this node is an index for the child
+        // the child a store conceptually contains zero tuples but indexed by the keys of this node
 
-    @Override
-    public Map<K, V> newStore() {
-        return mapSupplier.get();
+        // return Collections.singletonList(StorageComposers.leafSet(tupleAccessor, LinkedHashSet::new));
+        return Collections.emptyList();
     }
 
     // @Override
+//    public K tupleToKey(D tupleLike, TupleAccessor<? super D, ? extends C> tupleAccessor) {
+//        K result = keyFunction.createKey(tupleLike, tupleAccessor);
+//        return result;
+//    }
 
     @Override
     public boolean add(Map<K, V> map, D tupleLike) {
         K key = tupleToKey(tupleLike);
+        V newValue = valueFunction.map(tupleLike, tupleAccessor);
 
-        V v = map.get(key);
-        if (v == null) {
-            // TODO If we need to create a new child store then the result of this function
-            // must be true - validate that child.add also returns true
-            v = child.newStore();
-            map.put(key, v);
+        if(map.containsKey(key)) {
+            V oldValue = map.get(key);
+            throw new RuntimeException("Key " + key + " already mapped to " + oldValue);
+        } else {
+            map.put(key, newValue);
         }
 
-        boolean result = child.add(v, tupleLike);
-        return result;
+        return true;
     }
 
     @Override
     public boolean remove(Map<K, V> map, D tupleLike) {
         K key = tupleToKey(tupleLike);
-
-        boolean result = false;
-        V v = map.get(key);
-        if (v != null) {
-            result = child.remove(v, tupleLike);
-            if (child.isEmpty(v)) {
-                map.remove(key);
-            }
+        boolean result = map.containsKey(key);
+        if (result) {
+            map.remove(key);
         }
 
         return result;
     }
 
-
     @Override
     public String toString() {
-        return "(" + Arrays.toString(tupleIdxs) + " -> " + Objects.toString(child) + ")";
+        return "(" + Arrays.toString(tupleIdxs) + ")";
     }
-
-
 
     @Override
     public <T> Stream<Entry<K, ?>> streamEntries(Map<K, V> map, T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
-
         // Check whether the components of the given tuple are all non-null such that we can
         // create a key from them
         Object[] tmp = new Object[tupleIdxs.length];
@@ -104,17 +96,14 @@ public class Meta2NodeInnerMap<D, C, K, V>
         if (eligibleAsKey) {
             K key = keyFunction.map(tmp, (x, i) -> (C)x[i]);
 
-            V childStore = map.get(key);
-            childStream = childStore == null
+            V value = map.get(key);
+            childStream = value == null
                     ? Stream.empty()
-                    : child.streamEntries(childStore, tupleLike, tupleAccessor).map(v -> new SimpleEntry<>(key, v));
+                    : Stream.of(new SimpleEntry<>(key, value));
         } else {
-            childStream = map.entrySet().stream().flatMap(
-                    e -> child.streamEntries(e.getValue(), tupleLike, tupleAccessor).map(v -> new SimpleEntry<>(e.getKey(), v)));
+            childStream = map.entrySet().stream().map(e -> new SimpleEntry<>(e.getKey(), e.getValue()));
         }
 
         return childStream;
     }
-
 }
-

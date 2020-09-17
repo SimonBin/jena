@@ -4,13 +4,13 @@ import java.util.Set;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 
-abstract class Meta2NodeSetBase<D, C, V>
-    extends Meta2NodeBase<D, C, Set<V>>
-    implements Meta2NodeCompound<D, C, Set<V>>
+abstract class StorageNodeSetBase<D, C, V>
+    extends StorageNodeBase<D, C, Set<V>>
+    implements StorageNodeCompound<D, C, Set<V>>
 {
     protected SetSupplier setSupplier;
 
-    public Meta2NodeSetBase(
+    public StorageNodeSetBase(
             int[] tupleIdxs,
             TupleAccessor<D, C> tupleAccessor,
             SetSupplier setSupplier

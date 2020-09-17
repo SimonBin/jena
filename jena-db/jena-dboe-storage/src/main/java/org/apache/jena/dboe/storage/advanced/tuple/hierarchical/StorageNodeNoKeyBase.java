@@ -20,10 +20,10 @@ import org.apache.jena.ext.com.google.common.collect.Maps;
  * @param <C>
  * @param <V>
  */
-public abstract class Meta2NodeNoKeyBase<D, C, V>
-    extends Meta2NodeBase<D, C, V>
+public abstract class StorageNodeNoKeyBase<D, C, V>
+    extends StorageNodeBase<D, C, V>
 {
-    public Meta2NodeNoKeyBase(TupleAccessor<D, C> tupleAccessor) {
+    public StorageNodeNoKeyBase(TupleAccessor<D, C> tupleAccessor) {
         super(new int[] {}, tupleAccessor);
     }
 

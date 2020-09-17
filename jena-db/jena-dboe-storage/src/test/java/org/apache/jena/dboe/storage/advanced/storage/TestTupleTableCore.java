@@ -31,7 +31,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.analysis.NodeStats;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2NodeCompound;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeCompound;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinder;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.Quad;
@@ -47,7 +47,7 @@ public class TestTupleTableCore {
     @Test
     public void test2() {
 
-        Meta2NodeCompound<Quad, Node, Entry<Map<Node, Entry<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>> storage =
+        StorageNodeCompound<Quad, Node, Entry<Map<Node, Entry<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>> storage =
             alt2(
                 innerMap(3, LinkedHashMap::new,
                     alt2(
@@ -217,7 +217,7 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
     public void test3() {
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
 
-        Meta2NodeCompound<Quad, Node, Map<Node, Set<Quad>>> storage =
+        StorageNodeCompound<Quad, Node, Map<Node, Set<Quad>>> storage =
                 innerMap(3, LinkedHashMap::new,
                         leafSet(accessor, LinkedHashSet::new));
 
@@ -253,7 +253,7 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
     public void testAlternatives2() {
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
 
-        Meta2NodeCompound<Quad, Node, Entry<Map<Node, Set<Quad>>, Map<Node, Set<Quad>>>> storage =
+        StorageNodeCompound<Quad, Node, Entry<Map<Node, Set<Quad>>, Map<Node, Set<Quad>>>> storage =
                 alt2(
                     innerMap(3, LinkedHashMap::new,
                             leafSet(accessor, LinkedHashSet::new)),
@@ -267,7 +267,7 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
     public void testAlternativesN() {
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
 
-        Meta2NodeCompound<Quad, Node, ?> storage = altN(Arrays.asList(
+        StorageNodeCompound<Quad, Node, ?> storage = altN(Arrays.asList(
                 innerMap(3, LinkedHashMap::new,
                         leafSet(accessor, LinkedHashSet::new)),
                 innerMap(0, LinkedHashMap::new,

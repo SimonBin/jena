@@ -14,8 +14,8 @@ import org.apache.jena.graph.Node;
  *
  * @author raven
  *
- * @param <D>
- * @param <C>
+ * @param <D> The domain type such as Quad
+ * @param <C> The component type such as Node
  */
 public class ResultStreamerFromComponent<D, C>
     implements ResultStreamer<D, C, Tuple<C>>

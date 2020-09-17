@@ -10,15 +10,15 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.ext.com.google.common.collect.Maps;
 
-public class Meta2NodeAltN<D, C>
-    extends Meta2NodeNoKeyBase<D, C, Object[]>
-    implements Meta2NodeCompound<D, C, Object[]>
+public class StorageNodeAltN<D, C>
+    extends StorageNodeNoKeyBase<D, C, Object[]>
+    implements StorageNodeCompound<D, C, Object[]>
 {
-    protected List<? extends Meta2NodeCompound<D, C, ?>> children;
+    protected List<? extends StorageNodeCompound<D, C, ?>> children;
 
-    public Meta2NodeAltN(
+    public StorageNodeAltN(
             TupleAccessor<D, C> tupleAccessor,
-            List<? extends Meta2NodeCompound<D, C, ?>> children
+            List<? extends StorageNodeCompound<D, C, ?>> children
             ) {
         super(tupleAccessor);
         this.children = children;
@@ -33,7 +33,7 @@ public class Meta2NodeAltN<D, C>
     public <T> Stream<?> streamEntries(Object[] childStores, T tupleLike,
             TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
 
-        Meta2NodeCompound<D, C, ?> pickedChild = children.get(0);
+        StorageNodeCompound<D, C, ?> pickedChild = children.get(0);
         Object pickedChildStore = childStores[0];
 
         // Delegate always to the first entry - we would need external information to do better
@@ -60,7 +60,7 @@ public class Meta2NodeAltN<D, C>
      */
     @Override
     public boolean isEmpty(Object[] childStores) {
-        Meta2NodeCompound<D, C, ?> pickedChild = children.get(0);
+        StorageNodeCompound<D, C, ?> pickedChild = children.get(0);
         Object pickedChildStore = childStores[0];
 
         boolean result = pickedChild.isEmptyRaw(pickedChildStore);
@@ -71,7 +71,7 @@ public class Meta2NodeAltN<D, C>
     public boolean add(Object[] childStores, D tupleLike) {
         boolean result = false;
         for (int i = 0; i < children.size(); ++i) {
-            Meta2NodeCompound<D, C, ?> child = children.get(i);
+            StorageNodeCompound<D, C, ?> child = children.get(i);
             Object childStore = childStores[i];
 
             result = result || child.addRaw(childStore, tupleLike);
@@ -84,7 +84,7 @@ public class Meta2NodeAltN<D, C>
     public boolean remove(Object[] childStores, D tupleLike) {
         boolean result = false;
         for (int i = 0; i < children.size(); ++i) {
-            Meta2NodeCompound<D, C, ?> child = children.get(i);
+            StorageNodeCompound<D, C, ?> child = children.get(i);
             Object childStore = childStores[i];
 
             result = result || child.removeRaw(childStore, tupleLike);

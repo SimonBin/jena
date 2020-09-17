@@ -20,7 +20,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.analysis.NodeStats;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Meta2NodeCompound;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeCompound;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinder;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.Quad;
@@ -46,7 +46,7 @@ public class TestTupleQuery {
          *  7      6
          */
 
-        Meta2NodeCompound<Quad, Node, Entry<Map<Node, Entry<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>>
+        StorageNodeCompound<Quad, Node, Entry<Map<Node, Entry<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>>
         storage =
             alt2(
                 innerMap(3, LinkedHashMap::new,
