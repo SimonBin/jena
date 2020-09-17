@@ -12,13 +12,13 @@ import org.apache.jena.ext.com.google.common.collect.Maps;
 
 public class StorageNodeAltN<D, C>
     extends StorageNodeNoKeyBase<D, C, Object[]>
-    implements StorageNodeCompound<D, C, Object[]>
+    implements StorageNodeMutable<D, C, Object[]>
 {
-    protected List<? extends StorageNodeCompound<D, C, ?>> children;
+    protected List<? extends StorageNodeMutable<D, C, ?>> children;
 
     public StorageNodeAltN(
             TupleAccessor<D, C> tupleAccessor,
-            List<? extends StorageNodeCompound<D, C, ?>> children
+            List<? extends StorageNodeMutable<D, C, ?>> children
             ) {
         super(tupleAccessor);
         this.children = children;
@@ -33,7 +33,7 @@ public class StorageNodeAltN<D, C>
     public <T> Stream<?> streamEntries(Object[] childStores, T tupleLike,
             TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
 
-        StorageNodeCompound<D, C, ?> pickedChild = children.get(0);
+        StorageNodeMutable<D, C, ?> pickedChild = children.get(0);
         Object pickedChildStore = childStores[0];
 
         // Delegate always to the first entry - we would need external information to do better
@@ -60,7 +60,7 @@ public class StorageNodeAltN<D, C>
      */
     @Override
     public boolean isEmpty(Object[] childStores) {
-        StorageNodeCompound<D, C, ?> pickedChild = children.get(0);
+        StorageNodeMutable<D, C, ?> pickedChild = children.get(0);
         Object pickedChildStore = childStores[0];
 
         boolean result = pickedChild.isEmptyRaw(pickedChildStore);
@@ -71,7 +71,7 @@ public class StorageNodeAltN<D, C>
     public boolean add(Object[] childStores, D tupleLike) {
         boolean result = false;
         for (int i = 0; i < children.size(); ++i) {
-            StorageNodeCompound<D, C, ?> child = children.get(i);
+            StorageNodeMutable<D, C, ?> child = children.get(i);
             Object childStore = childStores[i];
 
             result = result || child.addRaw(childStore, tupleLike);
@@ -84,7 +84,7 @@ public class StorageNodeAltN<D, C>
     public boolean remove(Object[] childStores, D tupleLike) {
         boolean result = false;
         for (int i = 0; i < children.size(); ++i) {
-            StorageNodeCompound<D, C, ?> child = children.get(i);
+            StorageNodeMutable<D, C, ?> child = children.get(i);
             Object childStore = childStores[i];
 
             result = result || child.removeRaw(childStore, tupleLike);
@@ -92,6 +92,17 @@ public class StorageNodeAltN<D, C>
 
         return result;
     }
+
+    @Override
+    public void clear(Object[] childStores) {
+        for (int i = 0; i < children.size(); ++i) {
+            StorageNodeMutable<D, C, ?> child = children.get(i);
+            Object childStore = childStores[i];
+
+            child.clearRaw(childStore);
+        }
+    }
+
 
     @Override
     public String toString() {

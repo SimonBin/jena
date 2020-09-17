@@ -15,12 +15,12 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 public class StorageNodeInnerMap<D, C, K, V>
     extends StorageNodeMapBase<D, C, K, V>
 {
-    protected StorageNodeCompound<D, C, V> child;
+    protected StorageNodeMutable<D, C, V> child;
 
     public StorageNodeInnerMap(
             int[] tupleIdxs,
             TupleAccessor<D, C> tupleAccessor,
-            StorageNodeCompound<D, C, V> child,
+            StorageNodeMutable<D, C, V> child,
             MapSupplier mapSupplier,
             TupleValueFunction<C, K> keyFunction,
             TupleAccessorCore<? super K, ? extends C> keyToComponent) {
@@ -71,6 +71,15 @@ public class StorageNodeInnerMap<D, C, K, V>
         }
 
         return result;
+    }
+
+    @Override
+    public void clear(Map<K, V> store) {
+        for (V subStoreAlts : store.values()) {
+            child.clear(subStoreAlts);
+        }
+
+        store.clear();
     }
 
 

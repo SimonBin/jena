@@ -6,7 +6,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 
 abstract class StorageNodeSetBase<D, C, V>
     extends StorageNodeBase<D, C, Set<V>>
-    implements StorageNodeCompound<D, C, Set<V>>
+    implements StorageNodeMutable<D, C, Set<V>>
 {
     protected SetSupplier setSupplier;
 

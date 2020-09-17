@@ -20,7 +20,7 @@ import org.apache.jena.ext.com.google.common.base.Functions;
  */
 public class StorageComposers {
 
-    public static <D, C> StorageNodeCompound<D, C, Set<D>> leafSet(
+    public static <D, C> StorageNodeMutable<D, C, Set<D>> leafSet(
             TupleAccessor<D, C> tupleAccessor,
             SetSupplier setSupplier) {
         return new StorageNodeLeafSet<D, C, D>(
@@ -31,7 +31,7 @@ public class StorageComposers {
                 );
     }
 
-    public static <D, C> StorageNodeCompound<D, C, Map<C, D>> leafMap(
+    public static <D, C> StorageNodeMutable<D, C, Map<C, D>> leafMap(
             int tupleIdx,
             TupleAccessor<D, C> tupleAccessor,
             MapSupplier mapSupplier) {
@@ -68,20 +68,20 @@ public class StorageComposers {
      * @param child
      * @return
      */
-    public static <D, C, V> StorageNodeCompound<D, C, Map<C, V>> forwardingInnerMap(
+    public static <D, C, V> StorageNodeMutable<D, C, Map<C, V>> forwardingInnerMap(
             int tupleIdx,
             MapSupplier mapSupplier,
-            StorageNodeCompound<D, C, V> child
+            StorageNodeMutable<D, C, V> child
             ) {
 
         return null;
     }
 
 
-    public static <D, C, V> StorageNodeCompound<D, C, Map<C, V>> innerMap(
+    public static <D, C, V> StorageNodeMutable<D, C, Map<C, V>> innerMap(
             int tupleIdx,
             MapSupplier mapSupplier,
-            StorageNodeCompound<D, C, V> child
+            StorageNodeMutable<D, C, V> child
             ) {
 
         TupleAccessor<D, C> tupleAccessor = child.getTupleAccessor();
@@ -112,8 +112,8 @@ public class StorageComposers {
      * @param child
      * @return
      */
-    public static <D, C> StorageNodeCompound<D, C, ?> altN(
-            List<? extends StorageNodeCompound<D, C, ?>> children
+    public static <D, C> StorageNodeMutable<D, C, ?> altN(
+            List<? extends StorageNodeMutable<D, C, ?>> children
             ) {
 
         if (children.isEmpty()) {
@@ -126,9 +126,9 @@ public class StorageComposers {
     }
 
 
-    public static <D, C, V1, V2> StorageNodeCompound<D, C, Entry<V1, V2>> alt2(
-            StorageNodeCompound<D, C, V1> child1,
-            StorageNodeCompound<D, C, V2> child2
+    public static <D, C, V1, V2> StorageNodeMutable<D, C, Entry<V1, V2>> alt2(
+            StorageNodeMutable<D, C, V1> child1,
+            StorageNodeMutable<D, C, V2> child2
             ) {
 
         // TODO Validate that all children use the same tuple acessor

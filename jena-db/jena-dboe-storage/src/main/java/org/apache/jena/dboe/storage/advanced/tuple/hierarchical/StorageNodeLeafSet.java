@@ -3,6 +3,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -51,6 +52,11 @@ public class StorageNodeLeafSet<D, C, V>
         V newValue = tupleToValue(tupleLike);
         boolean result = set.remove(newValue);
         return result;
+    }
+
+    @Override
+    public void clear(Set<V> store) {
+        store.clear();
     }
 
     @Override

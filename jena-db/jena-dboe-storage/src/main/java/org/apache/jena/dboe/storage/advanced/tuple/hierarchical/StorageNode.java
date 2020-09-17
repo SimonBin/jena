@@ -13,7 +13,8 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
  * A Storage may have alternative child structures to choose from. All alternatives are assumed
  * to be in sync and contain the same instance data - but the nesting may differ.
  *
- *
+ * This class only provides methods for reading data.
+ * The base interface that allows for addition and removal of data is {@link StorageNodeMutable}
  *
  * @author raven
  *

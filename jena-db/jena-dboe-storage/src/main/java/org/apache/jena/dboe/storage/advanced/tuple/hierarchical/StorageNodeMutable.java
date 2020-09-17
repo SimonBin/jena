@@ -1,11 +1,15 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
-public interface StorageNodeCompound<D, C, V>
+public interface StorageNodeMutable<D, C, V>
     extends StorageNode<D, C, V>
 {
-//    Meta2Node<D, C, V> getChild();
-
     V newStore();
+
+    boolean isEmpty(V store);
+    boolean add(V store, D tupleLike);
+    boolean remove(V store, D tupleLike);
+
+    void clear(V store);
 
     @SuppressWarnings("unchecked")
     default boolean isEmptyRaw(Object store) {
@@ -22,7 +26,9 @@ public interface StorageNodeCompound<D, C, V>
         return remove((V)store, tupleLike);
     }
 
-    boolean isEmpty(V store);
-    boolean add(V store, D tupleLike);
-    boolean remove(V store, D tupleLike);
+    @SuppressWarnings("unchecked")
+    default void clearRaw(Object store) {
+        clear((V)store);
+    }
+
 }

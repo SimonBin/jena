@@ -70,6 +70,12 @@ public class StorageNodeLeafMap<D, C, K, V>
     }
 
     @Override
+    public void clear(Map<K, V> store) {
+        store.clear();
+    }
+
+
+    @Override
     public String toString() {
         return "(" + Arrays.toString(tupleIdxs) + ")";
     }

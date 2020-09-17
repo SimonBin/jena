@@ -1,8 +1,11 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Stream;
+
+import javax.swing.text.AsyncBoxView.ChildLocator;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
@@ -11,7 +14,7 @@ import org.apache.jena.ext.com.google.common.collect.Maps;
 
 abstract class StorageNodeMapBase<D, C, K, V>
     extends StorageNodeBase<D, C, Map<K, V>>
-    implements StorageNodeCompound<D, C, Map<K, V>>
+    implements StorageNodeMutable<D, C, Map<K, V>>
 {
     protected MapSupplier mapSupplier;
     // protected TupleToKey<? extends K, C> keyFunction;
@@ -51,6 +54,7 @@ abstract class StorageNodeMapBase<D, C, K, V>
     public Map<K, V> newStore() {
         return mapSupplier.get();
     }
+
 
     @Override
     public boolean isEmpty(Map<K, V> map) {

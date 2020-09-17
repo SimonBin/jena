@@ -13,15 +13,15 @@ import org.apache.jena.ext.com.google.common.collect.Maps;
 
 public class StorageNodeAlt2<D, C, V1, V2>
     extends StorageNodeNoKeyBase<D, C, Entry<V1, V2>>
-    implements StorageNodeCompound<D, C, Entry<V1, V2>>
+    implements StorageNodeMutable<D, C, Entry<V1, V2>>
 {
     // protected List<? extends Meta2NodeCompound<D, C, ?>> children;
-    protected Entry<? extends StorageNodeCompound<D, C, V1>, ? extends StorageNodeCompound<D, C, V2>> children;
+    protected Entry<? extends StorageNodeMutable<D, C, V1>, ? extends StorageNodeMutable<D, C, V2>> children;
 
     public StorageNodeAlt2(
             TupleAccessor<D, C> tupleAccessor,
-            StorageNodeCompound<D, C, V1> child1,
-            StorageNodeCompound<D, C, V2> child2
+            StorageNodeMutable<D, C, V1> child1,
+            StorageNodeMutable<D, C, V2> child2
         ) {
         super(tupleAccessor);
         this.children = Maps.immutableEntry(child1, child2);
@@ -36,7 +36,7 @@ public class StorageNodeAlt2<D, C, V1, V2>
     public <T> Stream<?> streamEntries(Entry<V1, V2> childStores, T tupleLike,
             TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
 
-        StorageNodeCompound<D, C, ?> pickedChild = children.getKey();
+        StorageNodeMutable<D, C, ?> pickedChild = children.getKey();
         Object pickedChildStore = childStores.getKey();
 
         // Delegate always to the first entry - we would need external information to do better
@@ -59,7 +59,7 @@ public class StorageNodeAlt2<D, C, V1, V2>
      */
     @Override
     public boolean isEmpty(Entry<V1, V2> childStores) {
-        StorageNodeCompound<D, C, ?> pickedChild = children.getKey();
+        StorageNodeMutable<D, C, ?> pickedChild = children.getKey();
         Object pickedChildStore = childStores.getKey();
 
         boolean result = pickedChild.isEmptyRaw(pickedChildStore);
@@ -92,6 +92,12 @@ public class StorageNodeAlt2<D, C, V1, V2>
         default: throw new IndexOutOfBoundsException("Index must be 0 or 1; was " + subStoreIdx);
         }
         return result;
+    }
+
+    @Override
+    public void clear(Entry<V1, V2> store) {
+        children.getKey().clear(store.getKey());
+        children.getValue().clear(store.getValue());
     }
 
 //    @Override

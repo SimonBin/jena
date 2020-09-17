@@ -36,6 +36,12 @@ public class TupleQueryAnalyzer {
 //
 //    }
 
+    public static <D, C> NodeStats<D, C> analyze(
+            TupleQuery<C> tupleQuery,
+            StoreAccessor<D, C> node) {
+        return analyze(tupleQuery, node, new int[] {10, 10, 1, 100});
+    }
+
     /**
      * Simple analysis a tuple query against an index structure.
      * Yields for each path through the index a report about the set of components

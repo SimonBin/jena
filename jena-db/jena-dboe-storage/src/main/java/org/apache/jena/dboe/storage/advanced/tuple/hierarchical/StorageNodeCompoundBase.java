@@ -4,7 +4,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 
 public abstract class StorageNodeCompoundBase<D, C, V>
     extends StorageNodeBase<D, C, V>
-    implements StorageNodeCompound<D, C, V>
+    implements StorageNodeMutable<D, C, V>
 {
 
     public StorageNodeCompoundBase(int[] tupleIdxs, TupleAccessor<D, C> tupleAccessor) {
