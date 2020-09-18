@@ -43,12 +43,12 @@ public class MainEngineTest {
                 innerMap(1, HashMap::new,
                     leafMap(2, TupleAccessorTriple.INSTANCE, HashMap::new)))
             ,
-          // ops (this one seems to fail)
+          // ops
           innerMap(2, HashMap::new,
                   innerMap(1, HashMap::new,
                       leafMap(0, TupleAccessorTriple.INSTANCE, HashMap::new)))
               ,
-//            // osp (using a somewhat odd index for testing
+//            // osp (using a somewhat odd index for testing)
 //            innerMap(2, HashMap::new,
 //                    innerMap(0, HashMap::new,
 //                        leafMap(1, TupleAccessorTriple.INSTANCE, HashMap::new)))
