@@ -50,6 +50,7 @@ public interface TupleQuery<ComponentType> {
      * @return A mutable array for configuration of the projection
      */
     int[] getProject();
+    TupleQuery<ComponentType> clearProject();
 
     boolean hasProject();
     TupleQuery<ComponentType> addProject(int... tupleIdxs);

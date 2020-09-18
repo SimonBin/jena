@@ -306,7 +306,7 @@ public class StoreAccessorImpl<D, C>
             Object valueStore = storageNode.chooseSubStoreRaw(storeAlts, 0);
 
             // TODO Assumption that the current node holds items of type D
-            return valuesStreamer.streamRaw(valueStore).map(x -> (D)x);
+            return (Stream<D>)valuesStreamer.streamRaw(valueStore); //.map(x -> (D)x);
         });
     }
 

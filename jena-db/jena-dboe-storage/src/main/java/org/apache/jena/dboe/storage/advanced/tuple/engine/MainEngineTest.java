@@ -3,12 +3,14 @@ package org.apache.jena.dboe.storage.advanced.tuple.engine;
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.altN;
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.innerMap;
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafMap;
+import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafSet;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNode;
@@ -54,12 +56,14 @@ public class MainEngineTest {
             innerMap(1, HashMap::new,
                     innerMap(2, HashMap::new,
                         leafMap(0, TupleAccessorTriple.INSTANCE, HashMap::new)))
+            ,
+            leafSet(TupleAccessorTriple.INSTANCE, HashSet::new)
 
             ));
 
 
         Model model;
-        if (true) {
+        if (false) {
 
             QC.setFactory(ARQ.getContext(), execCxt -> {
                 return new OpExecutorTupleEngine(execCxt);

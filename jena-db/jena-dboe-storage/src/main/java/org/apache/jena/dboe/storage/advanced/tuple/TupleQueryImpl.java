@@ -89,6 +89,12 @@ public class TupleQueryImpl<ComponentType>
     }
 
     @Override
+    public TupleQuery<ComponentType> clearProject() {
+        projection = null;
+        return this;
+    }
+
+    @Override
     public List<ComponentType> getPattern() {
         return pattern;
     }

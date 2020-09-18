@@ -6,6 +6,8 @@ import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuad;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQueryImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuerySupport;
@@ -25,7 +27,7 @@ public class TupleExecutor {
             T tuple,
             TupleAccessor<T, Node> accessor,
             TupleQuerySupport<Triple, Node> tupler) {
-        return find(3, distinct, tuple, accessor, tupler);
+        return find(3, distinct, tuple, accessor, TupleAccessorTriple.INSTANCE, tupler);
     }
 
     public static <T> Stream<Binding> findQuad(
@@ -33,7 +35,7 @@ public class TupleExecutor {
             T tuple,
             TupleAccessor<T, Node> accessor,
             TupleQuerySupport<Quad, Node> tupler) {
-        return find(4, distinct, tuple, accessor, tupler);
+        return find(4, distinct, tuple, accessor, TupleAccessorQuad.INSTANCE, tupler);
     }
 
     public static <D, T> Stream<Binding> find(
@@ -41,6 +43,7 @@ public class TupleExecutor {
             boolean distinct,
             T tuple,
             TupleAccessor<T, Node> accessor,
+            TupleAccessor<D, Node> domainAccessor,
             TupleQuerySupport<D, Node> tupler) {
 
         TupleQuery<Node> tupleQuery = new TupleQueryImpl<>(dimension);
@@ -63,13 +66,26 @@ public class TupleExecutor {
             }
         }
 
+        if(tupleQuery.getProject().length == 3) {
+            tupleQuery.clearProject();
+        }
+
         Var[] projectToVarArr = projectToVar.toArray(new Var[0]);
 
         Stream<Binding> result;
 
         ResultStreamer<D, Node, Tuple<Node>> rs = tupler.find(tupleQuery);
         switch (rs.getBackingType()) {
-        case DOMAIN: // Stream domain objects as bindings
+        case DOMAIN:
+            result = rs.streamAsDomainObject().map(triple -> {
+                BindingHashMap binding = new BindingHashMap();
+                binding.add(projectToVarArr[0], domainAccessor.get(triple, 0));
+                binding.add(projectToVarArr[1], domainAccessor.get(triple, 1));
+                binding.add(projectToVarArr[2], domainAccessor.get(triple, 2));
+
+                return (Binding)binding;
+            });
+            break;
         case TUPLE:
             result = rs.streamAsTuple().map(tup -> {
                 BindingHashMap binding = new BindingHashMap();
