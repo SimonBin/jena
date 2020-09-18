@@ -76,7 +76,9 @@ public class StorageNodeLeafMap<D, C, K, V>
 
         if(map.containsKey(key)) {
             V oldValue = map.get(key);
-            throw new RuntimeException("Key " + key + " already mapped to " + oldValue);
+            if (!newValue.equals(oldValue)) {
+                throw new RuntimeException("Insert [" + newValue + "] failed for key " + key + " because it already maps to " + oldValue);
+            }
         } else {
             map.put(key, newValue);
         }

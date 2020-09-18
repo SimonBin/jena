@@ -96,6 +96,7 @@ public class TupleQueryAnalyzer {
         List<NodeStats<D, C>> patternMatches = new ArrayList<>();
         analyzeForPattern(tupleQuery, node, LinkedLists.of(), patternMatches);
 
+        // DEBUG OUTPUT
         System.err.println("Candidate indexes for " + tupleQuery);
         int l = patternMatches.size();
         for (int i = 0; i < l; ++i) {
@@ -112,7 +113,8 @@ public class TupleQueryAnalyzer {
 
         Collections.sort(patternMatches, nodeStatsComparator);
 
-        System.err.println("Chose candidate: " + patternMatches.get(0));
+        // DEBUG OUTPUT
+         System.err.println("Chose candidate: " + patternMatches.get(0));
 
         // If there are suitable index nodes then pick the one deemed to be most selective
         // The component weights are use for this purpose
@@ -185,7 +187,9 @@ public class TupleQueryAnalyzer {
 
                     // Pick first match
                     result = projectionMatches.get(0);
-                    System.out.println("Can serve projection " + proj + " from " + projectionMatches);
+
+                    // DEBUG OUTPUT
+                    System.err.println("Can serve projection " + proj + " from " + projectionMatches);
                     break;
                 }
             }

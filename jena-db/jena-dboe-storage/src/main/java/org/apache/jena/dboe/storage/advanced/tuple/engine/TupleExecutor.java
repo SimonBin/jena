@@ -1,5 +1,7 @@
 package org.apache.jena.dboe.storage.advanced.tuple.engine;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
@@ -47,20 +49,21 @@ public class TupleExecutor {
         tupleQuery.setProject();
         tupleQuery.setDistinct(true);
 
-        Var[] projectToVar = new Var[dimension];
+        List<Var> projectToVar = new ArrayList<>();
 
         for (int i = 0; i < dimension; ++i) {
             Node component = accessor.get(tuple, i);
             if (NodeUtils.isNullOrAny(component)) {
                 // Nothing to do
             } else if (component.isVariable()) {
-                projectToVar[tupleQuery.getProject().length] = (Var)component;
+                projectToVar.add((Var)component);
                 tupleQuery.addProject(i);
             } else {
                 tupleQuery.setConstraint(i, component);
             }
         }
 
+        Var[] projectToVarArr = projectToVar.toArray(new Var[0]);
 
         Stream<Binding> result;
 
@@ -70,8 +73,8 @@ public class TupleExecutor {
         case TUPLE:
             result = rs.streamAsTuple().map(tup -> {
                 BindingHashMap binding = new BindingHashMap();
-                for (int i = 0; i < projectToVar.length; ++i) {
-                    Var var = projectToVar[i];
+                for (int i = 0; i < projectToVarArr.length; ++i) {
+                    Var var = projectToVarArr[i];
                     Node val = tup.get(i);
                     binding.add(var, val);
                 }
@@ -79,8 +82,11 @@ public class TupleExecutor {
             });
             break;
         case COMPONENT:
-            Var var = projectToVar[0];
-            result = rs.streamAsComponent().map(node -> BindingFactory.binding(var , node));
+            Var var = projectToVarArr[0];
+            result = rs.streamAsComponent().map(node -> {
+                Binding binding = BindingFactory.binding(var , node);
+                return binding;
+            });
             break;
         default:
             throw new IllegalStateException("Should never come here");

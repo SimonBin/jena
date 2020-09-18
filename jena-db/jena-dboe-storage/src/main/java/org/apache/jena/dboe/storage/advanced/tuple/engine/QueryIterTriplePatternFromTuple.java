@@ -1,5 +1,8 @@
 package org.apache.jena.dboe.storage.advanced.tuple.engine;
 
+import java.util.Arrays;
+import java.util.stream.Stream;
+
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
@@ -65,8 +68,10 @@ public class QueryIterTriplePatternFromTuple extends QueryIterRepeatApply
             Graph graph = cxt.getActiveGraph() ;
 
             AdvancedTripleFind finder = (AdvancedTripleFind)graph;
+            System.out.println("Lookup with " + Arrays.asList(distinct, s, p, o));
+            Stream<Binding> tmp = finder.find(distinct, s, p, o);
 
-            this.graphIter = WrappedIterator.create(finder.find(distinct, s, p, o).iterator()); //graph.find(s2, p2, o2) ;
+            this.graphIter = WrappedIterator.create(tmp.iterator()); //graph.find(s2, p2, o2) ;
         }
 
         private static Node tripleNode(Node node)
