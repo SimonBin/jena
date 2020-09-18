@@ -43,27 +43,46 @@ public class MainEngineTest {
                 innerMap(1, HashMap::new,
                     leafMap(2, TupleAccessorTriple.INSTANCE, HashMap::new)))
             ,
-          // ops
-          innerMap(2, HashMap::new,
-                  innerMap(1, HashMap::new,
-                      leafMap(0, TupleAccessorTriple.INSTANCE, HashMap::new)))
-              ,
+            // ops
+            innerMap(2, HashMap::new,
+                innerMap(1, HashMap::new,
+                    leafMap(0, TupleAccessorTriple.INSTANCE, HashMap::new)))
+            ,
 //            // osp (using a somewhat odd index for testing)
 //            innerMap(2, HashMap::new,
 //                    innerMap(0, HashMap::new,
 //                        leafMap(1, TupleAccessorTriple.INSTANCE, HashMap::new)))
+
+            // p
+            innerMap(1, HashMap::new,
+                leafSet(TupleAccessorTriple.INSTANCE, HashSet::new))
+            ,
             // pos
             innerMap(1, HashMap::new,
                     innerMap(2, HashMap::new,
                         leafMap(0, TupleAccessorTriple.INSTANCE, HashMap::new)))
-            ,
-            leafSet(TupleAccessorTriple.INSTANCE, HashSet::new)
+            //,
+            //leafSet(TupleAccessorTriple.INSTANCE, HashSet::new)
 
             ));
 
+/*
+        storage =
+                altN(Arrays.asList(
+                    // ps
+                    innerMap(1, HashMap::new,
+                        innerMap(0, HashMap::new,
+                            leafMap(2, TupleAccessorTriple.INSTANCE, HashMap::new)))
+                    ,
+                    // os
+                    innerMap(2, HashMap::new,
+                            innerMap(1, HashMap::new,
+                                leafMap(0, TupleAccessorTriple.INSTANCE, HashMap::new)))
 
+                    ));
+*/
         Model model;
-        if (false) {
+        if (true) {
 
             QC.setFactory(ARQ.getContext(), execCxt -> {
                 return new OpExecutorTupleEngine(execCxt);
@@ -81,7 +100,7 @@ public class MainEngineTest {
 
         Iterator<String> it = Files.readAllLines(Paths.get("/home/raven/research/jena-vs-tentris/data/swdf/SWDF-Queries.txt")).iterator();
 
-        Stopwatch sw = Stopwatch.createStarted();
+        Stopwatch swTotal = Stopwatch.createStarted();
         while (it.hasNext()) {
             String queryStr = it.next();
 
@@ -97,19 +116,24 @@ public class MainEngineTest {
 //                    "  { ?a  a  <http://data.semanticweb.org/ns/swc/ontology#IW3C2Liaison> .\n" +
 //                    "  }";
 
+
+//            queryStr = "SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }";
+//            queryStr = "SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?a ?e ?c . ?c a ?d . }";
+            queryStr = "SELECT DISTINCT ?p WHERE { _:s ?p _:o }";
             Query query = QueryFactory.create(queryStr);
 
 
             System.out.println("Executing " + query);
+            Stopwatch sw = Stopwatch.createStarted();
             try (QueryExecution qe = QueryExecutionFactory.create(query, model)) {
                 qe.setTimeout(30000);
                 ResultSet rs = qe.execSelect();
                 System.out.println("Result set size: " + ResultSetFormatter.consume(rs));
                 System.out.println();
 
-                //System.out.println(ResultSetFormatter.asText(rs));
+//                System.out.println(ResultSetFormatter.asText(rs));
             }
-            System.out.println(sw);
+            System.out.println(sw + " - " + swTotal);
         }
 
 

@@ -121,7 +121,7 @@ public class TupleQueryAnalyzer {
         Collections.sort(patternMatches, nodeStatsComparator);
 
         // DEBUG OUTPUT
-//         System.err.println("Chose candidate: " + patternMatches.get(0));
+//        System.err.println("Chose candidate: " + patternMatches.get(0));
 
         // If there are suitable index nodes then pick the one deemed to be most selective
         // The component weights are use for this purpose

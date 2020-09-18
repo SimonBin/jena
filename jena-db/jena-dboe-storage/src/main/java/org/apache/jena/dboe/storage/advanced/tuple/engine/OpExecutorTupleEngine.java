@@ -30,9 +30,12 @@ public class OpExecutorTupleEngine extends OpExecutor {
     }
 
 
+    // does not work in general; we have to see how we can flag a bgp that it should be executed in distinct mode
+    protected boolean HACK_distinctSeen = false;
+
     @Override
     protected QueryIterator execute(OpDistinct opDistinct, QueryIterator input) {
-        // TODO Auto-generated method stub
+        HACK_distinctSeen = true;
         return super.execute(opDistinct, input);
     }
 
@@ -47,7 +50,7 @@ public class OpExecutorTupleEngine extends OpExecutor {
 
     @Override
     protected QueryIterator execute(OpBGP opBGP, QueryIterator input) {
-        return executeBgp(false, opBGP, input);
+        return executeBgp(HACK_distinctSeen, opBGP, input);
     }
 
 
@@ -63,7 +66,8 @@ public class OpExecutorTupleEngine extends OpExecutor {
             QueryIterator input,
             ExecutionContext execCxt) {
 
-        BasicPattern reordered = ReorderLib.fixed().reorder(pattern);
+        BasicPattern reordered = pattern;
+//        BasicPattern reordered = ReorderLib.fixed().reorder(pattern);
 
         QueryIterator chain = input;
         for (Triple triple : reordered) {

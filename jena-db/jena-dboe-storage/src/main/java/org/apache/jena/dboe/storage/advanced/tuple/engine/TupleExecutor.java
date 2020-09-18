@@ -14,6 +14,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleQuerySupport;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
+import org.apache.jena.sparql.ARQConstants;
 import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.Binding;
@@ -59,8 +60,12 @@ public class TupleExecutor {
             if (NodeUtils.isNullOrAny(component)) {
                 // Nothing to do
             } else if (component.isVariable()) {
-                projectToVar.add((Var)component);
-                tupleQuery.addProject(i);
+                Var var = (Var)component;
+                // Blank nodes will not be projected
+                if (!Var.isBlankNodeVar(var)) {
+                    projectToVar.add(var);
+                    tupleQuery.addProject(i);
+                }
             } else {
                 tupleQuery.setConstraint(i, component);
             }
