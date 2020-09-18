@@ -19,6 +19,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.analysis;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -86,6 +87,12 @@ public class TupleQueryAnalyzer {
             StoreAccessor<D, C> node,
             int[] componentWeights) {
 
+        int[] project = tupleQuery.getProject();
+
+        java.util.Set<Integer> proj = project == null
+                ? IntStream.range(0, tupleQuery.getDimension()).boxed().collect(Collectors.toCollection(LinkedHashSet::new))
+                : IntStream.of(project).boxed().collect(Collectors.toCollection(LinkedHashSet::new));
+
 
         // The best candidate
         NodeStats<D, C> result = null;
@@ -97,11 +104,11 @@ public class TupleQueryAnalyzer {
         analyzeForPattern(tupleQuery, node, LinkedLists.of(), patternMatches);
 
         // DEBUG OUTPUT
-        System.err.println("Candidate indexes for " + tupleQuery);
+//        System.err.println("Candidate indexes for " + tupleQuery);
         int l = patternMatches.size();
         for (int i = 0; i < l; ++i) {
             NodeStats<D, C> cand = patternMatches.get(i);
-            System.err.println("Cand " + (i + 1) + "/" + l + ": " + cand);
+//            System.err.println("Cand " + (i + 1) + "/" + l + ": " + cand);
         }
 
         if (patternMatches.isEmpty()) {
@@ -114,7 +121,7 @@ public class TupleQueryAnalyzer {
         Collections.sort(patternMatches, nodeStatsComparator);
 
         // DEBUG OUTPUT
-         System.err.println("Chose candidate: " + patternMatches.get(0));
+//         System.err.println("Chose candidate: " + patternMatches.get(0));
 
         // If there are suitable index nodes then pick the one deemed to be most selective
         // The component weights are use for this purpose
@@ -135,16 +142,13 @@ public class TupleQueryAnalyzer {
 
         if (tupleQuery.isDistinct() && tupleQuery.hasProject()) {
 
-            int[] project = tupleQuery.getProject();
-            java.util.Set<Integer> proj = IntStream.of(project).boxed().collect(Collectors.toSet());
-
             // By 'deepening' the found candidates we may be able to serve remaining components
             // of the requested projection
 
             // Only for the best match
             for (NodeStats<D, C> candidate : Collections.singleton(patternMatches.get(0))) {
 
-                boolean canServeProjection = candidate.getMatchedConstraintIdxSet()
+                boolean canServeProjection = candidate.getMatchedProjectIdxSet()
                         .containsAll(proj);
 
                 if (canServeProjection) {
@@ -198,9 +202,17 @@ public class TupleQueryAnalyzer {
         // If no best candidate for the pattern was found we need to scan all tuples anyway
         // For this purpose scan the content of the least-nested leaf node
         if (result == null) {
+            // FIXME Here we just claim the the projection could be fully served
+            // Perhaps an API on the accessor should provide information about which components it serves
+            // so that we can easily do clean BFS to the first one that matches on all components
+
             NodeStats<D, C> bestMatchForPattern = patternMatches.get(0);
             StoreAccessor<D, C> accessorForContent = bestMatchForPattern.getAccessor().leastNestedChildOrSelf();
-            result = new NodeStats<>(accessorForContent, LinkedLists.of(), LinkedLists.of());
+
+            result = new NodeStats<>(
+                    accessorForContent,
+                    bestMatchForPattern.getMatchedConstraintIdxs(),
+                    LinkedLists.copyOf(proj));
         }
 
         return result;

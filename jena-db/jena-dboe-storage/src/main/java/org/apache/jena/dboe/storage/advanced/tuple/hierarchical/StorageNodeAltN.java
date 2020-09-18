@@ -96,7 +96,7 @@ public class StorageNodeAltN<D, C>
             StorageNodeMutable<D, C, ?> child = children.get(i);
             Object childStore = childStores[i];
 
-            result = result || child.addRaw(childStore, tupleLike);
+            result = child.addRaw(childStore, tupleLike);
         }
 
         return result;
@@ -109,7 +109,7 @@ public class StorageNodeAltN<D, C>
             StorageNodeMutable<D, C, ?> child = children.get(i);
             Object childStore = childStores[i];
 
-            result = result || child.removeRaw(childStore, tupleLike);
+            result = child.removeRaw(childStore, tupleLike);
         }
 
         return result;
@@ -128,7 +128,7 @@ public class StorageNodeAltN<D, C>
 
     @Override
     public String toString() {
-        return "<" + children.stream().map(Object::toString).collect(Collectors.joining(" | ")) + ">";
+        return "altN(" + children.stream().map(Object::toString).collect(Collectors.joining(" |\n")) + ")";
     }
 
 

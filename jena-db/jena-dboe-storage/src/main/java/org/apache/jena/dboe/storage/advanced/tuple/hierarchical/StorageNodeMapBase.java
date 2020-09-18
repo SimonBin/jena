@@ -109,6 +109,7 @@ abstract class StorageNodeMapBase<D, C, K, V>
 
         Object[] keyComponents = projectTupleToArray(tupleIdxs, tupleLike, tupleAccessor);
         if (keyComponents != null) {
+            @SuppressWarnings("unchecked")
             K key = keyFunction.map(keyComponents, (x, i) -> (C)x[i]);
 
             result = argMap -> argMap.containsKey(key)

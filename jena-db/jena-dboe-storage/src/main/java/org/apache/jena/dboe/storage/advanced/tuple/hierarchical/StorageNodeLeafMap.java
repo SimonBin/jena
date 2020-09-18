@@ -105,7 +105,7 @@ public class StorageNodeLeafMap<D, C, K, V>
 
     @Override
     public String toString() {
-        return "(" + Arrays.toString(tupleIdxs) + ")";
+        return "leafMap(" + Arrays.toString(tupleIdxs) + ")";
     }
 
     @Override

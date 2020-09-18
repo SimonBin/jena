@@ -68,7 +68,7 @@ public class QueryIterTriplePatternFromTuple extends QueryIterRepeatApply
             Graph graph = cxt.getActiveGraph() ;
 
             AdvancedTripleFind finder = (AdvancedTripleFind)graph;
-            System.out.println("Lookup with " + Arrays.asList(distinct, s, p, o));
+//            System.out.println("Lookup with " + Arrays.asList(distinct, s, p, o));
             Stream<Binding> tmp = finder.find(distinct, s, p, o);
 
             this.graphIter = WrappedIterator.create(tmp.iterator()); //graph.find(s2, p2, o2) ;
@@ -134,7 +134,10 @@ public class QueryIterTriplePatternFromTuple extends QueryIterRepeatApply
             while(graphIter.hasNext() && slot == null )
             {
                 Binding t = graphIter.next() ;
-                slot = t; //mapper(t) ;
+                BindingMap results = BindingFactory.create(binding) ;
+                results.addAll(t);
+
+                slot = results; //mapper(t) ;
             }
             if ( slot == null )
                 finished = true ;

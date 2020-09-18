@@ -43,11 +43,15 @@ public class MainEngineTest {
                 innerMap(1, HashMap::new,
                     leafMap(2, TupleAccessorTriple.INSTANCE, HashMap::new)))
             ,
-            // ops
-            innerMap(2, HashMap::new,
-                    innerMap(0, HashMap::new,
-                        leafMap(1, TupleAccessorTriple.INSTANCE, HashMap::new)))
-            ,
+          // ops (this one seems to fail)
+          innerMap(2, HashMap::new,
+                  innerMap(1, HashMap::new,
+                      leafMap(0, TupleAccessorTriple.INSTANCE, HashMap::new)))
+              ,
+//            // osp (using a somewhat odd index for testing
+//            innerMap(2, HashMap::new,
+//                    innerMap(0, HashMap::new,
+//                        leafMap(1, TupleAccessorTriple.INSTANCE, HashMap::new)))
             // pos
             innerMap(1, HashMap::new,
                     innerMap(2, HashMap::new,
@@ -68,6 +72,11 @@ public class MainEngineTest {
                     "    ?c  a  ?d .\n" +
                     "    ?a  ?e        ?c\n" +
                     "  }";
+
+//            queryStr = "SELECT DISTINCT  *\n" +
+//                    "WHERE\n" +
+//                    "  { ?a  a  <http://data.semanticweb.org/ns/swc/ontology#IW3C2Liaison> .\n" +
+//                    "  }";
 
             Query query = QueryFactory.create(queryStr);
 

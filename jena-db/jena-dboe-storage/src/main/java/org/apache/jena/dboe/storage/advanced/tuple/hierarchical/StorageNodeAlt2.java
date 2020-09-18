@@ -136,6 +136,6 @@ public class StorageNodeAlt2<D, C, V1, V2>
 
     @Override
     public String toString() {
-        return "<" + getChildren().stream().map(Object::toString).collect(Collectors.joining(" | ")) + ">";
+        return "alt2(" + getChildren().stream().map(Object::toString).collect(Collectors.joining(" |\n")) + ")";
     }
 }

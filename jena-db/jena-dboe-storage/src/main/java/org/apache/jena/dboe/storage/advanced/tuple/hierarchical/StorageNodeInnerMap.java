@@ -111,7 +111,7 @@ public class StorageNodeInnerMap<D, C, K, V>
 
     @Override
     public String toString() {
-        return "(" + Arrays.toString(tupleIdxs) + " -> " + Objects.toString(child) + ")";
+        return "innerMap(" + Arrays.toString(tupleIdxs) + " -> " + Objects.toString(child) + ")";
     }
 
 
