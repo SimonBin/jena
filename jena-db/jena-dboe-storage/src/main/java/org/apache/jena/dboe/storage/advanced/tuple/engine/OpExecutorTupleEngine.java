@@ -8,6 +8,7 @@ import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.main.OpExecutor;
 import org.apache.jena.sparql.engine.main.OpExecutorFactory;
+import org.apache.jena.sparql.engine.optimizer.reorder.ReorderLib;
 
 public class OpExecutorTupleEngine extends OpExecutor {
 
@@ -62,8 +63,10 @@ public class OpExecutorTupleEngine extends OpExecutor {
             QueryIterator input,
             ExecutionContext execCxt) {
 
+        BasicPattern reordered = ReorderLib.fixed().reorder(pattern);
+
         QueryIterator chain = input;
-        for (Triple triple : pattern) {
+        for (Triple triple : reordered) {
             chain = new QueryIterTriplePatternFromTuple(chain, distinct, triple, execCxt) ;
         }
 

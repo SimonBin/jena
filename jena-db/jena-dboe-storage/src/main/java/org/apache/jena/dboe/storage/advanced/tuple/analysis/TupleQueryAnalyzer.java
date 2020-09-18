@@ -193,7 +193,7 @@ public class TupleQueryAnalyzer {
                     result = projectionMatches.get(0);
 
                     // DEBUG OUTPUT
-                    System.err.println("Can serve projection " + proj + " from " + projectionMatches);
+//                    System.err.println("Can serve projection " + proj + " from " + projectionMatches);
                     break;
                 }
             }
