@@ -52,6 +52,14 @@ public interface TupleQuery<ComponentType> {
     int[] getProject();
 
     boolean hasProject();
+    TupleQuery<ComponentType> addProject(int... tupleIdxs);
 
+
+    /**
+     * Replaces a projection with the given one
+     *
+     * @param tupleIdxs
+     * @return
+     */
     TupleQuery<ComponentType> setProject(int... tupleIdxs);
 }

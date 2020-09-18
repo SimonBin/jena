@@ -32,4 +32,7 @@ public interface TupleQuerySupport<TupleType, ComponentType> {
 
      /** Method for running tuple queries */
      ResultStreamer<TupleType, ComponentType, Tuple<ComponentType>> find(TupleQuery<ComponentType> tupleQuery);
+
+     /** Maybe the tuple table should be able to tell if a value is a placeholder? */
+     // boolean isAny(ComponentType value);
 }

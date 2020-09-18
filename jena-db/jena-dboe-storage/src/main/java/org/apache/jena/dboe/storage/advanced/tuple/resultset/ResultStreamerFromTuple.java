@@ -76,4 +76,10 @@ public class ResultStreamerFromTuple<D, C>
     public Stream<Tuple<C>> streamAsTuple() {
         return tupleStreamer.get();
     }
+
+    @Override
+    public BackingType getBackingType() {
+        return BackingType.TUPLE;
+    }
+
 }

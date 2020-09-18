@@ -70,4 +70,10 @@ public class ResultStreamerFromComponent<D, C>
     public Stream<Tuple<C>> streamAsTuple() {
         return streamAsComponent().map(TupleFactory::create1);
     }
+
+    @Override
+    public BackingType getBackingType() {
+        return BackingType.COMPONENT;
+    }
+
 }

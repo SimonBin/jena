@@ -24,6 +24,7 @@ import java.util.stream.Stream;
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleOps;
+import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer.BackingType;
 import org.apache.jena.sparql.core.Quad;
 
 
@@ -68,4 +69,10 @@ public class ResultStreamerFromDomain<D, C>
         Function<D, Tuple<C>> tupelizer = TupleOps.tupelizer(domainAccessor);
         return streamAsDomainObject().map(tupelizer);
     }
+
+    @Override
+    public BackingType getBackingType() {
+        return BackingType.DOMAIN;
+    }
+
 }

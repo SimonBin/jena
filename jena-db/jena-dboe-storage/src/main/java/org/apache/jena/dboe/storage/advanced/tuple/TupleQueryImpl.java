@@ -24,6 +24,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 /**
  *
  * @author Claus Stadler 11/09/2020
@@ -132,5 +134,11 @@ public class TupleQueryImpl<ComponentType>
                 .collect(Collectors.joining(" AND ")));
 
         return result;
+    }
+
+    @Override
+    public TupleQuery<ComponentType> addProject(int... tupleIdxs) {
+        projection = ArrayUtils.addAll(projection, tupleIdxs);
+        return this;
     }
 }

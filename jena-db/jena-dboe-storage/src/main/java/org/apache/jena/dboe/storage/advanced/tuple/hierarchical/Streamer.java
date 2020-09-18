@@ -42,3 +42,4 @@ public interface Streamer<V, T> {
         return stream((V)store);
     }
 }
+

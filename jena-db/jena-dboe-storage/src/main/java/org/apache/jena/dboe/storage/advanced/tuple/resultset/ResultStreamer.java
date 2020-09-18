@@ -34,20 +34,27 @@ import java.util.stream.Stream;
  */
 public interface ResultStreamer<D, C, T> {
 
+    /**
+     * Enum to describe whether an instance is backed by domain tuples, components or generic tuples.
+     * Can be used to avoid needless transformations
+     *
+     * Domain implies tuple and tuple implies component. This is transitive, i.e. domain implies component.
+     * Items with lower ordinal() imply capabilities for all items with higher one
+     */
+    enum BackingType {
+        DOMAIN,
+        TUPLE,
+        COMPONENT
+    }
+
+    BackingType getBackingType();
+
+
     Stream<D> streamAsDomainObject();
     Stream<C> streamAsComponent();
     Stream<T> streamAsTuple();
 
 
-    /*
-     * Domain implies tuple and tuple implies component. This is transitive, i.e. domain implies component.
-     * Items with lower ordinal() imply capabilities for all items with higher one
-     */
-//    enum Capabilities {
-//        DOMAIN,
-//        TUPLE,
-//        COMPONENT
-//    }
 
     /**
      * A set describing which methods are valid to invoke
