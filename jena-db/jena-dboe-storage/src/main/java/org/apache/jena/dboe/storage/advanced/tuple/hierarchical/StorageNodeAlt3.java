@@ -24,7 +24,6 @@ import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
-import org.apache.jena.ext.com.google.common.collect.Maps;
 
 /**
  *
@@ -35,29 +34,33 @@ import org.apache.jena.ext.com.google.common.collect.Maps;
  * @param <V1>
  * @param <V2>
  */
-public class StorageNodeAlt2<D, C, V1, V2>
-    extends StorageNodeNoKeyBase<D, C, Alt2<V1, V2>>
-    implements StorageNodeMutable<D, C, Alt2<V1, V2>>
+public class StorageNodeAlt3<D, C, V1, V2, V3>
+    extends StorageNodeNoKeyBase<D, C, Alt3<V1, V2, V3>>
+    implements StorageNodeMutable<D, C, Alt3<V1, V2, V3>>
 {
     // protected List<? extends Meta2NodeCompound<D, C, ?>> children;
-    protected Alt2<? extends StorageNodeMutable<D, C, V1>, ? extends StorageNodeMutable<D, C, V2>> children;
+    protected Alt3<
+        ? extends StorageNodeMutable<D, C, V1>,
+        ? extends StorageNodeMutable<D, C, V2>,
+        ? extends StorageNodeMutable<D, C, V3>> children;
 
-    public StorageNodeAlt2(
+    public StorageNodeAlt3(
             TupleAccessor<D, C> tupleAccessor,
             StorageNodeMutable<D, C, V1> child1,
-            StorageNodeMutable<D, C, V2> child2
+            StorageNodeMutable<D, C, V2> child2,
+            StorageNodeMutable<D, C, V3> child3
         ) {
         super(tupleAccessor);
-        this.children = Alt2.create(child1, child2);
+        this.children = Alt3.create(child1, child2, child3);
     }
 
     @Override
     public List<? extends StorageNode<D, C, ?>> getChildren() {
-        return Arrays.asList(children.getV1(), children.getV2());
+        return Arrays.asList(children.getV1(), children.getV2(), children.getV3());
     }
 
     @Override
-    public <T> Stream<?> streamEntries(Alt2<V1, V2> childStores, T tupleLike,
+    public <T> Stream<?> streamEntries(Alt3<V1, V2, V3> childStores, T tupleLike,
             TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
 
         StorageNodeMutable<D, C, ?> pickedChild = children.getV1();
@@ -72,8 +75,12 @@ public class StorageNodeAlt2<D, C, V1, V2>
      *
      */
     @Override
-    public Alt2<V1, V2> newStore() {
-        return Alt2.create(children.getV1().newStore(), children.getV2().newStore());
+    public Alt3<V1, V2, V3> newStore() {
+        return Alt3.create(
+                children.getV1().newStore(),
+                children.getV2().newStore(),
+                children.getV3().newStore()
+                );
     }
 
     /**
@@ -82,7 +89,7 @@ public class StorageNodeAlt2<D, C, V1, V2>
      * (Not to be confused with checking the list of alternatives itself for emptiness)
      */
     @Override
-    public boolean isEmpty(Alt2<V1, V2> childStores) {
+    public boolean isEmpty(Alt3<V1, V2, V3> childStores) {
         StorageNodeMutable<D, C, ?> pickedChild = children.getV1();
         Object pickedChildStore = childStores.getV1();
 
@@ -91,37 +98,41 @@ public class StorageNodeAlt2<D, C, V1, V2>
     }
 
     @Override
-    public boolean add(Alt2<V1, V2> childStores, D tupleLike) {
+    public boolean add(Alt3<V1, V2, V3> childStores, D tupleLike) {
         boolean result = false;
         result = result || children.getV1().add(childStores.getV1(), tupleLike);
         children.getV2().add(childStores.getV2(), tupleLike);
+        children.getV3().add(childStores.getV3(), tupleLike);
 
         return result;
     }
 
     @Override
-    public boolean remove(Alt2<V1, V2> childStores, D tupleLike) {
+    public boolean remove(Alt3<V1, V2, V3> childStores, D tupleLike) {
         boolean result = children.getV1().remove(childStores.getV1(), tupleLike);
         children.getV2().remove(childStores.getV2(), tupleLike);
+        children.getV3().remove(childStores.getV3(), tupleLike);
 
         return result;
     }
 
     @Override
-    public Object chooseSubStore(Alt2<V1, V2> store, int subStoreIdx) {
+    public Object chooseSubStore(Alt3<V1, V2, V3> store, int subStoreIdx) {
         Object result;
         switch(subStoreIdx) {
         case 0: result = store.getV1(); break;
         case 1: result = store.getV2(); break;
+        case 2: result = store.getV3(); break;
         default: throw new IndexOutOfBoundsException("Index must be 0 or 1; was " + subStoreIdx);
         }
         return result;
     }
 
     @Override
-    public void clear(Alt2<V1, V2> store) {
+    public void clear(Alt3<V1, V2, V3> store) {
         children.getV1().clear(store.getV1());
         children.getV2().clear(store.getV2());
+        children.getV3().clear(store.getV3());
     }
 
 //    @Override
@@ -135,6 +146,6 @@ public class StorageNodeAlt2<D, C, V1, V2>
 
     @Override
     public String toString() {
-        return "alt2(" + getChildren().stream().map(Object::toString).collect(Collectors.joining(" |\n")) + ")";
+        return "alt3(" + getChildren().stream().map(Object::toString).collect(Collectors.joining(" |\n")) + ")";
     }
 }

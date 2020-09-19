@@ -66,8 +66,8 @@ public class OpExecutorTupleEngine extends OpExecutor {
             QueryIterator input,
             ExecutionContext execCxt) {
 
-        BasicPattern reordered = pattern;
-//        BasicPattern reordered = ReorderLib.fixed().reorder(pattern);
+//        BasicPattern reordered = pattern;
+        BasicPattern reordered = ReorderLib.fixed().reorder(pattern);
 
         QueryIterator chain = input;
         for (Triple triple : reordered) {

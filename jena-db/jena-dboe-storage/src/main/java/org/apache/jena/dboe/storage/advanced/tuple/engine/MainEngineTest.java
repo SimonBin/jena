@@ -15,7 +15,9 @@ import java.util.Iterator;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TripleStorages;
 import org.apache.jena.ext.com.google.common.base.Stopwatch;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
@@ -26,14 +28,74 @@ import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.ResultSetFormatter;
+import org.apache.jena.query.Syntax;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.sparql.core.BasicPattern;
 import org.apache.jena.sparql.engine.main.QC;
+import org.apache.jena.sparql.syntax.ElementGroup;
+import org.apache.jena.sparql.syntax.ElementTriplesBlock;
 
 public class MainEngineTest {
 
     public static void main(String[] args) throws IOException {
+
+
+        for (int i = 0; i < 100; ++i) {
+            doWork();
+        }
+
+
+//        RDFDataMgr.write(System.out, model, RDFFormat.TRIG_PRETTY);
+
+    }
+
+
+    public static void doWork() {
+        Stopwatch loadingTimeSw = Stopwatch.createStarted();
+
+
+        Model model;
+        StorageNodeMutable<Triple, Node, ?> storage = null;
+        Object store = null;
+        if (true) {
+
+            QC.setFactory(ARQ.getContext(), execCxt -> {
+                return new OpExecutorTupleEngine(execCxt);
+            });
+
+            storage = TripleStorages.createHyperTrieStorage();
+
+//            StorageNodeMutable<Triple, Node, ?> storage = createConventionalStorage();
+            TripleTableFromStorageNode<?> tripleTableCore = TripleTableFromStorageNode.create(storage);
+            store = tripleTableCore.getStore();
+
+            model = ModelFactory.createModelForGraph(
+                    GraphWithAdvancedFind.create(tripleTableCore));
+        } else {
+            model = ModelFactory.createDefaultModel();
+        }
+
+
+        RDFDataMgr.read(model, "/home/raven/research/jena-vs-tentris/data/swdf/swdf.nt");
+
+        System.out.println("Loading time: " + loadingTimeSw);
+
+
+        Query query = QueryFactory.create("SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }", Syntax.syntaxSPARQL_10);
+
+        BasicPattern bgp = ((ElementTriplesBlock)((ElementGroup)query.getQueryPattern()).get(0)).getPattern();
+        System.out.println(bgp);
+
+        EinsteinSummation.<Triple, Node, Triple>einsum(
+                storage, store, bgp.getList(), TupleAccessorTripleAnyToNull.INSTANCE, Node::isVariable);
+
+    }
+
+
+
+    public static void main2(String[] args) throws IOException {
 
 
         StorageNodeMutable<Triple, Node, ?> storage =
@@ -41,12 +103,12 @@ public class MainEngineTest {
             // spo
             innerMap(0, HashMap::new,
                 innerMap(1, HashMap::new,
-                    leafMap(2, TupleAccessorTriple.INSTANCE, HashMap::new)))
+                    leafMap(2, HashMap::new, TupleAccessorTriple.INSTANCE)))
             ,
             // ops
             innerMap(2, HashMap::new,
                 innerMap(1, HashMap::new,
-                    leafMap(0, TupleAccessorTriple.INSTANCE, HashMap::new)))
+                    leafMap(0, HashMap::new, TupleAccessorTriple.INSTANCE)))
             ,
 //            // osp (using a somewhat odd index for testing)
 //            innerMap(2, HashMap::new,
@@ -55,12 +117,12 @@ public class MainEngineTest {
 
             // p
             innerMap(1, HashMap::new,
-                leafSet(TupleAccessorTriple.INSTANCE, HashSet::new))
+                leafSet(HashSet::new, TupleAccessorTriple.INSTANCE))
             ,
             // pos
             innerMap(1, HashMap::new,
                     innerMap(2, HashMap::new,
-                        leafMap(0, TupleAccessorTriple.INSTANCE, HashMap::new)))
+                        leafMap(0, HashMap::new, TupleAccessorTriple.INSTANCE)))
             //,
             //leafSet(TupleAccessorTriple.INSTANCE, HashSet::new)
 
@@ -116,10 +178,11 @@ public class MainEngineTest {
 //                    "  { ?a  a  <http://data.semanticweb.org/ns/swc/ontology#IW3C2Liaison> .\n" +
 //                    "  }";
 
+            // ?a ?b ?c ?d ?e
 
 //            queryStr = "SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }";
-//            queryStr = "SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?a ?e ?c . ?c a ?d . }";
-            queryStr = "SELECT DISTINCT ?p WHERE { _:s ?p _:o }";
+//            queryStr = "SELECT ?b ?d ?e WHERE { ?a a ?b . ?a ?e ?c . ?c a ?d . }";
+//            queryStr = "SELECT DISTINCT ?p WHERE { _:s ?p _:o }";
             Query query = QueryFactory.create(queryStr);
 
 
@@ -129,6 +192,7 @@ public class MainEngineTest {
                 qe.setTimeout(30000);
                 ResultSet rs = qe.execSelect();
                 System.out.println("Result set size: " + ResultSetFormatter.consume(rs));
+//                ResultSetFormatter.outputAsTSV(System.out, rs);
                 System.out.println();
 
 //                System.out.println(ResultSetFormatter.asText(rs));

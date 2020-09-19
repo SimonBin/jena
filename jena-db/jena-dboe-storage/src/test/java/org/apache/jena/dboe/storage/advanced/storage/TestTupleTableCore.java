@@ -47,6 +47,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.analysis.NodeStats;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Alt2;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinder;
 import org.apache.jena.graph.Node;
@@ -63,19 +64,19 @@ public class TestTupleTableCore {
     @Test
     public void test2() {
 
-        StorageNodeMutable<Quad, Node, Entry<Map<Node, Entry<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>> storage =
+        StorageNodeMutable<Quad, Node, Alt2<Map<Node, Alt2<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>> storage =
             alt2(
                 innerMap(3, LinkedHashMap::new,
                     alt2(
                         innerMap(0, LinkedHashMap::new,
                             innerMap(1, LinkedHashMap::new,
-                                leafMap(2, TupleAccessorQuad.INSTANCE, LinkedHashMap::new))),
-                        leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new))),
-                leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new));
+                                leafMap(2, LinkedHashMap::new, TupleAccessorQuad.INSTANCE))),
+                        leafSet(LinkedHashSet::new, TupleAccessorQuad.INSTANCE))),
+                leafSet(LinkedHashSet::new, TupleAccessorQuad.INSTANCE));
 
 
         System.out.println("Storage structure: " + storage);
-        Entry<Map<Node, Entry<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>> root = storage.newStore();
+        Alt2<Map<Node, Alt2<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>> root = storage.newStore();
 
         Quad q1 = SSE.parseQuad("(:g1 :s1 :g1p1 :g1o1)");
         Quad q2 = SSE.parseQuad("(:g1 :s1 :g1p2 :g1o2)");
@@ -182,7 +183,7 @@ public class TestTupleTableCore {
 
         storage.getChildren().get(0)
             .streamerForKeysAsComponent(Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY), TupleAccessorQuadAnyToNull.INSTANCE)
-            .streamRaw(root.getKey()).forEach(x -> System.out.println("KEY: " + x));
+            .streamRaw(root.getV1()).forEach(x -> System.out.println("KEY: " + x));
 
 
 
@@ -240,7 +241,7 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
 
         StorageNodeMutable<Quad, Node, Map<Node, Set<Quad>>> storage =
                 innerMap(3, LinkedHashMap::new,
-                        leafSet(accessor, LinkedHashSet::new));
+                        leafSet(LinkedHashSet::new, accessor));
 
         System.out.println("Storage structure: " + storage);
         Map<Node, Set<Quad>> root = storage.newStore();
@@ -274,14 +275,14 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
     public void testAlternatives2() {
         TupleAccessor<Quad, Node> accessor = new TupleAccessorQuad();
 
-        StorageNodeMutable<Quad, Node, Entry<Map<Node, Set<Quad>>, Map<Node, Set<Quad>>>> storage =
+        StorageNodeMutable<Quad, Node, Alt2<Map<Node, Set<Quad>>, Map<Node, Set<Quad>>>> storage =
                 alt2(
                     innerMap(3, LinkedHashMap::new,
-                            leafSet(accessor, LinkedHashSet::new)),
+                            leafSet(LinkedHashSet::new, accessor)),
                     innerMap(0, LinkedHashMap::new,
-                            leafSet(accessor, LinkedHashSet::new)));
+                            leafSet(LinkedHashSet::new, accessor)));
 
-        Entry<Map<Node, Set<Quad>>, Map<Node, Set<Quad>>> store = storage.newStore();
+        Alt2<Map<Node, Set<Quad>>, Map<Node, Set<Quad>>> store = storage.newStore();
     }
 
 //    @Test
@@ -290,9 +291,9 @@ http://example/g2=http://example/s2=http://example/g2p2=http://example/g2o2=[htt
 
         StorageNodeMutable<Quad, Node, ?> storage = altN(Arrays.asList(
                 innerMap(3, LinkedHashMap::new,
-                        leafSet(accessor, LinkedHashSet::new)),
+                        leafSet(LinkedHashSet::new, accessor)),
                 innerMap(0, LinkedHashMap::new,
-                        leafSet(accessor, LinkedHashSet::new))));
+                        leafSet(LinkedHashSet::new, accessor))));
 
 
         System.out.println("Storage structure: " + storage);

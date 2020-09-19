@@ -48,11 +48,47 @@ public interface StoreAccessor<D, C> {
 
     StorageNode<D, C, ?> getStorage();
 
+
+    /**
+     * If the wrapped storage node is the first one starting from the root that
+     * projects tuple idxs then these indices are considered unique.
+     *
+     * Hm, actually, we shoulud consider constraints; and allow to 'precompile' with a lambda
+     * an instance of the state of the node under constraints.
+     * If all ancestors under a constraint have a known cardinality of at most 1 (and at least 1)
+     * and the index wrappeded by this node uses unique keys
+     *
+     *
+     *
+     *
+     *
+     * @return
+     */
+//    default boolean isTupleIdxUnique() {
+//
+//    }
+
     // reflexive, starts with the root, last element is this
     List<? extends StoreAccessor<D, C>> ancestors();
     StoreAccessor<D, C> leastNestedChildOrSelf();
 
 
+    /**
+     * Return streamer that performs a cartesian product on the parent for a given store.
+     * If the streamer is created for the root storage accesssor then its invocation
+     * with 'rootStore' and 'initialAccumulator' returns a single "identity" entry of the
+     * form (initialAccumulator, rootStore).
+     *
+     *
+     *
+     * @param <T>
+     * @param <K>
+     * @param pattern
+     * @param accessor
+     * @param initialAccumulator
+     * @param keyReducer
+     * @return
+     */
     <T, K> Streamer<?, Entry<K, ?>> cartesianProductOfParent(
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,

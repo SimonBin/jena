@@ -19,7 +19,6 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
@@ -34,9 +33,21 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 public class StorageComposers {
 
     public static <D, C> StorageNodeMutable<D, C, Set<D>> leafSet(
-            TupleAccessor<D, C> tupleAccessor,
-            SetSupplier setSupplier) {
+            SetSupplier setSupplier,
+            TupleAccessor<D, C> tupleAccessor) {
         return new StorageNodeLeafSet<D, C, D>(
+                tupleAccessor,
+                setSupplier,
+                // Ugly identity mapping of domain tuples to themselves as values - can we do better?
+                TupleValueFunction.newIdentity()
+                );
+    }
+
+    public static <D, C> StorageNodeMutable<D, C, Set<C>> leafComponentSet(
+            int tupleIdx,
+            SetSupplier setSupplier,
+            TupleAccessor<D, C> tupleAccessor) {
+        return new StorageNodeLeafSet<D, C, C>(
                 tupleAccessor,
                 setSupplier,
                 // Ugly identity mapping of domain tuples to themselves as values - can we do better?
@@ -46,8 +57,8 @@ public class StorageComposers {
 
     public static <D, C> StorageNodeMutable<D, C, Map<C, D>> leafMap(
             int tupleIdx,
-            TupleAccessor<D, C> tupleAccessor,
-            MapSupplier mapSupplier) {
+            MapSupplier mapSupplier,
+            TupleAccessor<D, C> tupleAccessor) {
         return new StorageNodeLeafMap<D, C, C, D>(
                 new int[] {tupleIdx},
                 tupleAccessor,
@@ -139,7 +150,7 @@ public class StorageComposers {
     }
 
 
-    public static <D, C, V1, V2> StorageNodeMutable<D, C, Entry<V1, V2>> alt2(
+    public static <D, C, V1, V2> StorageNodeMutable<D, C, Alt2<V1, V2>> alt2(
             StorageNodeMutable<D, C, V1> child1,
             StorageNodeMutable<D, C, V2> child2
             ) {
@@ -147,6 +158,17 @@ public class StorageComposers {
         // TODO Validate that all children use the same tuple acessor
         TupleAccessor<D, C> tupleAccessor = child1.getTupleAccessor();
         return new StorageNodeAlt2<D, C, V1, V2>(tupleAccessor, child1, child2);
+    }
+
+    public static <D, C, V1, V2, V3> StorageNodeMutable<D, C, Alt3<V1, V2, V3>> alt3(
+            StorageNodeMutable<D, C, V1> child1,
+            StorageNodeMutable<D, C, V2> child2,
+            StorageNodeMutable<D, C, V3> child3
+            ) {
+
+        // TODO Validate that all children use the same tuple acessor
+        TupleAccessor<D, C> tupleAccessor = child1.getTupleAccessor();
+        return new StorageNodeAlt3<D, C, V1, V2, V3>(tupleAccessor, child1, child2, child3);
     }
 
 }

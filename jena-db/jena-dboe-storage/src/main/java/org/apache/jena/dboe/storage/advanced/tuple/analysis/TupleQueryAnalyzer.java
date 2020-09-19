@@ -157,12 +157,13 @@ public class TupleQueryAnalyzer {
                     // Check whether by deepening the current node to its descendants would cover the projection
                     // Performs breadth first search and stops and the first candidate
                     // Note that if for a request of [S] the candidate [S P] comes before [S] then this one is used
+                    // TODO Rank all candidates in a breadth instead of only taking the first match
                     NodeStats<D, C> betterCandidate = BreadthFirstSearchLib.breadthFirstFindFirstIndirect(
                             candidate,
                             // Indirect access to children
                             stats -> stats.getAccessor().getChildren(),
 
-                            // Construction of successor node from indirect child and parent
+                            // Construction of successor node from indirectly constructed child and parent
                             (rawChild, parent) -> { // non-reflexive; parent is never null
                                 com.github.andrewoma.dexx.collection.List<Integer> cover = parent.getMatchedProjectIdxs();
                                 com.github.andrewoma.dexx.collection.List<Integer> nextCover = plus(cover, rawChild);

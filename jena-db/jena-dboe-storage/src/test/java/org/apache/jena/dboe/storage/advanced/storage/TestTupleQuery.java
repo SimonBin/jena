@@ -24,8 +24,8 @@ import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageCo
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuad;
@@ -36,6 +36,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.analysis.NodeStats;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Alt2;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinder;
 import org.apache.jena.graph.Node;
@@ -62,20 +63,20 @@ public class TestTupleQuery {
          *  7      6
          */
 
-        StorageNodeMutable<Quad, Node, Entry<Map<Node, Entry<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>>
+        StorageNodeMutable<Quad, Node, Alt2<Map<Node, Alt2<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>>
         storage =
             alt2(
                 innerMap(3, LinkedHashMap::new,
                     alt2(
                         innerMap(0, LinkedHashMap::new,
                             innerMap(1, LinkedHashMap::new,
-                                leafMap(2, TupleAccessorQuad.INSTANCE, LinkedHashMap::new))),
-                        leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new))),
-                leafSet(TupleAccessorQuad.INSTANCE, LinkedHashSet::new));
+                                leafMap(2, LinkedHashMap::new, TupleAccessorQuad.INSTANCE))),
+                        leafSet(LinkedHashSet::new, TupleAccessorQuad.INSTANCE))),
+                leafSet(LinkedHashSet::new, TupleAccessorQuad.INSTANCE));
 
 
         System.out.println("Storage structure: " + storage);
-        Entry<Map<Node, Entry<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>
+        Alt2<Map<Node, Alt2<Map<Node, Map<Node, Map<Node, Quad>>>, Set<Quad>>>, Set<Quad>>
         store = storage.newStore();
 
         Quad q1 = SSE.parseQuad("(:g1 :s1 :g1p1 :g1o1)");

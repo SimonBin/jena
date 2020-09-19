@@ -116,7 +116,7 @@ public class DatasetGraphFactoryOrdered {
         StorageNodeMutable<T, Node, ?> result =
             innerMap(0, LinkedHashMap::new,
                     innerMap(1, LinkedHashMap::new,
-                        leafMap(2, tupleAccessors, LinkedHashMap::new)));
+                        leafMap(2, LinkedHashMap::new, tupleAccessors)));
 
         // Note that predicates could be stored sorted by name like this:
         // innerMap(1, MapSupplier.forTreeMap(new NodeComparatorViaNodeValue()), ...
@@ -125,7 +125,7 @@ public class DatasetGraphFactoryOrdered {
             // Modify the result to keep all triples in an additional linked hash set
             // Requests without constraints
             // (i.e. ?s ?p ?o) will be served from this set
-            result = alt2(result, leafSet(tupleAccessors, LinkedHashSet::new));
+            result = alt2(result, leafSet(LinkedHashSet::new, tupleAccessors));
         }
 
         return result;
@@ -139,10 +139,10 @@ public class DatasetGraphFactoryOrdered {
             innerMap(3, LinkedHashMap::new,
                 innerMap(0, LinkedHashMap::new,
                     innerMap(1, LinkedHashMap::new,
-                        leafMap(2, tupleAccessors, LinkedHashMap::new))));
+                        leafMap(2, LinkedHashMap::new, tupleAccessors))));
 
         if (strictOrder) {
-            result = alt2(result, leafSet(tupleAccessors, LinkedHashSet::new));
+            result = alt2(result, leafSet(LinkedHashSet::new, tupleAccessors));
         }
 
         return result;
