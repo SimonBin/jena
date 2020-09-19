@@ -36,7 +36,7 @@ import org.apache.jena.ext.com.google.common.collect.Maps;
  * @param <V2>
  */
 public class StorageNodeAlt2<D, C, V1, V2>
-    extends StorageNodeNoKeyBase<D, C, Alt2<V1, V2>>
+    extends StorageNodeAltBase<D, C, Alt2<V1, V2>>
     implements StorageNodeMutable<D, C, Alt2<V1, V2>>
 {
     // protected List<? extends Meta2NodeCompound<D, C, ?>> children;

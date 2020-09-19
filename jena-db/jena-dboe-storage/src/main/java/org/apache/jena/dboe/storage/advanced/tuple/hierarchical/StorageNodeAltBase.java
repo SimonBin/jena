@@ -37,13 +37,17 @@ import org.apache.jena.ext.com.google.common.collect.Maps;
  * @param <C>
  * @param <V>
  */
-public abstract class StorageNodeNoKeyBase<D, C, V>
+public abstract class StorageNodeAltBase<D, C, V>
     extends StorageNodeBase<D, C, V>
 {
-    public StorageNodeNoKeyBase(TupleAccessor<D, C> tupleAccessor) {
+    public StorageNodeAltBase(TupleAccessor<D, C> tupleAccessor) {
         super(new int[] {}, tupleAccessor);
     }
 
+    @Override
+    public boolean isAltNode() {
+        return true;
+    }
 
     @Override
     public <T> Streamer<V, C> streamerForKeysAsComponent(T pattern,

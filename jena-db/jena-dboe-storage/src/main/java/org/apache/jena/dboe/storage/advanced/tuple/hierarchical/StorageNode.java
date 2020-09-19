@@ -18,7 +18,9 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
@@ -47,6 +49,44 @@ public interface StorageNode<D, C, V> {
      * @return
      */
     List<? extends StorageNode<D, C, ?>> getChildren();
+
+
+    /**
+     * Attempt to access a store as a map.
+     * The StorageNode and the store must be of the appropriate types in order for
+     * this operation to succeed.
+     *
+     * @param store
+     * @return
+     */
+    // Map<C, ?> asInnerComponentMap(Object store);
+    // Map<C, ?> asLeafComponentMap(Object store);
+    // asAltNode(Object store);
+
+    /**
+     * Whether the node represents a sequence of alternative
+     *
+     * @return
+     */
+    default boolean isAltNode() {
+        return false;
+    }
+
+    default boolean isSetNode() {
+        return false;
+    }
+
+    default boolean isMapNode() {
+        return false;
+    }
+
+    default Map<?, ?> getStoreAsMap(Object store) {
+        throw new UnsupportedOperationException("Not a map storage node; storage node type is " + this.getClass());
+    }
+
+    default Set<?> getStoreAsSet(Object store) {
+        throw new UnsupportedOperationException("Not a map storage node; storage node type is " + this.getClass());
+    }
 
     /**
      * Future work; return a histogram for a corresponding store

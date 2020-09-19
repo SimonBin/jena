@@ -1,6 +1,8 @@
 package org.apache.jena.dboe.storage.advanced.tuple.engine;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
@@ -10,8 +12,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
+import org.apache.jena.ext.com.google.common.collect.Sets;
 
 
 public class EinsteinSummation {
@@ -84,16 +88,20 @@ public class EinsteinSummation {
         outer: for (T tuple : btp) {
 
             // Note: The mapping array spans across all variables; unused fields are simply left null
+            // in essence its a cheap form of a Multimap<VarIdx, TupleIdx>
+            // As the number of vars is usually quite small this should cause no problems
+            int remainingVarIdxs[] = new int[0];
             int varIdxToTupleIdxs[][] = new int[varDim][];
 
             for (int i = 0; i < tupleDim; ++i) {
                 C value = tupleAccessor.get(tuple, i);
                 Integer varIdx = varToVarIdx.get(value);
                 if (varIdx != null) {
-                    // varIdxToTupleIdx
+                    remainingVarIdxs = ArrayUtils.add(remainingVarIdxs, varIdx);
+                    varIdxToTupleIdxs[varIdx] = ArrayUtils.add(varIdxToTupleIdxs[varIdx], i);
                 }
             }
-            SliceState<D, C> tupleSlice = new SliceState<>(store, rootNode, varIdxToTupleIdxs);
+            SliceState<D, C> tupleSlice = new SliceState<>(rootNode, store, remainingVarIdxs, varIdxToTupleIdxs);
 
             // specialize the tuples in the btp by the mentioned constants
             for (int i = 0; i < tupleDim; ++i) {
@@ -101,7 +109,7 @@ public class EinsteinSummation {
 
                 // if value is not a variable then..
                 if (!varToVarIdx.containsKey(value)) {
-                    tupleSlice = tupleSlice.specializeByTupleIdx(i, value);
+                    tupleSlice = tupleSlice.sliceOnComponentWithValue(i, value);
 
                     if (tupleSlice == null) {
                         // a constant mentioned in the bgp is not found in an index -
@@ -110,14 +118,11 @@ public class EinsteinSummation {
                         break outer;
                     }
                 }
-
-                initialSlices.add(tupleSlice);
             }
+            initialSlices.add(tupleSlice);
         }
 
-
-
-        // recurse()
+        recurse(initialSlices, null, null, tupleAccessor);
     }
 
     /**
@@ -134,14 +139,43 @@ public class EinsteinSummation {
      * @param btp
      * @param tupleAccessor
      */
-    public <D, C, T> void recurse(
+    public static <D, C, T> void recurse(
             List<SliceState<D, C>> slices,
             Set<Integer> remainingVarIdxs,
             LinkedList<Integer> contextVarIdxs,
             //List<T> btp,
             TupleAccessor<T, C> tupleAccessor) {
 
-        int varIdx = remainingVarIdxs.iterator().next();
+        int pickedVarIdx = remainingVarIdxs.iterator().next();
+
+        // Find all slices that project that variable in any of its remaining components
+        // Use an identity hash set in case some of the sets turn out to be references to the same set
+        Set<Set<C>> valuesForPickedVarIdx = Sets.newIdentityHashSet();
+        for (SliceState<D, C> slice : slices) {
+            int[] varInSliceComponents = slice.getComponentsForVar(pickedVarIdx);
+
+            if (varInSliceComponents != null) {
+                Set<C> valuesContrib = slice.getValuesForVar(pickedVarIdx);
+                valuesForPickedVarIdx.add(valuesContrib);
+            }
+        }
+
+
+        // Created the intersection of all value sets
+        // Sort the contributions by size (smallest first)
+        List<Set<C>> valueContrib = new ArrayList<>(valuesForPickedVarIdx);
+        Collections.sort(valueContrib, (a, b) -> b.size() - a.size());
+
+        Set<C> remainingValuesOfPickdVar = null;
+
+
+
+
+//        Multimap<String, String> x;
+//        x.get("foo").size()
+
+
+
 
 
 
@@ -184,15 +218,27 @@ public class EinsteinSummation {
     static class SliceState<D, C> {
         protected Object store;
         protected StorageNode<D, C, ?> storageNode;
-//        protected StoreAccessor<D, C> accessor;
 
+        protected int[] remainingVars;
+
+        /**
+         * The mapping of variable indices to the tuple idxs they belong to
+         * [?x, foo, ?x]
+         * the variable ?x maps to the indices 0 and 2
+         *
+         */
         protected int[][] varIdxToTupleIdxs;
 
-
-        public SliceState(Object store, StorageNode<D, C, ?> storageNode, int[][] varIdxToTupleIdxs) {
+        public SliceState(
+                /* link to parent? */
+                StorageNode<D, C, ?> storageNode,
+                Object store,
+                int[] remainingVars,
+                int[][] varIdxToTupleIdxs) {
             super();
             this.store = store;
             this.storageNode = storageNode;
+            this.remainingVars = remainingVars;
             this.varIdxToTupleIdxs = varIdxToTupleIdxs;
         }
 
@@ -220,7 +266,7 @@ public class EinsteinSummation {
 
             int tupleIdx = tupleIdxs[0];
 
-            SliceState<D, C> result = specializeByTupleIdx(tupleIdx, value);
+            SliceState<D, C> result = sliceOnComponentWithValue(tupleIdx, value);
 
             // right, if there are multiple tuple indices for a var, then pick one the specialize
             // on (causing a descend on the index)
@@ -244,12 +290,61 @@ public class EinsteinSummation {
          * @param value
          * @return
          */
-        public SliceState<D, C> specializeByTupleIdx(int tupleIdx, C value) {
+        public SliceState<D, C> sliceOnComponentWithValue(int tupleIdx, C sliceKey) {
 
-            StorageNode<D, C, ?> altNode = storageNode.getChildren().get(0);
-            int childIdx = findChildThatIndexesByTupleIdx(altNode, tupleIdx);
+            SliceState<D, C> result = null;
+
+            Object altStore = null;
+            StorageNode<D, C, ?> altNode = null;
+
+            if (storageNode.isAltNode()) {
+                // If we are positioned at the root then we assume to be positioned at an alt node
+                altStore = store;
+                altNode = storageNode;
+
+            } else {
+                // otherwise if we assume to be at an innerMap or leafSet/Map node
+                // In the case of an innerMap we can descend to its alt node for the given
+                // sliceKey
+                if (storageNode.isMapNode()) {
+                    Map<?, ?> keyToSubStores = storageNode.getStoreAsMap(store);
+
+                    // Find the value in the key set
+                    Object subStore = keyToSubStores.get(sliceKey);
+
+                    if (subStore == null) {
+                        // Index miss; there is no such tuple with that component; return a null slice
+                        altNode = null;
+                    } else {
+                        altNode = storageNode.getChildren().get(0);
+                    }
+                }
+            }
 
 
+            if (altNode != null) {
+                int childIdx = findChildThatIndexesByTupleIdx(altNode, tupleIdx);
+                StorageNode<D, C, ?> nextStorage = altNode.getChildren().get(childIdx);
+                Object nextStore = altNode.chooseSubStoreRaw(altStore, childIdx);
+
+                // Find the variable that mapped to that tuple (if any*) and remove it from
+                // remaining vars
+                // * slicing by a constant in a tuple does not affect variables
+                int[] nextRemainingVarIdxs = remainingVars.clone();
+                for (int i = 0; i < remainingVars.length; ++i) {
+                    int varIdx = remainingVars[i];
+                    int tupleIdxs[] = varIdxToTupleIdxs[varIdx];
+                    if (ArrayUtils.contains(tupleIdxs, tupleIdx)) {
+                        nextRemainingVarIdxs = ArrayUtils.removeElement(nextRemainingVarIdxs, varIdx);
+                        break;
+                    }
+                }
+
+
+                result = new SliceState<>(nextStorage, nextStore, nextRemainingVarIdxs, varIdxToTupleIdxs);
+            }
+
+            return result;
 
 
 
@@ -270,14 +365,23 @@ public class EinsteinSummation {
 
             // accessor.getStorage()
             // storageNode.get
-            return null;
         }
+
+
+        public int[] getComponentsForVar(int varIdx) {
+            return varIdxToTupleIdxs[varIdx];
+        }
+
 
         // TODO Returning the collection of components from a leaf collection would given
         // more optimization potential - especially when the backing sets are identical
 //        public Set<C> getValues() {
 //
 //        }
+
+        public Set<C >getValuesForVar(int varIdx) {
+            return null;
+        }
 
         public Set<C> streamValues() {
             return null;
@@ -321,6 +425,10 @@ public class EinsteinSummation {
             return result;
         }
 
+        @Override
+        public String toString() {
+            return "Slice (" + Arrays.toString(remainingVars) + " "  + Arrays.deepToString(varIdxToTupleIdxs) + " " + storageNode.getClass().getSimpleName() + ")";
+        }
     }
 
 

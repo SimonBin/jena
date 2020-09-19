@@ -74,6 +74,16 @@ abstract class StorageNodeMapBase<D, C, K, V>
     }
 
     @Override
+    public boolean isMapNode() {
+        return true;
+    }
+
+    @Override
+    public Map<?, ?> getStoreAsMap(Object store) {
+        return (Map<?, ?>)store;
+    }
+
+    @Override
     public Map<K, V> newStore() {
         return mapSupplier.get();
     }

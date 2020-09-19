@@ -52,6 +52,17 @@ public class StorageNodeLeafSet<D, C, V>
         this.valueFunction = valueFunction;
     }
 
+    @Override
+    public boolean isSetNode() {
+        return true;
+    }
+
+    @Override
+    public Set<?> getStoreAsSet(Object store) {
+        return (Set<?>)store;
+    }
+
+
     public V tupleToValue(D tupleLike) {
         V result = valueFunction.map(tupleLike, (d, i) -> tupleAccessor.get(d, tupleIdxs[i]));
         return result;

@@ -35,7 +35,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
  * @param <V2>
  */
 public class StorageNodeAlt3<D, C, V1, V2, V3>
-    extends StorageNodeNoKeyBase<D, C, Alt3<V1, V2, V3>>
+    extends StorageNodeAltBase<D, C, Alt3<V1, V2, V3>>
     implements StorageNodeMutable<D, C, Alt3<V1, V2, V3>>
 {
     // protected List<? extends Meta2NodeCompound<D, C, ?>> children;
