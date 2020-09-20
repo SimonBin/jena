@@ -170,7 +170,7 @@ public class EinsteinSummation {
         };
 
 
-        System.out.println("Entering recursion");
+//        System.out.println("Entering recursion");
         Stream<A> stream = recurse(
                 varDim,
                 varIdxs,

@@ -1,22 +1,16 @@
 package org.apache.jena.dboe.storage.advanced.tuple.engine;
 
-import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.altN;
-import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.innerMap;
-import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafMap;
-import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafSet;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNode;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TripleStorages;
 import org.apache.jena.ext.com.google.common.base.Stopwatch;
@@ -45,8 +39,9 @@ public class MainEngineTest {
     public static void main(String[] args) throws IOException {
 
 
-        for (int i = 0; i < 100; ++i) {
+        for (int i = 0; i < 1; ++i) {
             doWork();
+//            doWorkTraditional();
         }
 
 
@@ -55,7 +50,8 @@ public class MainEngineTest {
     }
 
 
-    public static void doWork() {
+    public static void doWork() throws IOException {
+        System.out.println("Using einsum approach");
         Stopwatch loadingTimeSw = Stopwatch.createStarted();
 
 
@@ -86,136 +82,84 @@ public class MainEngineTest {
         System.out.println("Loading time: " + loadingTimeSw);
 
 
-        Query query = QueryFactory.create("SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }", Syntax.syntaxSPARQL_10);
+        Collection<String> queryStrs = Files.readAllLines(Paths.get("/home/raven/research/jena-vs-tentris/data/swdf/SWDF-Queries.txt"))
+                .stream().limit(50).collect(Collectors.toList());
+
+
+//        Query query = QueryFactory.create("SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }", Syntax.syntaxSPARQL_10);
 //        Query query = QueryFactory.create("SELECT DISTINCT ?a ?b WHERE { ?a a ?b }", Syntax.syntaxSPARQL_10);
 
-        BasicPattern bgp = ((ElementTriplesBlock)((ElementGroup)query.getQueryPattern()).get(0)).getPattern();
-        Set<Var> projectVars = new HashSet<>(query.getProjectVars());
-        System.out.println(bgp);
 
-        for (int j = 0; j < 100; ++j) {
+        for (int j = 0; j < 1000; ++j) {
+            Stopwatch runTimeSw = Stopwatch.createStarted();
 
-            Stopwatch executionTimeSw = Stopwatch.createStarted();
+            int queryCounter = 0;
+            long bindingCounter = 0;
+            for (String queryStr : queryStrs) {
+                ++queryCounter;
+                Query query = QueryFactory.create(queryStr, Syntax.syntaxSPARQL_10);
 
-            Stream<Binding> bindings = EinsteinSummation.einsum(storage, store, bgp, projectVars);
-            System.out.println("Binding count: " + bindings.parallel().distinct().count());
-//            Iterator<Binding> it = bindings.iterator();
-//            while (it.hasNext()) {
-//                Binding b = it.next();
-//                System.out.println(b);
-//            }
 
-            System.out.println("Execution time: " + executionTimeSw);
+                BasicPattern bgp = ((ElementTriplesBlock)((ElementGroup)query.getQueryPattern()).get(0)).getPattern();
+                Set<Var> projectVars = new HashSet<>(query.getProjectVars());
+//                System.out.println(bgp);
+
+                Stopwatch executionTimeSw = Stopwatch.createStarted();
+
+                Stream<Binding> bindings = EinsteinSummation.einsum(storage, store, bgp, projectVars);
+
+                if (query.isDistinct()) {
+                    bindings = bindings.distinct();
+                }
+
+                long count = bindings.count();
+                bindingCounter += count;
+    //            Iterator<Binding> it = bindings.iterator();
+    //            while (it.hasNext()) {
+    //                Binding b = it.next();
+    //                System.out.println(b);
+    //            }
+
+                System.out.println("Execution time: " + executionTimeSw + " - result set size: " + count);
+            }
+            double avgQueriesPerSecond = queryCounter / (double)runTimeSw.elapsed(TimeUnit.NANOSECONDS) * 1000000000.0;
+            System.out.println("Time until completion of a full run: " + runTimeSw + " - num queries: " + queryCounter + " num bindings: " + bindingCounter + "  avg qps: " + avgQueriesPerSecond);
         }
+
     }
 
 
 
-    public static void main2(String[] args) throws IOException {
-
-
-        StorageNodeMutable<Triple, Node, ?> storage =
-            altN(Arrays.asList(
-            // spo
-            innerMap(0, HashMap::new,
-                innerMap(1, HashMap::new,
-                    leafMap(2, HashMap::new, TupleAccessorTriple.INSTANCE)))
-            ,
-            // ops
-            innerMap(2, HashMap::new,
-                innerMap(1, HashMap::new,
-                    leafMap(0, HashMap::new, TupleAccessorTriple.INSTANCE)))
-            ,
-//            // osp (using a somewhat odd index for testing)
-//            innerMap(2, HashMap::new,
-//                    innerMap(0, HashMap::new,
-//                        leafMap(1, TupleAccessorTriple.INSTANCE, HashMap::new)))
-
-            // p
-            innerMap(1, HashMap::new,
-                leafSet(HashSet::new, TupleAccessorTriple.INSTANCE))
-            ,
-            // pos
-            innerMap(1, HashMap::new,
-                    innerMap(2, HashMap::new,
-                        leafMap(0, HashMap::new, TupleAccessorTriple.INSTANCE)))
-            //,
-            //leafSet(TupleAccessorTriple.INSTANCE, HashSet::new)
-
-            ));
-
-/*
-        storage =
-                altN(Arrays.asList(
-                    // ps
-                    innerMap(1, HashMap::new,
-                        innerMap(0, HashMap::new,
-                            leafMap(2, TupleAccessorTriple.INSTANCE, HashMap::new)))
-                    ,
-                    // os
-                    innerMap(2, HashMap::new,
-                            innerMap(1, HashMap::new,
-                                leafMap(0, TupleAccessorTriple.INSTANCE, HashMap::new)))
-
-                    ));
-*/
-        Model model;
-        if (true) {
-
-            QC.setFactory(ARQ.getContext(), execCxt -> {
-                return new OpExecutorTupleEngine(execCxt);
-            });
-
-            model = ModelFactory.createModelForGraph(GraphWithAdvancedFind.create(TripleTableFromStorageNode.create(storage)));
-        } else {
-            model = ModelFactory.createDefaultModel();
-        }
-
-
-
-
+    public static void doWorkTraditional() throws IOException {
+        Model model = ModelFactory.createDefaultModel();
         RDFDataMgr.read(model, "/home/raven/research/jena-vs-tentris/data/swdf/swdf.nt");
 
-        Iterator<String> it = Files.readAllLines(Paths.get("/home/raven/research/jena-vs-tentris/data/swdf/SWDF-Queries.txt")).iterator();
-
-        Stopwatch swTotal = Stopwatch.createStarted();
-        while (it.hasNext()) {
-            String queryStr = it.next();
-
-//            queryStr = "SELECT DISTINCT  ?d ?e\n" +
-//                    "WHERE\n" +
-//                    "  { ?a  a  <http://data.semanticweb.org/ns/swc/ontology#IW3C2Liaison> .\n" +
-//                    "    ?c  a  ?d .\n" +
-//                    "    ?a  ?e        ?c\n" +
-//                    "  }";
-
-//            queryStr = "SELECT DISTINCT  *\n" +
-//                    "WHERE\n" +
-//                    "  { ?a  a  <http://data.semanticweb.org/ns/swc/ontology#IW3C2Liaison> .\n" +
-//                    "  }";
-
-            // ?a ?b ?c ?d ?e
-
-//            queryStr = "SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }";
-//            queryStr = "SELECT ?b ?d ?e WHERE { ?a a ?b . ?a ?e ?c . ?c a ?d . }";
-//            queryStr = "SELECT DISTINCT ?p WHERE { _:s ?p _:o }";
-            Query query = QueryFactory.create(queryStr);
+        Collection<String> queryStrs = Files.readAllLines(Paths.get("/home/raven/research/jena-vs-tentris/data/swdf/SWDF-Queries.txt"))
+                .stream().limit(50).collect(Collectors.toList());
 
 
-            System.out.println("Executing " + query);
-            Stopwatch sw = Stopwatch.createStarted();
-            try (QueryExecution qe = QueryExecutionFactory.create(query, model)) {
-                qe.setTimeout(30000);
-                ResultSet rs = qe.execSelect();
-                System.out.println("Result set size: " + ResultSetFormatter.consume(rs));
-//                ResultSetFormatter.outputAsTSV(System.out, rs);
-                System.out.println();
+        for (int j = 0; j < 10; ++j) {
+            Stopwatch runTimeSw = Stopwatch.createStarted();
 
-//                System.out.println(ResultSetFormatter.asText(rs));
+            int queryCounter = 0;
+            long bindingCounter = 0;
+            for(String queryStr : queryStrs) {
+                ++queryCounter;
+                Query query = QueryFactory.create(queryStr);
+
+                Stopwatch executionTimeSw = Stopwatch.createStarted();
+                try (QueryExecution qe = QueryExecutionFactory.create(query, model)) {
+                    qe.setTimeout(30000);
+                    ResultSet rs = qe.execSelect();
+                    long count = ResultSetFormatter.consume(rs);
+                    bindingCounter += count;
+                    System.out.println("Execution time: " + executionTimeSw + " - result set size: " + count);
+                }
             }
-            System.out.println(sw + " - " + swTotal);
-        }
 
+            double avgQueriesPerSecond = queryCounter / (double)runTimeSw.elapsed(TimeUnit.NANOSECONDS) * 1000000000.0;
+            System.out.println("Time until completion of a full run: " + runTimeSw + " - num queries: " + queryCounter + " num bindings: " + bindingCounter + "  avg qps: " + avgQueriesPerSecond);
+        }
 
     }
 
