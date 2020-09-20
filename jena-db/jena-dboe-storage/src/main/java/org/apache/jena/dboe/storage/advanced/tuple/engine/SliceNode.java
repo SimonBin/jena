@@ -149,26 +149,7 @@ public class SliceNode<D, C> {
         return result;
     }
 
-    public static class NodeAndStore<D, C> {
-        protected StorageNode<D, C, ?> storage;
-        protected Object store;
-
-        public NodeAndStore(StorageNode<D, C, ?> storage, Object store) {
-            super();
-            this.storage = storage;
-            this.store = store;
-        }
-
-        public StorageNode<D, C, ?> getStorage() {
-            return storage;
-        }
-
-        public Object getStore() {
-            return store;
-        }
-    }
-
-    public static <D, C> SliceNode.NodeAndStore<D, C> findStorageNodeThatIndexesByComponentIdx(
+    public static <D, C> StorageNodeAndStore<D, C> findStorageNodeThatIndexesByComponentIdx(
             int tupleIdx,
             StorageNode<D, C, ?> storageNode,
             Object store) {
@@ -194,7 +175,7 @@ public class SliceNode<D, C> {
 
         }
 
-        return new SliceNode.NodeAndStore<>(indexNode, indexStore);
+        return new StorageNodeAndStore<>(indexNode, indexStore);
     }
 
     /**
@@ -213,7 +194,7 @@ public class SliceNode<D, C> {
 
         SliceNode<D, C> result = null;
 
-        SliceNode.NodeAndStore<D, C> index = findStorageNodeThatIndexesByComponentIdx(tupleIdx, storageNode, store);
+        StorageNodeAndStore<D, C> index = findStorageNodeThatIndexesByComponentIdx(tupleIdx, storageNode, store);
         StorageNode<D, C, ?> indexNode = index.getStorage();
         Object indexStore = index.getStore();
 
@@ -383,7 +364,7 @@ public class SliceNode<D, C> {
     @SuppressWarnings("unchecked")
     public Set<C> getValuesForComponent(int tupleIdx) {
 
-        SliceNode.NodeAndStore<D, C> index = findStorageNodeThatIndexesByComponentIdx(tupleIdx, storageNode, store);
+        StorageNodeAndStore<D, C> index = findStorageNodeThatIndexesByComponentIdx(tupleIdx, storageNode, store);
         StorageNode<D, C, ?> indexNode = index.getStorage();
         Object indexStore = index.getStore();
 

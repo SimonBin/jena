@@ -36,6 +36,13 @@ public class EinsteinSummation {
             BasicPattern bgp,
             Set<Var> projectVars)
     {
+        BiReducer<Binding, Node, Node> reducer = projectVars == null
+                ? (binding, varNode, valueNode) -> BindingFactory.binding(binding, (Var)varNode, valueNode)
+                // Skip binding creation of non-projected vars in order to save a few CPU cycles
+                : (binding, varNode, valueNode) -> (projectVars.contains(varNode)
+                        ? BindingFactory.binding(binding, (Var)varNode, valueNode)
+                        : binding);
+
         Stream<Binding> result =
         EinsteinSummation.einsum(
                 storage,
@@ -44,10 +51,7 @@ public class EinsteinSummation {
                 TupleAccessorTripleAnyToNull.INSTANCE,
                 Node::isVariable,
                 BindingFactory.root(),
-                (binding, varNode, valueNode) ->
-                    (projectVars.contains(varNode) // Skip binding creation if not projected
-                            ? BindingFactory.binding(binding, (Var)varNode, valueNode)
-                            : binding));
+                reducer);
 
         return result;
     }

@@ -11,19 +11,23 @@ import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.util.iterator.ExtendedIterator;
 import org.apache.jena.util.iterator.WrappedIterator;
 
-public class GraphWithAdvancedFind
+public class GraphFromTripleTableCore
     extends GraphBase
     implements AdvancedTripleFind
 {
     protected TripleTableCore tripleTable;
 
-    public GraphWithAdvancedFind(TripleTableCore tripleTable) {
+    public GraphFromTripleTableCore(TripleTableCore tripleTable) {
         super();
         this.tripleTable = tripleTable;
     }
 
-    public static GraphWithAdvancedFind create(TripleTableCore tripleTable) {
-        return new GraphWithAdvancedFind(tripleTable);
+    public TripleTableCore getTripleTable() {
+        return tripleTable;
+    }
+
+    public static GraphFromTripleTableCore create(TripleTableCore tripleTable) {
+        return new GraphFromTripleTableCore(tripleTable);
     }
 
     @Override

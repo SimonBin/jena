@@ -1,6 +1,5 @@
 package org.apache.jena.dboe.storage.advanced.tuple.engine;
 
-import java.util.Arrays;
 import java.util.stream.Stream;
 
 import org.apache.jena.graph.Graph;
