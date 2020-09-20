@@ -4,18 +4,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexedKeyReducer;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
 import org.apache.jena.ext.com.google.common.collect.BiMap;
 import org.apache.jena.ext.com.google.common.collect.HashBiMap;
 import org.apache.jena.ext.com.google.common.collect.HashMultiset;
+import org.apache.jena.ext.com.google.common.collect.Maps;
 import org.apache.jena.ext.com.google.common.collect.Multiset;
 import org.apache.jena.ext.com.google.common.collect.Sets;
 
@@ -133,15 +136,21 @@ public class EinsteinSummation {
 
 
         System.out.println("Entering recursion");
-        recurse(varDim, varIdxs, initialSlices);
+        Stream<Object> stream = recurse(varDim, varIdxs, initialSlices, null, (acc, idx, contrib) -> Maps.immutableEntry(acc, Maps.immutableEntry(idx, contrib)));
 
-        for (int i = 0; i < varDim; ++i) {
-            System.out.println("Solution: " + varToVarIdx.inverse().get(i) + ": " + varIdxToValues.get(i).size());
-        }
+        System.out.println("Result stream items: " + stream.count());
+//        Iterator<Object> it = stream.iterator();
+//        while (it.hasNext()) {
+//            System.out.println(it.next());
+//        }
+//        for (int i = 0; i < varDim; ++i) {
+//            System.out.println("Solution: " + varToVarIdx.inverse().get(i) + ": " + varIdxToValues.get(i).size());
+//        }
 
     }
 
     class RecursionState<D, C> {
+        int varDim;
         int[] remainingVarIdxs;
         List<SliceNode<D, C>> slices;
     }
@@ -164,10 +173,13 @@ public class EinsteinSummation {
      * @param btp
      * @param tupleAccessor
      */
-    public static <D, C> void recurse(
+    public static <D, C, K> Stream<K> recurse(
             int varDim,
             int[] remainingVarIdxs,
-            List<SliceNode<D, C>> slices) {
+            List<SliceNode<D, C>> slices,
+            K accumulator,
+            IndexedKeyReducer<K> reducer // receives varIdx and value
+            ) {
 
         boolean debug = true;
 
@@ -177,7 +189,7 @@ public class EinsteinSummation {
 //        }
 //
         if (remainingVarIdxs.length == 0) {
-            return;
+            return Stream.of(accumulator);
         }
 
         // Find out which variable to pick
@@ -237,18 +249,6 @@ public class EinsteinSummation {
 //        System.out.println("Intersection size: " + remainingValuesOfPickedVarTmp.size());
 //        if (!remainingValuesOfPickedVarTmp.isEmpty()) {
 //
-        recurseWork(varDim, nextRemainingVarIdxs, slices, pickedVarIdx,
-                remainingValuesOfPickedVar);
-
-
-    }
-
-    public static <C, D> void recurseWork(
-            int varDim,
-            int[] nextRemainingVarIdxs,
-            List<SliceNode<D, C>> slices,
-            int pickedVarIdx,
-            Set<C> remainingValuesOfPickedVar) {
         List<SliceNode<D, C>> sliceableByPickedVar = new ArrayList<>();
         List<SliceNode<D, C>> nonSliceableByPickedVar = new ArrayList<>();
 
@@ -270,42 +270,81 @@ public class EinsteinSummation {
 //            List<SliceNode<D, C>> allNextSlices = new ArrayList<>();
 
         int valueCounter = 0;
-        for (C value : remainingValuesOfPickedVar) {
-//        System.out.println("Processing value " + ++valueCounter + "/" + remainingValuesOfPickedVar.size());
-//                if (debug) System.out.println("Probing picked var " + pickedVarIdx + " with " + value);
 
-            List<SliceNode<D, C>> allNextSlices = new ArrayList<>(nonSliceableByPickedVar);
+        return remainingValuesOfPickedVar.stream().flatMap(value -> {
+            return sliceByValue(
+                    varDim,
+                    nextRemainingVarIdxs,
+                    accumulator,
+                    reducer,
+                    pickedVarIdx,
+                    sliceableByPickedVar,
+                    nonSliceableByPickedVar,
+                    value);
+        });
+//        for (C value : remainingValuesOfPickedVar) {
+//            sliceByValue(varDim, nextRemainingVarIdxs, pickedVarIdx, sliceableByPickedVar, nonSliceableByPickedVar, value);
+//        };
 
-            for (SliceNode<D, C> slice : sliceableByPickedVar) {
-//                if (slice.hasRemainingVarIdx(pickedVarIdx)) {
-                SliceNode<D, C> nextSlice = slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
+    }
 
-                if (nextSlice != null) {
-
-                    if (nextSlice.getRemainingVars().length == 0) {
-                        int[] varIdxs = nextSlice.getInitialVarIdxs();
-                        Object[] values = nextSlice.getVarIdxToSliceValue();
-
-//                        System.out.println("Solution found!");
-//                        for (int i = 0; i < varIdxs.length; ++i) {
-//                            int varIdx = varIdxs[i];
-//                            Object val = values[i];
-//                            varIdxToValues.get(varIdx).add((C) val);
+//    public static <C, D> void recurseWork(
+//            int varDim,
+//            int[] nextRemainingVarIdxs,
+//            List<SliceNode<D, C>> slices,
+//            int pickedVarIdx,
+//            Set<C> remainingValuesOfPickedVar) {
+//        List<SliceNode<D, C>> sliceableByPickedVar = new ArrayList<>();
+//        List<SliceNode<D, C>> nonSliceableByPickedVar = new ArrayList<>();
 //
-//                        }
-                    } else {
-                        allNextSlices.add(nextSlice);
-                    }
-                }
-//                } else {
-//                    allNextSlices.add(slice);
-//                }
+//
+//    }
 
+    public static <D, C, K> Stream<K> sliceByValue(
+            int varDim,
+            int[] nextRemainingVarIdxs,
+            K accumulator,
+            IndexedKeyReducer<K> reducer,
+            int pickedVarIdx,
+            List<SliceNode<D, C>> sliceableByPickedVar,
+            List<SliceNode<D, C>> nonSliceableByPickedVar,
+            C value) {
+        // remainingValuesOfPickedVar.stream().flatMap(value -> {
+        // System.out.println("Processing value " + ++valueCounter + "/" +
+        // remainingValuesOfPickedVar.size());
+        // if (debug) System.out.println("Probing picked var " + pickedVarIdx + " with "
+        // + value);
+
+        List<SliceNode<D, C>> allNextSlices = new ArrayList<>(nonSliceableByPickedVar);
+
+        for (SliceNode<D, C> slice : sliceableByPickedVar) {
+            SliceNode<D, C> nextSlice = slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
+
+            if (nextSlice != null) {
+
+                if (nextSlice.getRemainingVars().length == 0) {
+                    int[] varIdxs = nextSlice.getInitialVarIdxs();
+                    Object[] values = nextSlice.getVarIdxToSliceValue();
+
+                    // System.out.println("Solution found!");
+                    // for (int i = 0; i < varIdxs.length; ++i) {
+                    // int varIdx = varIdxs[i];
+                    // Object val = values[i];
+                    // varIdxToValues.get(varIdx).add((C) val);
+                    //
+                    // }
+                } else {
+                    allNextSlices.add(nextSlice);
+                }
             }
 
-            // All slices that mentioned a certain var are now constrained to one of the var's value
-            recurse(varDim, nextRemainingVarIdxs, allNextSlices);
         }
+
+        K nextAccumulator = reducer.reduce(accumulator, pickedVarIdx, value);
+
+        // All slices that mentioned a certain var are now constrained to one of the
+        // var's value
+        return recurse(varDim, nextRemainingVarIdxs, allNextSlices, nextAccumulator, reducer);
     }
 
     public static <D, C>  int findBestSliceVarIdx(int varDim, int[] remainingVarIdxs, List<SliceNode<D, C>> slices) {
