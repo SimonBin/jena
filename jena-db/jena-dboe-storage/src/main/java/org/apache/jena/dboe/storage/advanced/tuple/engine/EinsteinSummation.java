@@ -3,27 +3,50 @@ package org.apache.jena.dboe.storage.advanced.tuple.engine;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
+import org.apache.jena.dboe.storage.advanced.tuple.analysis.BiReducer;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexedKeyReducer;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
-import org.apache.jena.ext.com.google.common.collect.BiMap;
-import org.apache.jena.ext.com.google.common.collect.HashBiMap;
 import org.apache.jena.ext.com.google.common.collect.HashMultiset;
-import org.apache.jena.ext.com.google.common.collect.Maps;
 import org.apache.jena.ext.com.google.common.collect.Multiset;
 import org.apache.jena.ext.com.google.common.collect.Sets;
+import org.apache.jena.graph.Node;
+import org.apache.jena.sparql.core.BasicPattern;
+import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.binding.BindingFactory;
 
 
 public class EinsteinSummation {
 
+    public static Stream<Binding> einsum(
+            StorageNode<?, Node, ?> storage,
+            Object store,
+            BasicPattern bgp)
+    {
+        Stream<Binding> result =
+        EinsteinSummation.einsum(
+                storage,
+                store,
+                bgp.getList(),
+                TupleAccessorTripleAnyToNull.INSTANCE,
+                Node::isVariable,
+                BindingFactory.root(),
+                (binding, varNode, valueNode) -> BindingFactory.binding(binding, (Var)varNode, valueNode));
+
+        return result;
+    }
 
     /**
      *
@@ -50,12 +73,15 @@ public class EinsteinSummation {
      * @param tupleAccessor
      * @param isVar Test whether a value for C is a variable
      */
-    public static <D, C, T>  void einsum(
+    public static <D, C, T, A>  Stream<A> einsum(
             StorageNode<D, C, ?> rootNode,
             Object store,
             Iterable<T> btp,
             TupleAccessor<T, C> tupleAccessor,
-            Predicate<C> isVar)
+            Predicate<C> isVar,
+            A initialAccumulator,
+            BiReducer<A, C, C> reducer // first C = variable, second C = value; both as Nodes
+            )
     {
         // First find out the set of variables
         // (Hm, maybe we should use C for components in the store and another generic CV
@@ -81,7 +107,8 @@ public class EinsteinSummation {
         List<C> varList = new ArrayList<>(vars);
         int[] varIdxs = new int[varDim];
 
-        BiMap<C, Integer> varToVarIdx = HashBiMap.create();
+        // Use var = varList[varIdx] for the reverse mapping
+        Map<C, Integer> varToVarIdx = new HashMap<>();
         for (int r = 0; r < varDim; ++r) {
             varToVarIdx.put(varList.get(r), r);
             varIdxs[r] = r;
@@ -133,11 +160,22 @@ public class EinsteinSummation {
             varIdxToValues.add(HashMultiset.create());
         }
 
+        IndexedKeyReducer<A, C> lowLevelReducer = (acc, varIdx, value) -> {
+            C var = varList.get(varIdx);
+            return reducer.reduce(acc, var, value);
+        };
+
 
         System.out.println("Entering recursion");
-        Stream<Object> stream = recurse(varDim, varIdxs, initialSlices, null, (acc, idx, contrib) -> Maps.immutableEntry(acc, Maps.immutableEntry(idx, contrib)));
+        Stream<A> stream = recurse(
+                varDim,
+                varIdxs,
+                initialSlices,
+                initialAccumulator,
+                lowLevelReducer);
 
-        System.out.println("Result stream items: " + stream.count());
+        return stream;
+//        System.out.println("Result stream items: " + stream.count());
 //        Iterator<Object> it = stream.iterator();
 //        while (it.hasNext()) {
 //            System.out.println(it.next());
@@ -148,11 +186,6 @@ public class EinsteinSummation {
 
     }
 
-    class RecursionState<D, C> {
-        int varDim;
-        int[] remainingVarIdxs;
-        List<SliceNode<D, C>> slices;
-    }
 
 
 

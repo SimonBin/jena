@@ -12,10 +12,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TripleStorages;
 import org.apache.jena.ext.com.google.common.base.Stopwatch;
@@ -33,6 +33,7 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.sparql.core.BasicPattern;
+import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.main.QC;
 import org.apache.jena.sparql.syntax.ElementGroup;
 import org.apache.jena.sparql.syntax.ElementTriplesBlock;
@@ -93,8 +94,12 @@ public class MainEngineTest {
 
             Stopwatch executionTimeSw = Stopwatch.createStarted();
 
-            EinsteinSummation.<Triple, Node, Triple>einsum(
-                    storage, store, bgp.getList(), TupleAccessorTripleAnyToNull.INSTANCE, Node::isVariable);
+            Stream<Binding> bindings = EinsteinSummation.einsum(storage, store, bgp);
+            Iterator<Binding> it = bindings.iterator();
+            while (it.hasNext()) {
+                Binding b = it.next();
+                System.out.println(b);
+            }
 
             System.out.println("Execution time: " + executionTimeSw);
         }
