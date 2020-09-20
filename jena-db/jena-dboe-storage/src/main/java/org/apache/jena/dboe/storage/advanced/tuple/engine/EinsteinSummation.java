@@ -8,6 +8,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
@@ -132,7 +133,7 @@ public class EinsteinSummation {
 
 
         System.out.println("Entering recursion");
-        recurse(varIdxs, initialSlices, varIdxToValues);
+        recurse(varIdxs, initialSlices, varIdxToValues, -1, null);
 
         for (int i = 0; i < varDim; ++i) {
             System.out.println("Solution: " + varToVarIdx.inverse().get(i) + ": " + varIdxToValues.get(i).size());
@@ -157,11 +158,13 @@ public class EinsteinSummation {
     public static <D, C> void recurse(
             int[] remainingVarIdxs,
             List<SliceNode<D, C>> slices,
-            List<Multiset<C>> varIdxToValues) {
+            List<Multiset<C>> varIdxToValues,
+            int parentVarIdx,
+            C parentValue) {
 
         boolean debug = true;
 
-        if (debug) System.out.println("RemainingVarIdxs: " + Arrays.toString(remainingVarIdxs) + " #slices=" + slices.size());
+//        if (debug) System.out.println("Recursion started: RemainingVarIdxs: " + Arrays.toString(remainingVarIdxs) + " numSlices=" + slices.size());
 //        if (slices == null || slices.isEmpty()) {
 //            return false;
 //        }
@@ -174,6 +177,122 @@ public class EinsteinSummation {
         // For each varIdx iterate all slices and find out the minimum and maximum number of valuee
 
 
+        int pickedVarIdx = findBestSliceVarIdx(remainingVarIdxs, slices, varIdxToValues);
+
+        int[] nextRemainingVarIdxs = ArrayUtils.removeElement(remainingVarIdxs, pickedVarIdx);
+//        if (debug) System.out.println("Picked var " + pickedVarIdx + " among " + Arrays.toString(remainingVarIdxs) + " with now remaining " + Arrays.toString(nextRemainingVarIdxs));
+
+        // Find all slices that project that variable in any of its remaining components
+        // Use an identity hash set in case some of the sets turn out to be references to the same set
+        Set<Set<C>> valuesForPickedVarIdx = Sets.newIdentityHashSet();
+        for (SliceNode<D, C> slice : slices) {
+            int[] varInSliceComponents = slice.getComponentsForVar(pickedVarIdx);
+
+            if (varInSliceComponents != null) {
+                for(int tupleIdx : varInSliceComponents) {
+                    Set<C> valuesContrib = slice.getValuesForComponent(tupleIdx); //pickedVarIdx);
+
+                    if (valuesContrib.isEmpty()) {
+                        System.out.println("should this happen?");
+                    }
+
+                    valuesForPickedVarIdx.add(valuesContrib);
+                }
+            }
+        }
+
+
+        // Created the intersection of all value sets
+        // Sort the contributions by size (smallest first)
+        List<Set<C>> valueContribs = new ArrayList<>(valuesForPickedVarIdx);
+
+        // The sorting of the sets by size is highly important!
+        // Consider computing the intersection between two sets of sizes 100.000 and 1
+        // We do not want to copy 100K values just to retain 1
+        Collections.sort(valueContribs, (a, b) -> a.size() - b.size());
+
+//        System.out.println("Value set sizes to intrsect: " + valueContribs.stream().map(x -> "" + x.size()).collect(Collectors.joining(", ")));
+
+        Set<C> remainingValuesOfPickedVar = Collections.emptySet();
+
+        if (valueContribs.size() == 1) {
+            remainingValuesOfPickedVar = valueContribs.get(0);
+        } else if (valueContribs.size() > 1) {
+            remainingValuesOfPickedVar = new HashSet<>(valueContribs.get(0));
+            for (int i = 1; i < valueContribs.size(); ++i) {
+                Set<C> contrib = valueContribs.get(i);
+                remainingValuesOfPickedVar.retainAll(contrib);
+            }
+        }
+
+        // Set<C> remainingValuesOfPickedVarTmp =
+        // valueContribs.stream().reduce(Sets::intersection).orElse(Collections.emptySet());
+//        System.out.println("Intersection size: " + remainingValuesOfPickedVarTmp.size());
+//        if (!remainingValuesOfPickedVarTmp.isEmpty()) {
+//
+        List<SliceNode<D, C>> sliceableByPickedVar = new ArrayList<>();
+        List<SliceNode<D, C>> nonSliceableByPickedVar = new ArrayList<>();
+
+        for (SliceNode<D, C> slice : slices) {
+            if (slice.hasRemainingVarIdx(pickedVarIdx)) {
+                sliceableByPickedVar.add(slice);
+            } else {
+                nonSliceableByPickedVar.add(slice);
+            }
+        }
+
+        // Materialize the intersection
+//            Set<C> remainingValuesOfPickedVar = new HashSet<>(remainingValuesOfPickedVarTmp);
+//            System.out.println("Next slices for var " + pickedVarIdx + ": " + nextSlices.size());
+//        if (debug) System.out.println("Need to probe " + remainingValuesOfPickedVar.size() + " values; pickedeVarIdx = " + pickedVarIdx);
+
+        // List<SliceNode<D, C>> allNextSlices = new
+        // ArrayList<>(nonSliceableByPickedVar); // new ArrayList<>();
+//            List<SliceNode<D, C>> allNextSlices = new ArrayList<>();
+
+        int valueCounter = 0;
+        for (C value : remainingValuesOfPickedVar) {
+//        System.out.println("Processing value " + ++valueCounter + "/" + remainingValuesOfPickedVar.size());
+//                if (debug) System.out.println("Probing picked var " + pickedVarIdx + " with " + value);
+
+            List<SliceNode<D, C>> allNextSlices = new ArrayList<>(nonSliceableByPickedVar);
+
+            for (SliceNode<D, C> slice : sliceableByPickedVar) {
+//                if (slice.hasRemainingVarIdx(pickedVarIdx)) {
+                SliceNode<D, C> nextSlice = slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
+
+                if (nextSlice != null) {
+
+                    if (nextSlice.getRemainingVars().length == 0) {
+                        int[] varIdxs = nextSlice.getInitialVarIdxs();
+                        Object[] values = nextSlice.getVarIdxToSliceValue();
+
+//                        System.out.println("Solution found!");
+//                        for (int i = 0; i < varIdxs.length; ++i) {
+//                            int varIdx = varIdxs[i];
+//                            Object val = values[i];
+//                            varIdxToValues.get(varIdx).add((C) val);
+//
+//                        }
+                    } else {
+                        allNextSlices.add(nextSlice);
+                    }
+                }
+//                } else {
+//                    allNextSlices.add(slice);
+//                }
+
+            }
+
+            // All slices that mentioned a certain var are now constrained to one of the var's value
+            recurse(nextRemainingVarIdxs, allNextSlices, varIdxToValues, parentVarIdx, value);
+        }
+
+
+    }
+
+    public static <D, C>  int findBestSliceVarIdx(int[] remainingVarIdxs, List<SliceNode<D, C>> slices,
+            List<Multiset<C>> varIdxToValues) {
         // The score is a reduction factor - the higher the better
         int bestVarIdx = remainingVarIdxs[0];
 
@@ -217,152 +336,57 @@ public class EinsteinSummation {
                 }
             }
 
-            if (debug) {
-                System.out.println("stats");
-            }
-        }
-
-
-        int pickedVarIdx = bestVarIdx;
-        int[] nextRemainingVarIdxs = ArrayUtils.removeElement(remainingVarIdxs, pickedVarIdx);
-        if (debug) System.out.println("Picked var " + pickedVarIdx + " among " + Arrays.toString(remainingVarIdxs) + " with now remaining " + Arrays.toString(nextRemainingVarIdxs));
-
-        // Find all slices that project that variable in any of its remaining components
-        // Use an identity hash set in case some of the sets turn out to be references to the same set
-        Set<Set<C>> valuesForPickedVarIdx = Sets.newIdentityHashSet();
-        for (SliceNode<D, C> slice : slices) {
-            int[] varInSliceComponents = slice.getComponentsForVar(pickedVarIdx);
-
-            if (varInSliceComponents != null) {
-                for(int tupleIdx : varInSliceComponents) {
-                    Set<C> valuesContrib = slice.getValuesForComponent(tupleIdx); //pickedVarIdx);
-
-                    if (valuesContrib.isEmpty()) {
-                        System.out.println("should this happen?");
-                    }
-
-                    valuesForPickedVarIdx.add(valuesContrib);
-                }
-            }
-        }
-
-
-        // Created the intersection of all value sets
-        // Sort the contributions by size (smallest first)
-        List<Set<C>> valueContribs = new ArrayList<>(valuesForPickedVarIdx);
-        Collections.sort(valueContribs, (a, b) -> b.size() - a.size());
-
-        Set<C> remainingValuesOfPickedVar = Collections.emptySet();
-
-        if (valueContribs.size() == 1) {
-            remainingValuesOfPickedVar = valueContribs.get(0);
-        } else if (valueContribs.size() > 1) {
-            remainingValuesOfPickedVar = new HashSet<>(valueContribs.get(0));
-            for (int i = 1; i < valueContribs.size(); ++i) {
-                Set<C> contrib = valueContribs.get(i);
-                remainingValuesOfPickedVar.retainAll(contrib);
-            }
-        }
-
-        // Set<C> remainingValuesOfPickedVarTmp = valueContribs.stream().reduce(Sets::intersection).orElse(Collections.emptySet());
-//        System.out.println("Intersection size: " + remainingValuesOfPickedVarTmp.size());
-//        if (!remainingValuesOfPickedVarTmp.isEmpty()) {
-//
-//            List<SliceNode<D, C>> sliceableByPickedVar = new ArrayList<>();
-//            List<SliceNode<D, C>> nonSliceableByPickedVar = new ArrayList<>();
-//
-//            for(SliceNode<D, C> slice : slices) {
-//                if (slice.hasRemainingVarIdx(pickedVarIdx)) {
-//                    sliceableByPickedVar.add(slice);
-//                } else {
-//                    nonSliceableByPickedVar.add(slice);
-//                }
+//            if (false) {
+//                System.out.println("stats");
 //            }
-
-
-
-            // Materialize the intersection
-//            Set<C> remainingValuesOfPickedVar = new HashSet<>(remainingValuesOfPickedVarTmp);
-//            System.out.println("Next slices for var " + pickedVarIdx + ": " + nextSlices.size());
-            if (debug) System.out.println("Need to probe " + remainingValuesOfPickedVar.size() + " values");
-            //List<SliceNode<D, C>> allNextSlices = new ArrayList<>(nonSliceableByPickedVar); // new ArrayList<>();
-            List<SliceNode<D, C>> allNextSlices = new ArrayList<>();
-
-            for (C value : remainingValuesOfPickedVar) {
-//                if (debug) System.out.println("Probing picked var " + pickedVarIdx + " with " + value);
-
-                // List<SliceNode<D, C>> allNextSlices = new ArrayList<>(nonSliceableByPickedVar);
-
-                for (SliceNode<D, C> slice : slices) {
-                    if (slice.hasRemainingVarIdx(pickedVarIdx)) {
-                        SliceNode<D, C> nextSlice = slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
-
-                        if (nextSlice != null) {
-                            if (nextSlice.getRemainingVars().length == 0) {
-                                int[] varIdxs = nextSlice.getInitialVarIdxs();
-                                Object[] values = nextSlice.getVarIdxToSliceValue();
-
-                                for (int i = 0; i < varIdxs.length; ++i) {
-                                    int varIdx = varIdxs[i];
-                                    Object val = values[i];
-                                    varIdxToValues.get(varIdx).add((C)val);
-
-                                }
-                            } else {
-                                allNextSlices.add(nextSlice);
-                            }
-                        }
-                    } else {
-                        allNextSlices.add(slice);
-                    }
-
-                }
-
-                // recurse(nextRemainingVarIdxs, allNextSlices, varIdxToValues);
-
-
-//                List<SliceNode<D, C>> nextSlices = sliceableByPickedVar.stream()
-//                    .map(slice -> {
-//                        SliceNode<D, C> r = slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
-////                        SliceNode<D, C> r = slice.remainingVars.length == 0
-////                                ? null
-////                                : slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
-//                        return r;
-//                    })
-//                    // There is no flatMap with nulls; creating intermediate streams seems like a waste
-//                    .filter(newSlice -> newSlice != null)
-//                    .collect(Collectors.toList());
-//
-//                allNextSlices.addAll(nextSlices);
-//                System.out.println("Next slices for var " + pickedVarIdx + ": " + nextSlices.size());
-
-//                boolean subResult = recurse(nextRemainingVarIdxs, nextSlices, varIdxToValues);
-//                if (subResult) {
-//                    varIdxToValues.get(pickedVarIdx).add(value);
-//                }
-//
-//                result = result || subResult;
-            }
-            recurse(nextRemainingVarIdxs, allNextSlices, varIdxToValues);
-
-
-//            nonSliceableByPickedVar.addAll(next)
-
-
-//            boolean subResult = recurse(nextRemainingVarIdxs, nonSliceableByPickedVar, varIdxToValues);
-//            boolean subResult = recurse(nextRemainingVarIdxs, allNextSlices, varIdxToValues);
-
-//            result = result || subResult;
-
-//            boolean subResult = recurse(nextRemainingVarIdxs, allNextSlices, varIdxToValues);
-//            if (subResult) {
-//                varIdxToValues.get(pickedVarIdx).add(value);
-//            }
-
-//            result = result || subResult;
-
-//        }
+        }
+        return bestVarIdx;
     }
 
-
 }
+
+
+
+
+// recurse(nextRemainingVarIdxs, nonSliceableByPickedVar, varIdxToValues);
+
+
+//nonSliceableByPickedVar.addAll(next)
+
+
+//boolean subResult = recurse(nextRemainingVarIdxs, nonSliceableByPickedVar, varIdxToValues);
+//boolean subResult = recurse(nextRemainingVarIdxs, allNextSlices, varIdxToValues);
+
+//result = result || subResult;
+
+//boolean subResult = recurse(nextRemainingVarIdxs, allNextSlices, varIdxToValues);
+//if (subResult) {
+//    varIdxToValues.get(pickedVarIdx).add(value);
+//}
+
+//result = result || subResult;
+
+
+//List<SliceNode<D, C>> nextSlices = sliceableByPickedVar.stream()
+//  .map(slice -> {
+//      SliceNode<D, C> r = slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
+////      SliceNode<D, C> r = slice.remainingVars.length == 0
+////              ? null
+////              : slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
+//      return r;
+//  })
+//  // There is no flatMap with nulls; creating intermediate streams seems like a waste
+//  .filter(newSlice -> newSlice != null)
+//  .collect(Collectors.toList());
+//
+//allNextSlices.addAll(nextSlices);
+//System.out.println("Next slices for var " + pickedVarIdx + ": " + nextSlices.size());
+
+//boolean subResult = recurse(nextRemainingVarIdxs, nextSlices, varIdxToValues);
+//if (subResult) {
+//  varIdxToValues.get(pickedVarIdx).add(value);
+//}
+//
+//result = result || subResult;
+
+//}
