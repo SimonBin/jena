@@ -133,6 +133,7 @@ public class EinsteinSummation {
         }
 
 
+        System.out.println("Entering recursion");
         boolean foundSolution = recurse(varIdxs, initialSlices, varIdxToValues);
 
         System.out.println(foundSolution);
@@ -161,6 +162,13 @@ public class EinsteinSummation {
             List<SliceNode<D, C>> slices,
             List<Multiset<C>> varIdxToValues) {
 
+        // System.out.println("RemainingVarIdxs: " + Arrays.toString(remainingVarIdxs));
+        if (remainingVarIdxs.length == 0) {
+            return true;
+        } else if (slices == null || slices.isEmpty()) {
+            return true;
+        }
+
         // Indicate empty solution set for this variable until we find at least one
         boolean result = false;
 
@@ -168,13 +176,40 @@ public class EinsteinSummation {
         // For each varIdx iterate all slices and find out the minimum and maximum number of valuee
 
 
+        int varDim = varIdxToValues.size();
+        int[] mins = new int[varDim];
+        int[] maxs = new int[varDim];
+
+        Arrays.fill(mins, Integer.MAX_VALUE);
+        Arrays.fill(maxs, 0);
+
+
         for (SliceNode<D, C> slice : slices) {
-            // slice.getValuesForComponent(tupleIdx)
+            for (int varIdx : slice.getRemainingVars()) {
+                int min = slice.getSmallestValueSetForVarIdx(varIdx).size();
+                int max = slice.getLargestValueSetForVarIdx(varIdx).size();
+
+                mins[varIdx] = Math.min(mins[varIdx], min);
+                maxs[varIdx] = Math.max(maxs[varIdx], max);
+            }
         }
 
+        // The score is a reduction factor - the higher the better
+        float bestVarIdxScore = 0f;
+        int bestVarIdx = 0;
+        for (int varIdx : remainingVarIdxs) {
+            float score = mins[varIdx] / (float)maxs[varIdx];
+
+            if (score > bestVarIdxScore) {
+                bestVarIdxScore = score;
+                bestVarIdx = varIdx;
+            }
+        }
+
+        int pickedVarIdx = bestVarIdx;
+
         // FIXME - Hack just pick one
-        int pickedVarIdx = remainingVarIdxs[0];
-        int[] nextRemainingVarIdxs = ArrayUtils.remove(remainingVarIdxs, pickedVarIdx);
+        int[] nextRemainingVarIdxs = ArrayUtils.remove(remainingVarIdxs, 0);
 
         // Find all slices that project that variable in any of its remaining components
         // Use an identity hash set in case some of the sets turn out to be references to the same set
@@ -214,9 +249,9 @@ public class EinsteinSummation {
                 if (subResult) {
                     varIdxToValues.get(pickedVarIdx).add(value);
                 }
-            }
 
-            result = nextSlices.isEmpty();
+                result = result || subResult;
+            }
         }
 
         return result;
@@ -301,7 +336,7 @@ public class EinsteinSummation {
 
                 // Slice by the component with fewer immediate remaining values (immediate means that we do not
                 // count the values on the leaf nodes)
-                int bestMatchTupleIdx = 0;
+                int bestMatchTupleIdx = tupleIdxs[0];
                 if (tupleIdxs.length > 1) {
                     int bestMatchSize = 0;
                     for (int tupleIdx : tupleIdxs) {
@@ -416,7 +451,9 @@ public class EinsteinSummation {
                 Set<?> keyToSubStores = indexNode.getStoreAsSet(indexStore);
 
                 // Find the value in the key set
-                nextStore = keyToSubStores.contains(sliceKey);
+                nextStore = keyToSubStores.contains(sliceKey)
+                        ? keyToSubStores
+                        : null;
 
                 // Just remain at the leaf; a leaf is identified when there are no more remaining variables
                 if (nextStore != null) {
@@ -470,7 +507,12 @@ public class EinsteinSummation {
 
 
         public int[] getComponentsForVar(int varIdx) {
-            return varIdxToTupleIdxs[varIdx];
+            int[] result = ArrayUtils.contains(remainingVars, varIdx)
+                ? varIdxToTupleIdxs[varIdx]
+                : null
+                ;
+
+            return result;
         }
 
 
@@ -479,6 +521,43 @@ public class EinsteinSummation {
 //        public Set<C> getValues() {
 //
 //        }
+
+        /**
+         * If a varIdx maps to multiple tuple indices return the smallest set
+         *
+         * @param varIdx
+         * @return
+         */
+        public Set<C> getSmallestValueSetForVarIdx(int varIdx) {
+            Set<C> result = null;
+            int tupleIdxs[] = varIdxToTupleIdxs[varIdx];
+
+            for (int tupleIdx : tupleIdxs) {
+                Set<C> candidate = getValuesForComponent(tupleIdx);
+                result = result == null
+                        ? candidate
+                        : (candidate.size() < result.size() ? candidate : result);
+            }
+
+
+            return result;
+        }
+
+        public Set<C> getLargestValueSetForVarIdx(int varIdx) {
+            Set<C> result = null;
+            int tupleIdxs[] = varIdxToTupleIdxs[varIdx];
+
+            for (int tupleIdx : tupleIdxs) {
+                Set<C> candidate = getValuesForComponent(tupleIdx);
+                result = result == null
+                        ? candidate
+                        : (candidate.size() > result.size() ? candidate : result);
+            }
+
+
+            return result;
+        }
+
 
         /**
          * Find the child that indexes by tupleIdx and return its set of values
