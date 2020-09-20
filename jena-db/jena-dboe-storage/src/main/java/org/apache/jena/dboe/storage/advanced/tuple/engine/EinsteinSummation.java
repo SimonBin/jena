@@ -33,7 +33,8 @@ public class EinsteinSummation {
     public static Stream<Binding> einsum(
             StorageNode<?, Node, ?> storage,
             Object store,
-            BasicPattern bgp)
+            BasicPattern bgp,
+            Set<Var> projectVars)
     {
         Stream<Binding> result =
         EinsteinSummation.einsum(
@@ -43,7 +44,10 @@ public class EinsteinSummation {
                 TupleAccessorTripleAnyToNull.INSTANCE,
                 Node::isVariable,
                 BindingFactory.root(),
-                (binding, varNode, valueNode) -> BindingFactory.binding(binding, (Var)varNode, valueNode));
+                (binding, varNode, valueNode) ->
+                    (projectVars.contains(varNode) // Skip binding creation if not projected
+                            ? BindingFactory.binding(binding, (Var)varNode, valueNode)
+                            : binding));
 
         return result;
     }

@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNode;
@@ -33,6 +34,7 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.sparql.core.BasicPattern;
+import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.main.QC;
 import org.apache.jena.sparql.syntax.ElementGroup;
@@ -88,18 +90,20 @@ public class MainEngineTest {
 //        Query query = QueryFactory.create("SELECT DISTINCT ?a ?b WHERE { ?a a ?b }", Syntax.syntaxSPARQL_10);
 
         BasicPattern bgp = ((ElementTriplesBlock)((ElementGroup)query.getQueryPattern()).get(0)).getPattern();
+        Set<Var> projectVars = new HashSet<>(query.getProjectVars());
         System.out.println(bgp);
 
         for (int j = 0; j < 100; ++j) {
 
             Stopwatch executionTimeSw = Stopwatch.createStarted();
 
-            Stream<Binding> bindings = EinsteinSummation.einsum(storage, store, bgp);
-            Iterator<Binding> it = bindings.iterator();
-            while (it.hasNext()) {
-                Binding b = it.next();
-                System.out.println(b);
-            }
+            Stream<Binding> bindings = EinsteinSummation.einsum(storage, store, bgp, projectVars);
+            System.out.println("Binding count: " + bindings.parallel().distinct().count());
+//            Iterator<Binding> it = bindings.iterator();
+//            while (it.hasNext()) {
+//                Binding b = it.next();
+//                System.out.println(b);
+//            }
 
             System.out.println("Execution time: " + executionTimeSw);
         }
