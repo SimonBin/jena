@@ -52,6 +52,17 @@ public class StorageNodeLeafSet<D, C, V>
         this.valueFunction = valueFunction;
     }
 
+    public StorageNodeLeafSet(
+            int tupleIdxs[],
+            TupleAccessor<D, C> tupleAccessor,
+            SetSupplier setSupplier,
+            TupleValueFunction<C, V> valueFunction
+            ) {
+        super(tupleIdxs, tupleAccessor, setSupplier);
+        this.valueFunction = valueFunction;
+    }
+
+
     @Override
     public boolean isSetNode() {
         return true;

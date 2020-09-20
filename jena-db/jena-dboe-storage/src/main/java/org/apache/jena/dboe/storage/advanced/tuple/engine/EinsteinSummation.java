@@ -4,17 +4,19 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
+import org.apache.jena.ext.com.google.common.collect.HashMultiset;
+import org.apache.jena.ext.com.google.common.collect.Multiset;
 import org.apache.jena.ext.com.google.common.collect.Sets;
 
 
@@ -75,14 +77,16 @@ public class EinsteinSummation {
         // set up a vector of variable indices
         int varDim = vars.size();
         List<C> varList = new ArrayList<>(vars);
+        int[] varIdxs = new int[varDim];
 
         Map<C, Integer> varToVarIdx = new HashMap<>();
-        for (int r = 0; r < varList.size(); ++r) {
+        for (int r = 0; r < varDim; ++r) {
             varToVarIdx.put(varList.get(r), r);
+            varIdxs[r] = r;
         }
 
 
-        List<SliceState<D, C>> initialSlices = new ArrayList<>();
+        List<SliceNode<D, C>> initialSlices = new ArrayList<>();
 
         // Set up the initial Slice states for the tuples
         outer: for (T tuple : btp) {
@@ -101,7 +105,7 @@ public class EinsteinSummation {
                     varIdxToTupleIdxs[varIdx] = ArrayUtils.add(varIdxToTupleIdxs[varIdx], i);
                 }
             }
-            SliceState<D, C> tupleSlice = new SliceState<>(rootNode, store, remainingVarIdxs, varIdxToTupleIdxs);
+            SliceNode<D, C> tupleSlice = new SliceNode<>(rootNode, store, remainingVarIdxs, varIdxToTupleIdxs);
 
             // specialize the tuples in the btp by the mentioned constants
             for (int i = 0; i < tupleDim; ++i) {
@@ -122,7 +126,13 @@ public class EinsteinSummation {
             initialSlices.add(tupleSlice);
         }
 
-        recurse(initialSlices, null, null, tupleAccessor);
+        List<Multiset<C>> varIdxToValues = new ArrayList<Multiset<C>>(varDim);
+        for (int i = 0; i < varDim; ++i) {
+            varIdxToValues.add(HashMultiset.create());
+        }
+
+
+        recurse(varIdxs, initialSlices, varIdxToValues);
     }
 
     /**
@@ -134,29 +144,42 @@ public class EinsteinSummation {
      * @param <C>
      * @param <T>
      * @param <V>
-     * @param remainingVarIdxs
+     * @param remainingVarIdxs The remaining varIdxs by which slicing is possible across all slices
      * @param rootNode
      * @param btp
      * @param tupleAccessor
      */
-    public static <D, C, T> void recurse(
-            List<SliceState<D, C>> slices,
-            Set<Integer> remainingVarIdxs,
-            LinkedList<Integer> contextVarIdxs,
-            //List<T> btp,
-            TupleAccessor<T, C> tupleAccessor) {
+    public static <D, C, T> boolean recurse(
+            int[] remainingVarIdxs,
+            List<SliceNode<D, C>> slices,
+            List<Multiset<C>> varIdxToValues) {
 
-        int pickedVarIdx = remainingVarIdxs.iterator().next();
+        // Indicate empty solution set for this variable until we find at least one
+        boolean result = false;
+
+        // Find out which variable to pick
+        // For each varIdx iterate all slices and find out the minimum and maximum number of valuee
+
+
+        for (SliceNode<D, C> slice : slices) {
+            // slice.getValuesForComponent(tupleIdx)
+        }
+
+        // FIXME - Hack just pick one
+        int pickedVarIdx = remainingVarIdxs[0];
+        int[] nextRemainingVarIdxs = ArrayUtils.remove(remainingVarIdxs, pickedVarIdx);
 
         // Find all slices that project that variable in any of its remaining components
         // Use an identity hash set in case some of the sets turn out to be references to the same set
         Set<Set<C>> valuesForPickedVarIdx = Sets.newIdentityHashSet();
-        for (SliceState<D, C> slice : slices) {
+        for (SliceNode<D, C> slice : slices) {
             int[] varInSliceComponents = slice.getComponentsForVar(pickedVarIdx);
 
             if (varInSliceComponents != null) {
-                Set<C> valuesContrib = slice.getValuesForVar(pickedVarIdx);
-                valuesForPickedVarIdx.add(valuesContrib);
+                for(int tupleIdx : varInSliceComponents) {
+                    Set<C> valuesContrib = slice.getValuesForComponent(tupleIdx); //pickedVarIdx);
+                    valuesForPickedVarIdx.add(valuesContrib);
+                }
             }
         }
 
@@ -166,29 +189,30 @@ public class EinsteinSummation {
         List<Set<C>> valueContrib = new ArrayList<>(valuesForPickedVarIdx);
         Collections.sort(valueContrib, (a, b) -> b.size() - a.size());
 
-        Set<C> remainingValuesOfPickdVar = null;
 
+        Set<C> remainingValuesOfPickedVarTmp = valueContrib.stream().reduce(Sets::intersection).orElse(null);
+        if (remainingValuesOfPickedVarTmp != null) {
+            List<SliceNode<D, C>> nextSlices = null;
+            // Materialize the intersection
+            Set<C> remainingValuesOfPickedVar = new HashSet<>(remainingValuesOfPickedVarTmp);
+            for (C value : remainingValuesOfPickedVar) {
 
+                nextSlices = slices.stream()
+                    .map(slice -> slice.sliceOnVarIdxAndValue(pickedVarIdx, value))
+                    // There is no flatMap with nulls; creating intermediate streams seems like a waste
+                    .filter(newSlice -> newSlice != null)
+                    .collect(Collectors.toList());
 
+                boolean subResult = recurse(nextRemainingVarIdxs, nextSlices, varIdxToValues);
+                if (subResult) {
+                    varIdxToValues.get(pickedVarIdx).add(value);
+                }
+            }
 
-//        Multimap<String, String> x;
-//        x.get("foo").size()
-
-
-
-
-
-
-        // slice all nodes by the values of the given var
-        for (SliceState<D, C> slice : slices) {
-
-
-//            Set<C> newSlices = slice.something();
-
+            result = nextSlices.isEmpty();
         }
 
-
-
+        return result;
     }
 
 
@@ -215,7 +239,7 @@ public class EinsteinSummation {
      * @param <C>
      * @param <V>
      */
-    static class SliceState<D, C> {
+    static class SliceNode<D, C> {
         protected Object store;
         protected StorageNode<D, C, ?> storageNode;
 
@@ -229,7 +253,7 @@ public class EinsteinSummation {
          */
         protected int[][] varIdxToTupleIdxs;
 
-        public SliceState(
+        public SliceNode(
                 /* link to parent? */
                 StorageNode<D, C, ?> storageNode,
                 Object store,
@@ -242,6 +266,10 @@ public class EinsteinSummation {
             this.varIdxToTupleIdxs = varIdxToTupleIdxs;
         }
 
+        public int[] getRemainingVars() {
+            return remainingVars;
+        }
+
 
         /**
          * A variable index may map to multiple tuple indices
@@ -249,33 +277,83 @@ public class EinsteinSummation {
          * [?x, foo, ?x]
          * the variable ?x maps to the indices 0 and 2
          *
+         * Returns itself if varIdx is not in remainingVarIdxs
+         * (We do not track whether a slice was already slice by a varIdx;
+         * The assumption is that a slice will never be slice more than once by one varIdx)
          *
          *
          * @param varIdx
          * @param value
          * @return
          */
-        public SliceState<D, C> specialize(int varIdx, C value) {
-            int[] tupleIdxs = varIdxToTupleIdxs[varIdx];
+        public SliceNode<D, C> sliceOnVarIdxAndValue(int varIdx, C value) {
+            SliceNode<D, C> result;
+            if (ArrayUtils.contains(remainingVars, varIdx)) {
 
-            Objects.requireNonNull(tupleIdxs, "Var index did not map to an index in the tuple space");
+                int[] tupleIdxs = varIdxToTupleIdxs[varIdx];
 
-            if (tupleIdxs.length == 2) {
-                throw new UnsupportedOperationException("not sure if this case reaelly needs to be handled if we did things smarter");
+                // Slice by the component with fewer immediate remaining values (immediate means that we do not
+                // count the values on the leaf nodes)
+                int bestMatchTupleIdx = 0;
+                if (tupleIdxs.length > 1) {
+                    int bestMatchSize = 0;
+                    for (int tupleIdx : tupleIdxs) {
+                        Set<?> values = getValuesForComponent(tupleIdx);
+                        int valuesSize = values.size();
+                        if(valuesSize > bestMatchSize) {
+                            bestMatchSize = valuesSize;
+                            bestMatchTupleIdx = tupleIdx;
+                        }
+                    }
+                }
+
+                result = sliceOnComponentWithValue(bestMatchTupleIdx, value);
+            } else {
+                result = this;
+            }
+            return result;
+        }
+
+        public static class NodeAndStore<D, C> {
+            protected StorageNode<D, C, ?> storage;
+            protected Object store;
+
+            public NodeAndStore(StorageNode<D, C, ?> storage, Object store) {
+                super();
+                this.storage = storage;
+                this.store = store;
             }
 
-            int tupleIdx = tupleIdxs[0];
+            public StorageNode<D, C, ?> getStorage() {
+                return storage;
+            }
 
-            SliceState<D, C> result = sliceOnComponentWithValue(tupleIdx, value);
+            public Object getStore() {
+                return store;
+            }
+        }
 
-            // right, if there are multiple tuple indices for a var, then pick one the specialize
-            // on (causing a descend on the index)
-            // then recheck the reached values on the other indices
+        public static <D, C> NodeAndStore<D, C> findStorageNodeThatIndexesByComponentIdx(
+                int tupleIdx,
+                StorageNode<D, C, ?> storageNode,
+                Object store) {
 
-            // still not sure if this has to be done here or on the outside
+            StorageNode<D, C, ?> indexNode = null;
+            Object indexStore = null;
 
+            if (storageNode.isAltNode()) {
+                // If we are positioned at the root then we assume to be positioned at an alt node
+                int childIdx = findChildThatIndexesByTupleIdx(storageNode, tupleIdx);
+                indexNode = storageNode.getChildren().get(childIdx);
+                indexStore = storageNode.chooseSubStoreRaw(store, childIdx);
 
-            return result;
+            } else {
+                // We assume to be at a leaf which is implicitly an alt1 node with itself as the child
+                indexNode = storageNode;
+                indexStore = store;
+            }
+
+            return new NodeAndStore<>(indexNode, indexStore);
         }
 
         /**
@@ -290,42 +368,59 @@ public class EinsteinSummation {
          * @param value
          * @return
          */
-        public SliceState<D, C> sliceOnComponentWithValue(int tupleIdx, C sliceKey) {
+        public SliceNode<D, C> sliceOnComponentWithValue(int tupleIdx, C sliceKey) {
 
-            SliceState<D, C> result = null;
+            SliceNode<D, C> result = null;
 
-            Object altStore = null;
-            StorageNode<D, C, ?> altNode = null;
+            NodeAndStore<D, C> index = findStorageNodeThatIndexesByComponentIdx(tupleIdx, storageNode, store);
+            StorageNode<D, C, ?> indexNode = index.getStorage();
+            Object indexStore = index.getStore();
 
             if (storageNode.isAltNode()) {
                 // If we are positioned at the root then we assume to be positioned at an alt node
-                altStore = store;
-                altNode = storageNode;
+                int childIdx = findChildThatIndexesByTupleIdx(storageNode, tupleIdx);
+                indexNode = storageNode.getChildren().get(childIdx);
+                indexStore = storageNode.chooseSubStoreRaw(store, childIdx);
 
             } else {
-                // otherwise if we assume to be at an innerMap or leafSet/Map node
-                // In the case of an innerMap we can descend to its alt node for the given
-                // sliceKey
-                if (storageNode.isMapNode()) {
-                    Map<?, ?> keyToSubStores = storageNode.getStoreAsMap(store);
-
-                    // Find the value in the key set
-                    Object subStore = keyToSubStores.get(sliceKey);
-
-                    if (subStore == null) {
-                        // Index miss; there is no such tuple with that component; return a null slice
-                        altNode = null;
-                    } else {
-                        altNode = storageNode.getChildren().get(0);
-                    }
-                }
+                // We assume to be at a leaf which is implicitly an alt1 node with itself as the child
+                indexNode = storageNode;
+                indexStore = store;
             }
 
 
-            if (altNode != null) {
-                int childIdx = findChildThatIndexesByTupleIdx(altNode, tupleIdx);
-                StorageNode<D, C, ?> nextStorage = altNode.getChildren().get(childIdx);
-                Object nextStore = altNode.chooseSubStoreRaw(altStore, childIdx);
+            StorageNode<D, C, ?> nextStorage = null;
+            Object nextStore = null;
+
+            // otherwise if we assume to be at an innerMap or leafSet/Map node
+            // In the case of an innerMap we can descend to its alt node for the given
+            // sliceKey
+            if (indexNode.isMapNode()) {
+                Map<?, ?> keyToSubStores = storageNode.getStoreAsMap(indexStore);
+
+                // Find the value in the key set
+                nextStore = keyToSubStores.get(sliceKey);
+
+                if (nextStore != null) {
+                    nextStorage = storageNode.getChildren().get(0);
+                }
+                // else { Index miss; there is no such tuple with that component; returns a null slice }
+            } else if (indexNode.isSetNode()) {
+                Set<?> keyToSubStores = storageNode.getStoreAsSet(indexStore);
+
+                // Find the value in the key set
+                nextStore = keyToSubStores.contains(sliceKey);
+
+                // Just remain at the leaf; a leaf is identified when there are no more remaining variables
+                if (nextStore != null) {
+                    nextStorage = storageNode;
+                }
+            } else {
+                throw new IllegalStateException("Expected either a map or set node; got " + storageNode.getClass());
+            }
+
+
+            if (nextStorage != null) {
 
                 // Find the variable that mapped to that tuple (if any*) and remove it from
                 // remaining vars
@@ -340,8 +435,7 @@ public class EinsteinSummation {
                     }
                 }
 
-
-                result = new SliceState<>(nextStorage, nextStore, nextRemainingVarIdxs, varIdxToTupleIdxs);
+                result = new SliceNode<>(nextStorage, nextStore, nextRemainingVarIdxs, varIdxToTupleIdxs);
             }
 
             return result;
@@ -379,20 +473,38 @@ public class EinsteinSummation {
 //
 //        }
 
-        public Set<C >getValuesForVar(int varIdx) {
-            return null;
-        }
+        /**
+         * Find the child that indexes by tupleIdx and return its set of values
+         *
+         */
+        @SuppressWarnings("unchecked")
+        public Set<C> getValuesForComponent(int tupleIdx) {
 
-        public Set<C> streamValues() {
-            return null;
-//            Streamer<V, C> streamer = storageNode.streamerForValues(null, idx -> null);
-//            Stream<C> result = streamer.stream(store);
-//            return result;
+            NodeAndStore<D, C> index = findStorageNodeThatIndexesByComponentIdx(tupleIdx, storageNode, store);
+            StorageNode<D, C, ?> indexNode = index.getStorage();
+            Object indexStore = index.getStore();
+
+            Set<C> result = null;
+
+            // In the case of a map return its key set
+            // For  leafComponentSets return the set
+            if (indexNode.isMapNode()) {
+                Map<?, ?> map = indexNode.getStoreAsMap(indexStore);
+                result = (Set<C>)map.keySet();
+            } else if (indexNode.isSetNode()) {
+                Set<?> set = indexNode.getStoreAsSet(indexStore);
+                result = (Set<C>)set;
+            } else {
+                throw new IllegalStateException("map or set node expected - got: " + indexNode);
+            }
+
+            return result;
         }
 
 
         /**
-         * Assumption: The start node has a single child that an alt node
+         * Assumption: The start node either is alreaedy a leaf
+         * (implicitly an alt1 with just itself as a child)
          * Pick the child from the alt node that indexes by the given tupleIdx
          *
          *
@@ -404,8 +516,10 @@ public class EinsteinSummation {
          * @return
          */
         public static <D, C> int findChildThatIndexesByTupleIdx(StorageNode<D, C, ?> altNode, int tupleIdx) {
+
             // Pick the alternative with the right tupleIdx
             int result = -1;
+
 
             List<? extends StorageNode<D, C, ?>> children = altNode.getChildren();
             for (int j = 0; j < children.size(); ++j) {
