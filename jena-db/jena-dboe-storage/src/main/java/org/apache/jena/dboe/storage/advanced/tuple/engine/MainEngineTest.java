@@ -89,14 +89,15 @@ public class MainEngineTest {
         BasicPattern bgp = ((ElementTriplesBlock)((ElementGroup)query.getQueryPattern()).get(0)).getPattern();
         System.out.println(bgp);
 
+        for (int j = 0; j < 100; ++j) {
 
-        Stopwatch executionTimeSw = Stopwatch.createStarted();
+            Stopwatch executionTimeSw = Stopwatch.createStarted();
 
-        EinsteinSummation.<Triple, Node, Triple>einsum(
-                storage, store, bgp.getList(), TupleAccessorTripleAnyToNull.INSTANCE, Node::isVariable);
+            EinsteinSummation.<Triple, Node, Triple>einsum(
+                    storage, store, bgp.getList(), TupleAccessorTripleAnyToNull.INSTANCE, Node::isVariable);
 
-        System.out.println("Execution time: " + executionTimeSw);
-
+            System.out.println("Execution time: " + executionTimeSw);
+        }
     }
 
 

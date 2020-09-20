@@ -133,13 +133,22 @@ public class EinsteinSummation {
 
 
         System.out.println("Entering recursion");
-        recurse(varIdxs, initialSlices, varIdxToValues, -1, null);
+        recurse(varDim, varIdxs, initialSlices);
 
         for (int i = 0; i < varDim; ++i) {
             System.out.println("Solution: " + varToVarIdx.inverse().get(i) + ": " + varIdxToValues.get(i).size());
         }
 
     }
+
+    class RecursionState<D, C> {
+        int[] remainingVarIdxs;
+        List<SliceNode<D, C>> slices;
+    }
+
+
+
+
 
     /**
      * So now we first pick a variable by which to slice,
@@ -156,11 +165,9 @@ public class EinsteinSummation {
      * @param tupleAccessor
      */
     public static <D, C> void recurse(
+            int varDim,
             int[] remainingVarIdxs,
-            List<SliceNode<D, C>> slices,
-            List<Multiset<C>> varIdxToValues,
-            int parentVarIdx,
-            C parentValue) {
+            List<SliceNode<D, C>> slices) {
 
         boolean debug = true;
 
@@ -177,7 +184,7 @@ public class EinsteinSummation {
         // For each varIdx iterate all slices and find out the minimum and maximum number of valuee
 
 
-        int pickedVarIdx = findBestSliceVarIdx(remainingVarIdxs, slices, varIdxToValues);
+        int pickedVarIdx = findBestSliceVarIdx(varDim, remainingVarIdxs, slices);
 
         int[] nextRemainingVarIdxs = ArrayUtils.removeElement(remainingVarIdxs, pickedVarIdx);
 //        if (debug) System.out.println("Picked var " + pickedVarIdx + " among " + Arrays.toString(remainingVarIdxs) + " with now remaining " + Arrays.toString(nextRemainingVarIdxs));
@@ -230,6 +237,18 @@ public class EinsteinSummation {
 //        System.out.println("Intersection size: " + remainingValuesOfPickedVarTmp.size());
 //        if (!remainingValuesOfPickedVarTmp.isEmpty()) {
 //
+        recurseWork(varDim, nextRemainingVarIdxs, slices, pickedVarIdx,
+                remainingValuesOfPickedVar);
+
+
+    }
+
+    public static <C, D> void recurseWork(
+            int varDim,
+            int[] nextRemainingVarIdxs,
+            List<SliceNode<D, C>> slices,
+            int pickedVarIdx,
+            Set<C> remainingValuesOfPickedVar) {
         List<SliceNode<D, C>> sliceableByPickedVar = new ArrayList<>();
         List<SliceNode<D, C>> nonSliceableByPickedVar = new ArrayList<>();
 
@@ -285,19 +304,16 @@ public class EinsteinSummation {
             }
 
             // All slices that mentioned a certain var are now constrained to one of the var's value
-            recurse(nextRemainingVarIdxs, allNextSlices, varIdxToValues, parentVarIdx, value);
+            recurse(varDim, nextRemainingVarIdxs, allNextSlices);
         }
-
-
     }
 
-    public static <D, C>  int findBestSliceVarIdx(int[] remainingVarIdxs, List<SliceNode<D, C>> slices,
-            List<Multiset<C>> varIdxToValues) {
+    public static <D, C>  int findBestSliceVarIdx(int varDim, int[] remainingVarIdxs, List<SliceNode<D, C>> slices) {
         // The score is a reduction factor - the higher the better
         int bestVarIdx = remainingVarIdxs[0];
 
         if (remainingVarIdxs.length > 1) {
-            int varDim = varIdxToValues.size();
+//            int varDim = varIdxToValues.size();
             int[] mins = new int[varDim];
             // int[] maxs = new int[varDim];
 
