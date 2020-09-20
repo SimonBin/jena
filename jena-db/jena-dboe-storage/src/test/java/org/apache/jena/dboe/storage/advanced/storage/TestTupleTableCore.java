@@ -129,7 +129,7 @@ public class TestTupleTableCore {
         }
 
 
-        IndexedKeyReducer<Entry<?, ?>> toPairs = (p, i, k) -> Maps.immutableEntry(p, k);
+        IndexedKeyReducer<Entry<?, ?>, Object> toPairs = (p, i, k) -> Maps.immutableEntry(p, k);
 
 //        rootAccessor.child(0).cartesianProduct(
 //                Quad.create(Node.ANY, Node.ANY, Node.ANY, Node.ANY),

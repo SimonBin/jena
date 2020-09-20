@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -178,7 +177,7 @@ public class EinsteinSummation {
             int[] remainingVarIdxs,
             List<SliceNode<D, C>> slices,
             K accumulator,
-            IndexedKeyReducer<K> reducer // receives varIdx and value
+            IndexedKeyReducer<K, C> reducer // receives varIdx and value
             ) {
 
         boolean debug = true;
@@ -304,7 +303,7 @@ public class EinsteinSummation {
             int varDim,
             int[] nextRemainingVarIdxs,
             K accumulator,
-            IndexedKeyReducer<K> reducer,
+            IndexedKeyReducer<K, C> reducer,
             int pickedVarIdx,
             List<SliceNode<D, C>> sliceableByPickedVar,
             List<SliceNode<D, C>> nonSliceableByPickedVar,

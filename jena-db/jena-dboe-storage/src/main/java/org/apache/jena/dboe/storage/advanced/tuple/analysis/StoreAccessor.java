@@ -93,7 +93,7 @@ public interface StoreAccessor<D, C> {
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,
             K initialAccumulator,
-            IndexedKeyReducer<K> keyReducer);
+            IndexedKeyReducer<K, Object> keyReducer);
 
 
     /**
@@ -113,7 +113,7 @@ public interface StoreAccessor<D, C> {
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,
             K initialAccumulator,
-            IndexedKeyReducer<K> keyReducer
+            IndexedKeyReducer<K, Object> keyReducer
             );
 
 
@@ -127,7 +127,7 @@ public interface StoreAccessor<D, C> {
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,
             K initialAccumulator,
-            IndexedKeyReducer<K> keyReducer
+            IndexedKeyReducer<K, Object> keyReducer
             );
 
     static <D, C> StoreAccessor<D, C> findLeastNestedIndexNode(StoreAccessor<D, C> node) {

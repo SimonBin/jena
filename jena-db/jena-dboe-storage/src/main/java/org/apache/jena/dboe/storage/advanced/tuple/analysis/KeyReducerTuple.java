@@ -37,7 +37,7 @@ import com.github.andrewoma.dexx.collection.LinkedLists;
  * @param <C>
  */
 public class KeyReducerTuple<C>
-    implements IndexedKeyReducer<com.github.andrewoma.dexx.collection.List<C>>
+    implements IndexedKeyReducer<com.github.andrewoma.dexx.collection.List<C>, Object>
 {
 
     protected int[] projection;

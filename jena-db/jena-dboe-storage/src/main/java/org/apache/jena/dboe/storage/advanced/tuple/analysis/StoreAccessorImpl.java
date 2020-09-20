@@ -193,7 +193,7 @@ public class StoreAccessorImpl<D, C>
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,
             K initialAccumulator,
-            IndexedKeyReducer<K> keyReducer
+            IndexedKeyReducer<K, Object> keyReducer
             ) {
         return cartesianProduct(pattern, accessor, initialAccumulator, keyReducer, 0);
     }
@@ -217,7 +217,7 @@ public class StoreAccessorImpl<D, C>
 
     @Override
     public <T, K> Streamer<?, Entry<K, ?>> cartesianProductOfParent(T pattern,
-            TupleAccessorCore<? super T, ? extends C> accessor, K initialAccumulator, IndexedKeyReducer<K> keyReducer) {
+            TupleAccessorCore<? super T, ? extends C> accessor, K initialAccumulator, IndexedKeyReducer<K, Object> keyReducer) {
 
         Streamer<?, Entry<K, ?>> result = parent == null
                 ? rootStoreAlts -> Stream.of(Maps.immutableEntry(initialAccumulator, rootStoreAlts))
@@ -232,7 +232,7 @@ public class StoreAccessorImpl<D, C>
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,
             K initialAccumulator,
-            IndexedKeyReducer<K> keyReducer,
+            IndexedKeyReducer<K, Object> keyReducer,
             int lastAltIdxChoice) {
 
 
@@ -253,7 +253,7 @@ public class StoreAccessorImpl<D, C>
     public <T, K> StreamTransform<Entry<K, ?>, Entry<K, ?>> cartesianProductStreamTransform(
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,
-            IndexedKeyReducer<K> keyReducer,
+            IndexedKeyReducer<K, Object> keyReducer,
             int altIdx
         ) {
 
@@ -321,7 +321,7 @@ public class StoreAccessorImpl<D, C>
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor,
             K initialAccumulator,
-            IndexedKeyReducer<K> keyReducer) {
+            IndexedKeyReducer<K, Object> keyReducer) {
 
         StorageNode<D, C, ?> storageNode = getStorage();
 

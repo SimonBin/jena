@@ -29,7 +29,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.analysis;
  *
  * @param <K>
  */
-public interface IndexedKeyReducer<K>
+public interface IndexedKeyReducer<K, C>
 {
-    K reduce(K accumulator, int indexNode, Object value);
+    K reduce(K accumulator, int indexNode, C value);
 }
