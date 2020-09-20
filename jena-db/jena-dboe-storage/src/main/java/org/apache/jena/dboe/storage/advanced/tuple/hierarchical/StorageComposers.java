@@ -48,11 +48,12 @@ public class StorageComposers {
             SetSupplier setSupplier,
             TupleAccessor<D, C> tupleAccessor) {
         return new StorageNodeLeafSet<D, C, C>(
-                new int[] {tupleIdx },
+                new int[] {tupleIdx},
                 tupleAccessor,
                 setSupplier,
                 // Ugly identity mapping of domain tuples to themselves as values - can we do better?
-                TupleValueFunction.newIdentity()
+                // TupleValueFunction.newComponent(tupleIdx)
+                TupleValueFunction::component0
                 );
     }
 

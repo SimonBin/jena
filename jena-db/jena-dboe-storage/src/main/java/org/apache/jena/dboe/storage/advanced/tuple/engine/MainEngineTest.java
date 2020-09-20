@@ -83,7 +83,8 @@ public class MainEngineTest {
         System.out.println("Loading time: " + loadingTimeSw);
 
 
-        Query query = QueryFactory.create("SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }", Syntax.syntaxSPARQL_10);
+//        Query query = QueryFactory.create("SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }", Syntax.syntaxSPARQL_10);
+        Query query = QueryFactory.create("SELECT DISTINCT ?a ?b WHERE { ?a a ?b }", Syntax.syntaxSPARQL_10);
 
         BasicPattern bgp = ((ElementTriplesBlock)((ElementGroup)query.getQueryPattern()).get(0)).getPattern();
         System.out.println(bgp);

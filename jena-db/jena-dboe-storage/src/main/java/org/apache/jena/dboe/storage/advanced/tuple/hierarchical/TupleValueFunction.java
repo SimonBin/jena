@@ -47,6 +47,17 @@ public interface TupleValueFunction<ComponentType, ValueType> {
         };
     }
 
+    public static <ComponentType, ValueType> TupleValueFunction<ComponentType, ValueType> newComponent(int idx) {
+        return new TupleValueFunction<ComponentType, ValueType>() {
+            @SuppressWarnings("unchecked")
+            @Override
+            public <TupleLike> ValueType map(TupleLike tupleLike, TupleAccessorCore<? super TupleLike, ? extends ComponentType> tupleAccessor) {
+              ValueType result = (ValueType)tupleAccessor.get(tupleLike, idx);
+              return result;
+            }
+        };
+    }
+
 //    public static <T, C> T identity(T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
 //        return tupleLike;
 //    }
@@ -61,7 +72,8 @@ public interface TupleValueFunction<ComponentType, ValueType> {
      * @return
      */
     public static <T, C> C component0(T tupleLike, TupleAccessorCore<? super T, ? extends C> tupleAccessor) {
-        return tupleAccessor.get(tupleLike, 0);
+        C result = tupleAccessor.get(tupleLike, 0);
+        return result;
     }
 
 }
