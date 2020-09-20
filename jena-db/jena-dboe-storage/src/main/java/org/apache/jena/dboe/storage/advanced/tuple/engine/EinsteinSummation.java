@@ -3,7 +3,6 @@ package org.apache.jena.dboe.storage.advanced.tuple.engine;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -15,6 +14,8 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
+import org.apache.jena.ext.com.google.common.collect.BiMap;
+import org.apache.jena.ext.com.google.common.collect.HashBiMap;
 import org.apache.jena.ext.com.google.common.collect.HashMultiset;
 import org.apache.jena.ext.com.google.common.collect.Multiset;
 import org.apache.jena.ext.com.google.common.collect.Sets;
@@ -79,7 +80,7 @@ public class EinsteinSummation {
         List<C> varList = new ArrayList<>(vars);
         int[] varIdxs = new int[varDim];
 
-        Map<C, Integer> varToVarIdx = new HashMap<>();
+        BiMap<C, Integer> varToVarIdx = HashBiMap.create();
         for (int r = 0; r < varDim; ++r) {
             varToVarIdx.put(varList.get(r), r);
             varIdxs[r] = r;
@@ -132,7 +133,13 @@ public class EinsteinSummation {
         }
 
 
-        recurse(varIdxs, initialSlices, varIdxToValues);
+        boolean foundSolution = recurse(varIdxs, initialSlices, varIdxToValues);
+
+        System.out.println(foundSolution);
+        for (int i = 0; i < varDim; ++i) {
+            System.out.println("Solution: " + varToVarIdx.inverse().get(i) + ": " + varIdxToValues.get(i).size());
+        }
+
     }
 
     /**
@@ -396,17 +403,17 @@ public class EinsteinSummation {
             // In the case of an innerMap we can descend to its alt node for the given
             // sliceKey
             if (indexNode.isMapNode()) {
-                Map<?, ?> keyToSubStores = storageNode.getStoreAsMap(indexStore);
+                Map<?, ?> keyToSubStores = indexNode.getStoreAsMap(indexStore);
 
                 // Find the value in the key set
                 nextStore = keyToSubStores.get(sliceKey);
 
                 if (nextStore != null) {
-                    nextStorage = storageNode.getChildren().get(0);
+                    nextStorage = indexNode.getChildren().get(0);
                 }
                 // else { Index miss; there is no such tuple with that component; returns a null slice }
             } else if (indexNode.isSetNode()) {
-                Set<?> keyToSubStores = storageNode.getStoreAsSet(indexStore);
+                Set<?> keyToSubStores = indexNode.getStoreAsSet(indexStore);
 
                 // Find the value in the key set
                 nextStore = keyToSubStores.contains(sliceKey);
