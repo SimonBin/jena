@@ -13,9 +13,11 @@ import java.util.Set;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
+
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArraySet;
 
 public class TripleStorages {
 
@@ -52,32 +54,30 @@ public class TripleStorages {
      *
      * @return
      */
-    public static StorageNodeMutable<Triple, Node, ?> createHyperTrieStorageRaw() {
-        TupleAccessor<Triple, Node> accessor = TupleAccessorTripleAnyToNull.INSTANCE;
+    public static StorageNodeMutable<int[], Integer, ?> createHyperTrieStorageInt(
+            TupleAccessor<int[], Integer> accessor) {
 
         // TODO The leaf set suppliers should be invoked with context information such that
         // different collation orders of the component indices can yield the same set
         // E.g. 1=rdf:type 2=foaf:Person can reuse the set for 2=foaf:Person 1=rdf:type
 
-        StorageNodeMutable<Triple, Node,
+        StorageNodeMutable<int[], Integer,
             Alt3<
-                Map<Node, Alt2<Map<Node, Set<Node>>, Map<Node, Set<Node>>>>,
-                Map<Node, Alt2<Map<Node, Set<Node>>, Map<Node, Set<Node>>>>,
-                Map<Node, Alt2<Map<Node, Set<Node>>, Map<Node, Set<Node>>>>>
+                Map<Integer, Alt2<Map<Integer, Set<Integer>>, Map<Integer, Set<Integer>>>>,
+                Map<Integer, Alt2<Map<Integer, Set<Integer>>, Map<Integer, Set<Integer>>>>,
+                Map<Integer, Alt2<Map<Integer, Set<Integer>>, Map<Integer, Set<Integer>>>>>
             >
         result = alt3(
-            innerMap(0, HashMap::new, alt2(
-                innerMap(1, HashMap::new, leafComponentSet(2, HashSet::new, accessor)),
-                innerMap(2, HashMap::new, leafComponentSet(1, HashSet::new, accessor)))),
+            innerMap(0, Int2ObjectOpenHashMap::new, alt2(
+                innerMap(1, Int2ObjectOpenHashMap::new, leafComponentSet(2, SetSupplier.force(IntArraySet::new), accessor)),
+                innerMap(2, Int2ObjectOpenHashMap::new, leafComponentSet(1, SetSupplier.force(IntArraySet::new), accessor)))),
             innerMap(1, HashMap::new, alt2(
-                innerMap(0, HashMap::new, leafComponentSet(2, HashSet::new, accessor)),
-                innerMap(2, HashMap::new, leafComponentSet(0, HashSet::new, accessor)))),
+                innerMap(0, Int2ObjectOpenHashMap::new, leafComponentSet(2, SetSupplier.force(IntArraySet::new), accessor)),
+                innerMap(2, Int2ObjectOpenHashMap::new, leafComponentSet(0, SetSupplier.force(IntArraySet::new), accessor)))),
             innerMap(2, HashMap::new, alt2(
-                innerMap(0, HashMap::new, leafComponentSet(1, HashSet::new, accessor)),
-                innerMap(1, HashMap::new, leafComponentSet(0, HashSet::new, accessor))))
+                innerMap(0, Int2ObjectOpenHashMap::new, leafComponentSet(1, SetSupplier.force(IntArraySet::new), accessor)),
+                innerMap(1, Int2ObjectOpenHashMap::new, leafComponentSet(0, SetSupplier.force(IntArraySet::new), accessor))))
         );
-
-
 
         return result;
     }

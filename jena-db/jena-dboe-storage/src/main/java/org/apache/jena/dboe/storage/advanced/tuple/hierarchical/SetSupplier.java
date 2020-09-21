@@ -18,6 +18,7 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * Helper interface for creating new set instances with automatically inferred types
@@ -27,4 +28,15 @@ import java.util.Set;
  */
 public interface SetSupplier {
   <V> Set<V> get();
+
+  public static SetSupplier force(Supplier<Set<?>> setSupplier) {
+      return new SetSupplier() {
+        @SuppressWarnings("unchecked")
+        @Override
+        public <V> Set<V> get() {
+            return (Set<V>)setSupplier.get();
+        }
+    };
+  }
+
 }

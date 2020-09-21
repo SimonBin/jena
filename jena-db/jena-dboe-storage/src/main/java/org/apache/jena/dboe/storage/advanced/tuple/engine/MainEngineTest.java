@@ -178,7 +178,10 @@ public class MainEngineTest {
         TupleAccessor<int[], Integer> backendAccessor = new TupleAccessorArrayOfInts(3);
 
         StorageNodeMutable<int[], Integer, ?> storage =
-            TripleStorages.createHyperTrieStorage(backendAccessor);
+                TripleStorages.createHyperTrieStorageInt(backendAccessor);
+
+//        StorageNodeMutable<int[], Integer, ?> storage =
+//            TripleStorages.createHyperTrieStorage(backendAccessor);
 
         TupleCodec<Triple, Node, int[], Integer> tupleCodec
             = TupleCodecDictionary.createForInts(TupleAccessorTripleAnyToNull.INSTANCE, backendAccessor);
