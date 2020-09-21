@@ -1,5 +1,7 @@
 package org.apache.jena.dboe.storage.advanced.tuple.engine;
 
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -23,6 +25,7 @@ public class StageGeneratorHyperTrie
 {
     protected boolean parallel = false;
     protected boolean bufferBindings = false;
+    protected Consumer<String> bufferStatsCallback = null;
 
     public StageGeneratorHyperTrie() {
         super();
@@ -38,6 +41,7 @@ public class StageGeneratorHyperTrie
         return this;
     }
 
+
     /**
      * Buffer the bindings from the underlying stream in memory.
      * Used for debugging/profiling the performance overhead of getting the bindings here
@@ -51,6 +55,10 @@ public class StageGeneratorHyperTrie
         return this;
     }
 
+    public StageGeneratorHyperTrie bufferStatsCallback(Consumer<String> bufferStatsCallback) {
+        this.bufferStatsCallback = bufferStatsCallback;
+        return this;
+    }
 
 
     public static StorageNodeAndStore<?, Node> extractNodeAndStore(Graph graph) {
@@ -131,8 +139,12 @@ public class StageGeneratorHyperTrie
 
             if (bufferBindings) {
                 Stopwatch sw = Stopwatch.createStarted();
-                stream = stream.collect(Collectors.toList()).stream();
-//                System.err.println("Buffered result set in " + sw);
+                List<Binding> buffer = stream.collect(Collectors.toList());
+                if (bufferStatsCallback != null) {
+                    bufferStatsCallback.accept("Buffered result set of size " + buffer.size() + " in " + sw);
+                }
+
+                stream = buffer.stream();
             }
 
             return WrappedIterator.create(stream.iterator());

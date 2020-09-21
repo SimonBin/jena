@@ -172,12 +172,13 @@ public class EinsteinSummation {
         };
 
 
-        Stream<A> stream = recurse(
+        // Do not execute anything unless an operation is invoked on the stream
+        Stream<A> stream = Stream.of(initialAccumulator).flatMap(acc -> recurse(
                 varDim,
                 varIdxs,
                 initialSlices,
-                initialAccumulator,
-                varIdxBasedReducer);
+                acc,
+                varIdxBasedReducer));
 
         return stream;
     }
@@ -209,6 +210,7 @@ public class EinsteinSummation {
             IndexedKeyReducer<A, C> reducer // receives varIdx and value
             ) {
 
+        boolean debug = true;
 //        if (debug) System.out.println("Recursion started: RemainingVarIdxs: " + Arrays.toString(remainingVarIdxs) + " numSlices=" + slices.size());
 //        if (slices == null || slices.isEmpty()) {
 //            return false;
