@@ -49,7 +49,7 @@ public class MainEngineTest {
         if (useHyperTrie) {
             model = createHyperTrieBackedModel();
             cxtMutator = cxt -> StageBuilder.setGenerator(cxt, StageGeneratorHyperTrie
-                    .create().parallel(true).bufferBindings(true));
+                    .create().parallel(false).bufferBindings(true));
         } else {
             model = ModelFactory.createDefaultModel();
         }
@@ -88,7 +88,16 @@ public class MainEngineTest {
                     cxtMutator.accept(qe.getContext());
 
                     ResultSet rs = qe.execSelect();
-                    long count = ResultSetFormatter.consume(rs);
+//                    long count = ResultSetFormatter.consume(rs);
+
+                    // ResultSetFormatter.consume materializes all Model objects which
+                    // may take significantly more time than just listing the bindings
+                    long count = 0;
+                    while (rs.hasNext()) {
+                        rs.nextBinding();
+                        ++count;
+                    }
+
                     bindingCounter += count;
                     System.out.println("Execution time: " + executionTimeSw + " - result set size: " + count);
                 }

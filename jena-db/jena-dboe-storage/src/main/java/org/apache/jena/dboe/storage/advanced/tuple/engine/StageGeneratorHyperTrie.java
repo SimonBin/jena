@@ -132,7 +132,7 @@ public class StageGeneratorHyperTrie
             if (bufferBindings) {
                 Stopwatch sw = Stopwatch.createStarted();
                 stream = stream.collect(Collectors.toList()).stream();
-                System.err.println("Buffered result set in " + sw);
+//                System.err.println("Buffered result set in " + sw);
             }
 
             return WrappedIterator.create(stream.iterator());

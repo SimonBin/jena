@@ -92,8 +92,6 @@ public class EinsteinSummation {
             )
     {
         // First find out the set of variables
-        // (Hm, maybe we should use C for components in the store and another generic CV
-        // for the type of components with variables used in lookup tuple patterns)
         Set<C> vars = new LinkedHashSet<>();
 
         // Get the dimension of tuples from the storage
@@ -108,7 +106,6 @@ public class EinsteinSummation {
                 }
             }
         }
-
 
         // set up a vector of variable indices
         int varDim = vars.size();
@@ -168,30 +165,21 @@ public class EinsteinSummation {
             varIdxToValues.add(HashMultiset.create());
         }
 
-        IndexedKeyReducer<A, C> lowLevelReducer = (acc, varIdx, value) -> {
+        // Wrap the incoming reducer with another one that maps var indices to the actual vars
+        IndexedKeyReducer<A, C> varIdxBasedReducer = (acc, varIdx, value) -> {
             C var = varList.get(varIdx);
             return reducer.reduce(acc, var, value);
         };
 
 
-//        System.out.println("Entering recursion");
         Stream<A> stream = recurse(
                 varDim,
                 varIdxs,
                 initialSlices,
                 initialAccumulator,
-                lowLevelReducer);
+                varIdxBasedReducer);
 
         return stream;
-//        System.out.println("Result stream items: " + stream.count());
-//        Iterator<Object> it = stream.iterator();
-//        while (it.hasNext()) {
-//            System.out.println(it.next());
-//        }
-//        for (int i = 0; i < varDim; ++i) {
-//            System.out.println("Solution: " + varToVarIdx.inverse().get(i) + ": " + varIdxToValues.get(i).size());
-//        }
-
     }
 
 
@@ -200,28 +188,26 @@ public class EinsteinSummation {
 
 
     /**
-     * So now we first pick a variable by which to slice,
-     * then we (conceptually) create the intersection of its values in every slice,
      *
+     * @param <D> The domain type of tuples such as Triple. Not needed in the algo.
+     * @param <C> The type of the domain tuple's values; e.g. Node
+     * @param <A> The type of the accumulator used for the construction of result objects
+     * @param varDim The number of variables; respectively their indices
+     * @param remainingVarIdxs The indices of the variables not yet processed
+     * @param slices The list of slices to process
+     * @param accumulator The accumulator to which intermediate contributions via the reducer are made. E.g. Binding
+     * @param reducer Used to blend intermediate solutions (variable idx, value) with the accumulator
+     *        in order to obtain a new accumulator.
      *
-     * @param <D>
-     * @param <C>
-     * @param <T>
-     * @param <V>
-     * @param remainingVarIdxs The remaining varIdxs by which slicing is possible across all slices
-     * @param rootNode
-     * @param btp
-     * @param tupleAccessor
+     * @return A stream of the final accumulators
      */
-    public static <D, C, K> Stream<K> recurse(
+    public static <D, C, A> Stream<A> recurse(
             int varDim,
             int[] remainingVarIdxs,
             List<SliceNode<D, C>> slices,
-            K accumulator,
-            IndexedKeyReducer<K, C> reducer // receives varIdx and value
+            A accumulator,
+            IndexedKeyReducer<A, C> reducer // receives varIdx and value
             ) {
-
-        boolean debug = true;
 
 //        if (debug) System.out.println("Recursion started: RemainingVarIdxs: " + Arrays.toString(remainingVarIdxs) + " numSlices=" + slices.size());
 //        if (slices == null || slices.isEmpty()) {
@@ -234,9 +220,8 @@ public class EinsteinSummation {
 
         // Find out which variable to pick
         // For each varIdx iterate all slices and find out the minimum and maximum number of valuee
-
-
         int pickedVarIdx = findBestSliceVarIdx(varDim, remainingVarIdxs, slices);
+
 
         int[] nextRemainingVarIdxs = ArrayUtils.removeElement(remainingVarIdxs, pickedVarIdx);
 //        if (debug) System.out.println("Picked var " + pickedVarIdx + " among " + Arrays.toString(remainingVarIdxs) + " with now remaining " + Arrays.toString(nextRemainingVarIdxs));
@@ -249,34 +234,32 @@ public class EinsteinSummation {
 
             if (varInSliceComponents != null) {
                 for(int tupleIdx : varInSliceComponents) {
-                    Set<C> valuesContrib = slice.getValuesForComponent(tupleIdx); //pickedVarIdx);
+                    Set<C> valuesContrib = slice.getValuesForComponent(tupleIdx);
 
-                    if (valuesContrib.isEmpty()) {
-                        System.out.println("should this happen?");
-                    }
+//                    if (valuesContrib.isEmpty()) {
+//                        System.out.println("should never happen");
+//                    }
 
                     valuesForPickedVarIdx.add(valuesContrib);
                 }
             }
         }
 
-
         // Created the intersection of all value sets
         // Sort the contributions by size (smallest first)
         List<Set<C>> valueContribs = new ArrayList<>(valuesForPickedVarIdx);
-
-        // The sorting of the sets by size is highly important!
-        // Consider computing the intersection between two sets of sizes 100.000 and 1
-        // We do not want to copy 100K values just to retain 1
-        Collections.sort(valueContribs, (a, b) -> a.size() - b.size());
-
-//        System.out.println("Value set sizes to intrsect: " + valueContribs.stream().map(x -> "" + x.size()).collect(Collectors.joining(", ")));
 
         Set<C> remainingValuesOfPickedVar = Collections.emptySet();
 
         if (valueContribs.size() == 1) {
             remainingValuesOfPickedVar = valueContribs.get(0);
         } else if (valueContribs.size() > 1) {
+            // The sorting of the sets by size is VERY important!
+            // Consider computing the intersection between two sets of sizes 100.000 and 1
+            // We do not want to copy 100K values just to retain 1
+            Collections.sort(valueContribs, (a, b) -> a.size() - b.size());
+
+
             remainingValuesOfPickedVar = new HashSet<>(valueContribs.get(0));
             for (int i = 1; i < valueContribs.size(); ++i) {
                 Set<C> contrib = valueContribs.get(i);
@@ -284,11 +267,6 @@ public class EinsteinSummation {
             }
         }
 
-        // Set<C> remainingValuesOfPickedVarTmp =
-        // valueContribs.stream().reduce(Sets::intersection).orElse(Collections.emptySet());
-//        System.out.println("Intersection size: " + remainingValuesOfPickedVarTmp.size());
-//        if (!remainingValuesOfPickedVarTmp.isEmpty()) {
-//
         List<SliceNode<D, C>> sliceableByPickedVar = new ArrayList<>();
         List<SliceNode<D, C>> nonSliceableByPickedVar = new ArrayList<>();
 
@@ -299,17 +277,6 @@ public class EinsteinSummation {
                 nonSliceableByPickedVar.add(slice);
             }
         }
-
-        // Materialize the intersection
-//            Set<C> remainingValuesOfPickedVar = new HashSet<>(remainingValuesOfPickedVarTmp);
-//            System.out.println("Next slices for var " + pickedVarIdx + ": " + nextSlices.size());
-//        if (debug) System.out.println("Need to probe " + remainingValuesOfPickedVar.size() + " values; pickedeVarIdx = " + pickedVarIdx);
-
-        // List<SliceNode<D, C>> allNextSlices = new
-        // ArrayList<>(nonSliceableByPickedVar); // new ArrayList<>();
-//            List<SliceNode<D, C>> allNextSlices = new ArrayList<>();
-
-        int valueCounter = 0;
 
         return remainingValuesOfPickedVar.stream().flatMap(value -> {
             return sliceByValue(
@@ -322,23 +289,8 @@ public class EinsteinSummation {
                     nonSliceableByPickedVar,
                     value);
         });
-//        for (C value : remainingValuesOfPickedVar) {
-//            sliceByValue(varDim, nextRemainingVarIdxs, pickedVarIdx, sliceableByPickedVar, nonSliceableByPickedVar, value);
-//        };
-
     }
 
-//    public static <C, D> void recurseWork(
-//            int varDim,
-//            int[] nextRemainingVarIdxs,
-//            List<SliceNode<D, C>> slices,
-//            int pickedVarIdx,
-//            Set<C> remainingValuesOfPickedVar) {
-//        List<SliceNode<D, C>> sliceableByPickedVar = new ArrayList<>();
-//        List<SliceNode<D, C>> nonSliceableByPickedVar = new ArrayList<>();
-//
-//
-//    }
 
     public static <D, C, K> Stream<K> sliceByValue(
             int varDim,
@@ -349,11 +301,7 @@ public class EinsteinSummation {
             List<SliceNode<D, C>> sliceableByPickedVar,
             List<SliceNode<D, C>> nonSliceableByPickedVar,
             C value) {
-        // remainingValuesOfPickedVar.stream().flatMap(value -> {
-        // System.out.println("Processing value " + ++valueCounter + "/" +
-        // remainingValuesOfPickedVar.size());
-        // if (debug) System.out.println("Probing picked var " + pickedVarIdx + " with "
-        // + value);
+
 
         List<SliceNode<D, C>> allNextSlices = new ArrayList<>(nonSliceableByPickedVar);
 
@@ -431,6 +379,7 @@ public class EinsteinSummation {
                 }
             }
 
+// DEBUG POINT
 //            if (false) {
 //                System.out.println("stats");
 //            }
@@ -440,48 +389,3 @@ public class EinsteinSummation {
 
 }
 
-
-
-
-// recurse(nextRemainingVarIdxs, nonSliceableByPickedVar, varIdxToValues);
-
-
-//nonSliceableByPickedVar.addAll(next)
-
-
-//boolean subResult = recurse(nextRemainingVarIdxs, nonSliceableByPickedVar, varIdxToValues);
-//boolean subResult = recurse(nextRemainingVarIdxs, allNextSlices, varIdxToValues);
-
-//result = result || subResult;
-
-//boolean subResult = recurse(nextRemainingVarIdxs, allNextSlices, varIdxToValues);
-//if (subResult) {
-//    varIdxToValues.get(pickedVarIdx).add(value);
-//}
-
-//result = result || subResult;
-
-
-//List<SliceNode<D, C>> nextSlices = sliceableByPickedVar.stream()
-//  .map(slice -> {
-//      SliceNode<D, C> r = slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
-////      SliceNode<D, C> r = slice.remainingVars.length == 0
-////              ? null
-////              : slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
-//      return r;
-//  })
-//  // There is no flatMap with nulls; creating intermediate streams seems like a waste
-//  .filter(newSlice -> newSlice != null)
-//  .collect(Collectors.toList());
-//
-//allNextSlices.addAll(nextSlices);
-//System.out.println("Next slices for var " + pickedVarIdx + ": " + nextSlices.size());
-
-//boolean subResult = recurse(nextRemainingVarIdxs, nextSlices, varIdxToValues);
-//if (subResult) {
-//  varIdxToValues.get(pickedVarIdx).add(value);
-//}
-//
-//result = result || subResult;
-
-//}
