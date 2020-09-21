@@ -86,7 +86,7 @@ public class EinsteinSummation {
                         : binding);
 
         Stream<Binding> result =
-        EinsteinSummation.einsum(
+        EinsteinSummation.einsumGeneric(
                 storage,
                 store,
                 bgp.getList(),
@@ -125,14 +125,14 @@ public class EinsteinSummation {
      * @param tupleAccessor
      * @param isVar Test whether a value for C is a variable
      */
-    public static <D, C0, C, T, A>  Stream<A> einsum(
-            StorageNode<D, C, ?> rootNode,
+    public static <C0, C, T, A>  Stream<A> einsumGeneric(
+            StorageNode<?, C, ?> rootNode,
             Object store,
             Iterable<T> btp,
             TupleAccessor<T, C0> tupleAccessor,
-            Predicate<C0> isVar,
-            Function<C0, C> componentEncoder, // E.g. Map concrete nodes to integers
-            Function<C, C0> componentDecoder,
+            Predicate<C0> isVar, // In general we cannot pass variables through the encoder so we need a predicate
+            Function<C0, C> componentEncoder, // E.g. map concrete nodes to integers via a dictionary
+            Function<C, C0> componentDecoder, // E.g. map integers back to nodes via a dictionary
             A initialAccumulator,
             BiReducer<A, C0, C0> reducer // first C = variable, second C = value; both as Nodes
             )
@@ -166,7 +166,7 @@ public class EinsteinSummation {
         }
 
 
-        List<SliceNode<D, C>> initialSlices = new ArrayList<>();
+        List<SliceNode<?, C>> initialSlices = new ArrayList<>();
 
         // Set up the initial Slice states for the tuples
         outer: for (T tuple : btp) {
@@ -186,7 +186,7 @@ public class EinsteinSummation {
                     varIdxToTupleIdxs[varIdx] = ArrayUtils.add(varIdxToTupleIdxs[varIdx], i);
                 }
             }
-            SliceNode<D, C> tupleSlice = SliceNode.create(rootNode, store, remainingVarIdxs, varIdxToTupleIdxs);
+            SliceNode<?, C> tupleSlice = SliceNode.create(rootNode, store, remainingVarIdxs, varIdxToTupleIdxs);
 
             // specialize the tuples in the btp by the mentioned constants
             for (int i = 0; i < tupleDim; ++i) {
@@ -252,10 +252,10 @@ public class EinsteinSummation {
      *
      * @return A stream of the final accumulators
      */
-    public static <D, C, A> Stream<A> recurse(
+    public static <C, A> Stream<A> recurse(
             int varDim,
             int[] remainingVarIdxs,
-            List<SliceNode<D, C>> slices,
+            List<SliceNode<?, C>> slices,
             A accumulator,
             IndexedKeyReducer<A, C> reducer // receives varIdx and value
             ) {
@@ -282,7 +282,7 @@ public class EinsteinSummation {
         // Find all slices that project that variable in any of its remaining components
         // Use an identity hash set in case some of the sets turn out to be references to the same set
         Set<Set<C>> valuesForPickedVarIdx = Sets.newIdentityHashSet();
-        for (SliceNode<D, C> slice : slices) {
+        for (SliceNode<?, C> slice : slices) {
             int[] varInSliceComponents = slice.getComponentsForVar(pickedVarIdx);
 
             if (varInSliceComponents != null) {
@@ -326,10 +326,10 @@ public class EinsteinSummation {
             break;
         }
 
-        List<SliceNode<D, C>> sliceableByPickedVar = new ArrayList<>();
-        List<SliceNode<D, C>> nonSliceableByPickedVar = new ArrayList<>();
+        List<SliceNode<?, C>> sliceableByPickedVar = new ArrayList<>();
+        List<SliceNode<?, C>> nonSliceableByPickedVar = new ArrayList<>();
 
-        for (SliceNode<D, C> slice : slices) {
+        for (SliceNode<?, C> slice : slices) {
             if (slice.hasRemainingVarIdx(pickedVarIdx)) {
                 sliceableByPickedVar.add(slice);
             } else {
@@ -351,27 +351,27 @@ public class EinsteinSummation {
     }
 
 
-    public static <D, C, K> Stream<K> sliceByValue(
+    public static <C, K> Stream<K> sliceByValue(
             int varDim,
             int[] nextRemainingVarIdxs,
             K accumulator,
             IndexedKeyReducer<K, C> reducer,
             int pickedVarIdx,
-            List<SliceNode<D, C>> sliceableByPickedVar,
-            List<SliceNode<D, C>> nonSliceableByPickedVar,
+            List<SliceNode<?, C>> sliceableByPickedVar,
+            List<SliceNode<?, C>> nonSliceableByPickedVar,
             C value) {
 
 
         // Perhaps Interables.concat?
-        List<SliceNode<D, C>> allNextSlices = new ArrayList<>(nonSliceableByPickedVar);
+        List<SliceNode<?, C>> allNextSlices = new ArrayList<>(nonSliceableByPickedVar);
 
 //        if (nonSliceableByPickedVar.size() > 2) {
 //            System.out.println("Non-sliceable " + nonSliceableByPickedVar.size() + " sliceable " + sliceableByPickedVar.size());
 //
 //        }
 
-        for (SliceNode<D, C> slice : sliceableByPickedVar) {
-            SliceNode<D, C> nextSlice = slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
+        for (SliceNode<?, C> slice : sliceableByPickedVar) {
+            SliceNode<?, C> nextSlice = slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
 
             if (nextSlice != null) {
                 if (nextSlice.getRemainingVars().length != 0) {
@@ -388,10 +388,10 @@ public class EinsteinSummation {
         return recurse(varDim, nextRemainingVarIdxs, allNextSlices, nextAccumulator, reducer);
     }
 
-    public static <D, C>  int findBestSliceVarIdx(
+    public static <C>  int findBestSliceVarIdx(
             int varDim,
             int[] remainingVarIdxs,
-            List<SliceNode<D, C>> slices) {
+            List<SliceNode<?, C>> slices) {
         // The score is a reduction factor - the higher the better
         int bestVarIdx = remainingVarIdxs[0];
 
@@ -413,7 +413,7 @@ public class EinsteinSummation {
             // Arrays.fill(varIdxToNumDifferentSizes, 0);
 //            Arrays.fill(maxs, 0);
 
-            for (SliceNode<D, C> slice : slices) {
+            for (SliceNode<?, C> slice : slices) {
 
                 for (int varIdx : slice.getRemainingVars()) {
                     Set<C> minSet = slice.getSmallestValueSetForVarIdx(varIdx);
@@ -429,7 +429,7 @@ public class EinsteinSummation {
                 }
             }
 
-            for (SliceNode<D, C> slice : slices) {
+            for (SliceNode<?, C> slice : slices) {
                 for (int varIdx : slice.getRemainingVars()) {
                     int mmax = slice.getLargestValueSetForVarIdx(varIdx).size();
 

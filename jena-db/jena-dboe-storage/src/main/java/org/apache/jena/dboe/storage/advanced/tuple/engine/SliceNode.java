@@ -27,7 +27,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
  *
  * @author raven
  *
- * @param <D>
+ * @param <D> Domain tuple type - not needed and should be removed
  * @param <C>
  * @param <V>
  */

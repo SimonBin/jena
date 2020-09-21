@@ -6,15 +6,22 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
+import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNodeWithCodec;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeBased;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;
 import org.apache.jena.ext.com.google.common.base.Stopwatch;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
+import org.apache.jena.graph.Triple;
 import org.apache.jena.sparql.core.BasicPattern;
 import org.apache.jena.sparql.core.Substitute;
+import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.binding.BindingFactory;
 import org.apache.jena.sparql.engine.iterator.QueryIterRepeatApply;
 import org.apache.jena.sparql.engine.main.StageGenerator;
 import org.apache.jena.util.iterator.ClosableIterator;
@@ -61,8 +68,8 @@ public class StageGeneratorHyperTrie
     }
 
 
-    public static StorageNodeAndStore<?, Node> extractNodeAndStore(Graph graph) {
-        StorageNodeAndStore<?, Node> result;
+    public static StorageNodeAndStoreAndCodec<?, ?> extractNodeAndStore(Graph graph) {
+        StorageNodeAndStoreAndCodec<?, ?> result;
 
         if (graph instanceof GraphFromTripleTableCore) {
             GraphFromTripleTableCore g = (GraphFromTripleTableCore)graph;
@@ -72,9 +79,13 @@ public class StageGeneratorHyperTrie
 
                 // A graph based on a triple table must have Node objects as components
                 @SuppressWarnings("unchecked")
-                StorageNodeBased<?, Node, ?> snb = (StorageNodeBased<?, Node, ?>)ttc;
+                StorageNodeBased<?, ?, ?> snb = (StorageNodeBased<?, ?, ?>)ttc;
 
-                result = new StorageNodeAndStore<>(snb.getStorageNode(), snb.getStore());
+                result = new StorageNodeAndStoreAndCodec<>(snb.getStorageNode(), snb.getStore(), null);
+            } else if (ttc instanceof TripleTableFromStorageNodeWithCodec) {
+                TripleTableFromStorageNodeWithCodec<?, ?, ?> tmp = (TripleTableFromStorageNodeWithCodec<?, ?, ?>)ttc;
+
+                result = new StorageNodeAndStoreAndCodec(tmp.getStorageNode(), tmp.getStore(), tmp.getTupleCodec());
 
             } else {
                 throw new RuntimeException("TripleTableCore does not implement StorageNodeBased");
@@ -127,11 +138,30 @@ public class StageGeneratorHyperTrie
         @Override
         protected ClosableIterator<Binding> initIterator() {
             Graph graph = getExecContext().getActiveGraph() ;
-            StorageNodeAndStore<?, Node> storageAndStore = StageGeneratorHyperTrie.extractNodeAndStore(graph);
+            StorageNodeAndStoreAndCodec<?, ?> storageAndStore = StageGeneratorHyperTrie.extractNodeAndStore(graph);
 
-            Stream<Binding> stream = EinsteinSummation.einsum(
-                    storageAndStore.getStorage(), storageAndStore.getStore(),
-                    pattern, null);
+            Stream<Binding> stream;
+            if (storageAndStore.getTupleCodec() == null) {
+                stream = EinsteinSummation.einsum(
+                        (StorageNode<?, Node, ?>)storageAndStore.getStorage(),
+                        storageAndStore.getStore(),
+                        pattern, null);
+            } else {
+
+                TupleCodec<Triple, Node, Object, Object> codec = (TupleCodec<Triple, Node, Object, Object>)storageAndStore.getTupleCodec();
+
+                stream = EinsteinSummation.<Node, Object, Triple, Binding>einsumGeneric(
+                        (StorageNode<?, Object, ?>)storageAndStore.getStorage(),
+                        storageAndStore.getStore(),
+                        pattern,
+                        TupleAccessorTripleAnyToNull.INSTANCE,
+                        Node::isVariable,
+                        codec::encodeComponent,
+                        codec::decodeComponent,
+                        BindingFactory.root(),
+                        (binding, varNode, valueNode) -> BindingFactory.binding(binding, (Var)varNode, valueNode));
+
+            }
 
             if (parallel) {
                 stream = stream.parallel();

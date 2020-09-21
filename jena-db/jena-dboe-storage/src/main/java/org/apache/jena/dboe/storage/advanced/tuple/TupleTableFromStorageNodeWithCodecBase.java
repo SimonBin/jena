@@ -40,67 +40,71 @@ import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
 public abstract class TupleTableFromStorageNodeWithCodecBase<D1, C1, D2, C2, V>
    implements TupleTableCore<D1, C1>
 {
-   /** convert domain tuples to those supported by the storage */
-   protected TupleCodec<D1, C1, D2, C2> tupleCodec;
-   protected StorageNodeMutable<D2, C2, V> rootStorageNode;
-   protected V store;
+    /** convert domain tuples to those supported by the storage */
+    protected TupleCodec<D1, C1, D2, C2> tupleCodec;
+    protected StorageNodeMutable<D2, C2, V> rootStorageNode;
+    protected V store;
 
-   protected StoreAccessor<D2, C2> storeAccessor;
+    protected StoreAccessor<D2, C2> storeAccessor;
 
-   public TupleTableFromStorageNodeWithCodecBase(
-           TupleCodec<D1, C1, D2, C2> tupleCodec,
-           StorageNodeMutable<D2, C2, V> rootStorageNode,
-           V store) {
-       super();
-       this.tupleCodec = tupleCodec;
-       this.rootStorageNode = rootStorageNode;
-       this.store = store;
+    public TupleTableFromStorageNodeWithCodecBase(
+            TupleCodec<D1, C1, D2, C2> tupleCodec,
+            StorageNodeMutable<D2, C2, V> rootStorageNode,
+            V store) {
+        super();
+        this.tupleCodec = tupleCodec;
+        this.rootStorageNode = rootStorageNode;
+        this.store = store;
 
-       storeAccessor = StoreAccessorImpl.createForStorage(rootStorageNode);
+        storeAccessor = StoreAccessorImpl.createForStorage(rootStorageNode);
    }
+
+    public TupleCodec<D1, C1, D2, C2> getTupleCodec() {
+        return tupleCodec;
+    }
 
 //   @Override
-   public StorageNodeMutable<D2, C2, V> getStorageNode() {
-       return rootStorageNode;
-   }
+    public StorageNodeMutable<D2, C2, V> getStorageNode() {
+        return rootStorageNode;
+    }
 
 //   @Override
-   public V getStore() {
-       return store;
-   }
+    public V getStore() {
+        return store;
+    }
 
-   @Override
-   public void clear() {
-       rootStorageNode.clear(store);
-   }
+    @Override
+    public void clear() {
+        rootStorageNode.clear(store);
+    }
 
-   @Override
-   public void add(D1 domainTuple) {
-       D2 storageTuple = tupleCodec.encodeTuple(domainTuple);
-       rootStorageNode.add(store, storageTuple);
-   }
+    @Override
+    public void add(D1 domainTuple) {
+        D2 storageTuple = tupleCodec.encodeTuple(domainTuple);
+        rootStorageNode.add(store, storageTuple);
+    }
 
-   @Override
-   public void delete(D1 domainTuple) {
-       D2 storageTuple = tupleCodec.encodeTuple(domainTuple);
-       rootStorageNode.remove(store, storageTuple);
-   }
+    @Override
+    public void delete(D1 domainTuple) {
+        D2 storageTuple = tupleCodec.encodeTuple(domainTuple);
+        rootStorageNode.remove(store, storageTuple);
+    }
 
-   @Override
-   public Stream<D1> findTuples(List<C1> pattern) {
-       TupleFinder<D1, D1, C1> finder = newFinder();
-       for (int i = 0; i < pattern.size(); ++i) {
-           finder.eq(i, pattern.get(i));
-       }
+    @Override
+    public Stream<D1> findTuples(List<C1> pattern) {
+        TupleFinder<D1, D1, C1> finder = newFinder();
+        for (int i = 0; i < pattern.size(); ++i) {
+            finder.eq(i, pattern.get(i));
+        }
 
-       return finder.stream();
-   }
+        return finder.stream();
+    }
 
-   @Override
-   public ResultStreamer<D1, C1, Tuple<C1>> find(TupleQuery<C1> tupleQuery) {
+    @Override
+    public ResultStreamer<D1, C1, Tuple<C1>> find(TupleQuery<C1> tupleQuery) {
 
-       // TODO We need to put the codec in between
-       throw new UnsupportedOperationException();
+        // TODO We need to put the codec in between
+        throw new UnsupportedOperationException();
 
 //       NodeStats<D, C> bestMatch = TupleQueryAnalyzer.analyze(tupleQuery, storeAccessor);
 //       ResultStreamerBinder<D, C, Tuple<C>> binder = TupleQueryAnalyzer.createResultStreamer(
@@ -109,5 +113,5 @@ public abstract class TupleTableFromStorageNodeWithCodecBase<D1, C1, D2, C2, V>
 //               getTupleAccessor());
 //
 //       return binder.bind(store);
-   }
+    }
 }
