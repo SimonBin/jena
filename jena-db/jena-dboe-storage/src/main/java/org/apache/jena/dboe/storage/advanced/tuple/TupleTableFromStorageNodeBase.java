@@ -29,6 +29,8 @@ import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutab
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinder;
 
+
+
 /**
  *
  *
@@ -102,3 +104,5 @@ public abstract class TupleTableFromStorageNodeBase<D, C, V>
         return binder.bind(store);
     }
 }
+
+

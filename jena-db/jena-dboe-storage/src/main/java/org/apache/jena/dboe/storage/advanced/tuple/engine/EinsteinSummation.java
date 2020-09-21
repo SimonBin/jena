@@ -9,6 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -30,6 +31,47 @@ import org.apache.jena.sparql.engine.binding.BindingFactory;
 
 public class EinsteinSummation {
 
+
+    /**
+     * Einsum with a tuple codec
+     *
+     * @param storage
+     * @param store
+     * @param bgp
+     * @param projectVars
+     * @return
+     */
+//    public static <C> Stream<Binding> einsum(
+//            TupleCodec<Triple, Node, ?, C> tupleCodec,
+//            StorageNode<?, C, ?> storage,
+//            Object store,
+//            BasicPattern bgp,
+//            Set<Var> projectVars)
+//    {
+//        // Encode the BGP
+////    	for (Triple triple :)
+//
+//
+//        BiReducer<Binding, Node, Node> reducer = projectVars == null
+//                ? (binding, varNode, valueNode) -> BindingFactory.binding(binding, (Var)varNode, valueNode)
+//                // Skip binding creation of non-projected vars in order to save a few CPU cycles
+//                : (binding, varNode, valueNode) -> (projectVars.contains(varNode)
+//                        ? BindingFactory.binding(binding, (Var)varNode, valueNode)
+//                        : binding);
+//
+//        Stream<Binding> result =
+//        EinsteinSummation.einsum(
+//                storage,
+//                store,
+//                bgp.getList(),
+//                tupleCodec::getEncodedComponent,
+//                Node::isVariable,
+//                BindingFactory.root(),
+//                reducer);
+//
+//        return result;
+//    }
+
     public static Stream<Binding> einsum(
             StorageNode<?, Node, ?> storage,
             Object store,
@@ -50,6 +92,8 @@ public class EinsteinSummation {
                 bgp.getList(),
                 TupleAccessorTripleAnyToNull.INSTANCE,
                 Node::isVariable,
+                Function.identity(),
+                Function.identity(),
                 BindingFactory.root(),
                 reducer);
 
@@ -81,18 +125,20 @@ public class EinsteinSummation {
      * @param tupleAccessor
      * @param isVar Test whether a value for C is a variable
      */
-    public static <D, C, T, A>  Stream<A> einsum(
+    public static <D, C0, C, T, A>  Stream<A> einsum(
             StorageNode<D, C, ?> rootNode,
             Object store,
             Iterable<T> btp,
-            TupleAccessor<T, C> tupleAccessor,
-            Predicate<C> isVar,
+            TupleAccessor<T, C0> tupleAccessor,
+            Predicate<C0> isVar,
+            Function<C0, C> componentEncoder, // E.g. Map concrete nodes to integers
+            Function<C, C0> componentDecoder,
             A initialAccumulator,
-            BiReducer<A, C, C> reducer // first C = variable, second C = value; both as Nodes
+            BiReducer<A, C0, C0> reducer // first C = variable, second C = value; both as Nodes
             )
     {
         // First find out the set of variables
-        Set<C> vars = new LinkedHashSet<>();
+        Set<C0> vars = new LinkedHashSet<>();
 
         // Get the dimension of tuples from the storage
         rootNode.getTupleAccessor().getDimension();
@@ -100,7 +146,7 @@ public class EinsteinSummation {
         int tupleDim = tupleAccessor.getDimension();
         for (T tuple : btp) {
             for (int i = 0; i < tupleDim; ++i) {
-                C c = tupleAccessor.get(tuple, i);
+                C0 c = tupleAccessor.get(tuple, i);
                 if (isVar.test(c)) {
                     vars.add(c);
                 }
@@ -109,11 +155,11 @@ public class EinsteinSummation {
 
         // set up a vector of variable indices
         int varDim = vars.size();
-        List<C> varList = new ArrayList<>(vars);
+        List<C0> varList = new ArrayList<>(vars);
         int[] varIdxs = new int[varDim];
 
         // Use var = varList[varIdx] for the reverse mapping
-        Map<C, Integer> varToVarIdx = new HashMap<>();
+        Map<C0, Integer> varToVarIdx = new HashMap<>();
         for (int r = 0; r < varDim; ++r) {
             varToVarIdx.put(varList.get(r), r);
             varIdxs[r] = r;
@@ -132,8 +178,9 @@ public class EinsteinSummation {
             int varIdxToTupleIdxs[][] = new int[varDim][];
 
             for (int i = 0; i < tupleDim; ++i) {
-                C value = tupleAccessor.get(tuple, i);
-                Integer varIdx = varToVarIdx.get(value);
+                C0 rawValue = tupleAccessor.get(tuple, i);
+                Integer varIdx = varToVarIdx.get(rawValue);
+
                 if (varIdx != null) {
                     remainingVarIdxs = ArrayUtils.add(remainingVarIdxs, varIdx);
                     varIdxToTupleIdxs[varIdx] = ArrayUtils.add(varIdxToTupleIdxs[varIdx], i);
@@ -143,10 +190,12 @@ public class EinsteinSummation {
 
             // specialize the tuples in the btp by the mentioned constants
             for (int i = 0; i < tupleDim; ++i) {
-                C value = tupleAccessor.get(tuple, i);
+                C0 rawValue = tupleAccessor.get(tuple, i);
 
                 // if value is not a variable then..
-                if (!varToVarIdx.containsKey(value)) {
+                if (!varToVarIdx.containsKey(rawValue)) {
+                    C value = componentEncoder.apply(rawValue);
+
                     tupleSlice = tupleSlice.sliceOnComponentWithValue(i, value);
 
                     if (tupleSlice == null) {
@@ -166,9 +215,10 @@ public class EinsteinSummation {
         }
 
         // Wrap the incoming reducer with another one that maps var indices to the actual vars
-        IndexedKeyReducer<A, C> varIdxBasedReducer = (acc, varIdx, value) -> {
-            C var = varList.get(varIdx);
-            return reducer.reduce(acc, var, value);
+        IndexedKeyReducer<A, C> varIdxBasedReducer = (acc, varIdx, encodedValue) -> {
+            C0 var = varList.get(varIdx);
+            C0 decodedValue = componentDecoder.apply(encodedValue);
+            return reducer.reduce(acc, var, decodedValue);
         };
 
 
@@ -210,13 +260,14 @@ public class EinsteinSummation {
             IndexedKeyReducer<A, C> reducer // receives varIdx and value
             ) {
 
-        boolean debug = true;
+//        boolean debug = true;
 //        if (debug) System.out.println("Recursion started: RemainingVarIdxs: " + Arrays.toString(remainingVarIdxs) + " numSlices=" + slices.size());
 //        if (slices == null || slices.isEmpty()) {
 //            return false;
 //        }
 //
         if (remainingVarIdxs.length == 0) {
+//            return IntStream.rangeClosed(0, slices.size()).mapToObj(foo -> accumulator);
             return Stream.of(accumulator);
         }
 
@@ -249,24 +300,30 @@ public class EinsteinSummation {
 
         // Created the intersection of all value sets
         // Sort the contributions by size (smallest first)
-        List<Set<C>> valueContribs = new ArrayList<>(valuesForPickedVarIdx);
 
-        Set<C> remainingValuesOfPickedVar = Collections.emptySet();
+        Set<C> remainingValuesOfPickedVar;
 
-        if (valueContribs.size() == 1) {
-            remainingValuesOfPickedVar = valueContribs.get(0);
-        } else if (valueContribs.size() > 1) {
+        switch (valuesForPickedVarIdx.size()) {
+        case 0:
+            remainingValuesOfPickedVar = Collections.emptySet();
+            break;
+        case 1:
+            remainingValuesOfPickedVar = valuesForPickedVarIdx.iterator().next();
+            break;
+        default: // (valueContribs.size() > 1)
+            List<Set<C>> valueContribs = new ArrayList<>(valuesForPickedVarIdx);
+
             // The sorting of the sets by size is VERY important!
             // Consider computing the intersection between two sets of sizes 100.000 and 1
             // We do not want to copy 100K values just to retain 1
             Collections.sort(valueContribs, (a, b) -> a.size() - b.size());
-
 
             remainingValuesOfPickedVar = new HashSet<>(valueContribs.get(0));
             for (int i = 1; i < valueContribs.size(); ++i) {
                 Set<C> contrib = valueContribs.get(i);
                 remainingValuesOfPickedVar.retainAll(contrib);
             }
+            break;
         }
 
         List<SliceNode<D, C>> sliceableByPickedVar = new ArrayList<>();
@@ -305,25 +362,19 @@ public class EinsteinSummation {
             C value) {
 
 
+        // Perhaps Interables.concat?
         List<SliceNode<D, C>> allNextSlices = new ArrayList<>(nonSliceableByPickedVar);
+
+//        if (nonSliceableByPickedVar.size() > 2) {
+//            System.out.println("Non-sliceable " + nonSliceableByPickedVar.size() + " sliceable " + sliceableByPickedVar.size());
+//
+//        }
 
         for (SliceNode<D, C> slice : sliceableByPickedVar) {
             SliceNode<D, C> nextSlice = slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
 
             if (nextSlice != null) {
-
-                if (nextSlice.getRemainingVars().length == 0) {
-                    int[] varIdxs = nextSlice.getInitialVarIdxs();
-                    Object[] values = nextSlice.getVarIdxToSliceValue();
-
-                    // System.out.println("Solution found!");
-                    // for (int i = 0; i < varIdxs.length; ++i) {
-                    // int varIdx = varIdxs[i];
-                    // Object val = values[i];
-                    // varIdxToValues.get(varIdx).add((C) val);
-                    //
-                    // }
-                } else {
+                if (nextSlice.getRemainingVars().length != 0) {
                     allNextSlices.add(nextSlice);
                 }
             }
@@ -337,7 +388,10 @@ public class EinsteinSummation {
         return recurse(varDim, nextRemainingVarIdxs, allNextSlices, nextAccumulator, reducer);
     }
 
-    public static <D, C>  int findBestSliceVarIdx(int varDim, int[] remainingVarIdxs, List<SliceNode<D, C>> slices) {
+    public static <D, C>  int findBestSliceVarIdx(
+            int varDim,
+            int[] remainingVarIdxs,
+            List<SliceNode<D, C>> slices) {
         // The score is a reduction factor - the higher the better
         int bestVarIdx = remainingVarIdxs[0];
 
@@ -346,19 +400,32 @@ public class EinsteinSummation {
             int[] mins = new int[varDim];
             // int[] maxs = new int[varDim];
 
+            @SuppressWarnings("unchecked")
+            Set<Integer>[] varIdxToInvolvedSetSizes = (Set<Integer>[])new Set[varDim];
+            for (int varIdx : remainingVarIdxs) {
+                varIdxToInvolvedSetSizes[varIdx] = new HashSet<>();
+            }
+
             float[] varToScore = new float[varDim];
 
             Arrays.fill(mins, Integer.MAX_VALUE);
             Arrays.fill(varToScore, 1.0f);
+            // Arrays.fill(varIdxToNumDifferentSizes, 0);
 //            Arrays.fill(maxs, 0);
 
             for (SliceNode<D, C> slice : slices) {
+
                 for (int varIdx : slice.getRemainingVars()) {
-                    int min = slice.getSmallestValueSetForVarIdx(varIdx).size();
-                    //int max = slice.getLargestValueSetForVarIdx(varIdx).size();
+                    Set<C> minSet = slice.getSmallestValueSetForVarIdx(varIdx);
+                    int min = minSet.size();
 
                     mins[varIdx] = Math.min(mins[varIdx], min);
-                    // maxs[varIdx] = Math.max(maxs[varIdx], max);
+
+
+                    Set<Integer> involvedSetSizes = varIdxToInvolvedSetSizes[varIdx];
+                    Set<C> maxSet = slice.getLargestValueSetForVarIdx(varIdx);
+                    involvedSetSizes.add(min);
+                    involvedSetSizes.add(maxSet.size());
                 }
             }
 
@@ -366,16 +433,20 @@ public class EinsteinSummation {
                 for (int varIdx : slice.getRemainingVars()) {
                     int mmax = slice.getLargestValueSetForVarIdx(varIdx).size();
 
-                    varToScore[varIdx] *= mmax / (float)mins[varIdx];
+                    varToScore[varIdx] *= (mins[varIdx] / (float)mmax);
                 }
             }
 
+            for (int varIdx : remainingVarIdxs) {
+                int numInvolvedSetSizes = varIdxToInvolvedSetSizes[varIdx].size();
+                varToScore[varIdx] /= (float)numInvolvedSetSizes;
+            }
 
-            float bestVarIdxScore = 0f;
+            float bestVarIdxScore = varToScore[bestVarIdx];
             for (int varIdx : remainingVarIdxs) {
                 float score = varToScore[varIdx];
 
-                if (score > bestVarIdxScore) {
+                if (score < bestVarIdxScore) {
                     bestVarIdxScore = score;
                     bestVarIdx = varIdx;
                 }
@@ -391,3 +462,17 @@ public class EinsteinSummation {
 
 }
 
+//if (nextSlice.getRemainingVars().length == 0) {
+//int[] varIdxs = nextSlice.getInitialVarIdxs();
+//Object[] values = nextSlice.getVarIdxToSliceValue();
+//
+//// System.out.println("Solution found!");
+//// for (int i = 0; i < varIdxs.length; ++i) {
+//// int varIdx = varIdxs[i];
+//// Object val = values[i];
+//// varIdxToValues.get(varIdx).add((C) val);
+////
+//// }
+//} else {
+//allNextSlices.add(nextSlice);
+//}

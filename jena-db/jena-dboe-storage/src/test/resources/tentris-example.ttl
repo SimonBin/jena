@@ -1,0 +1,13 @@
+PREFIX : <http://www.example.org/>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX dbr: <http://dbpedia.org/resource/>
+
+:e1 foaf:knows :e2 .
+:e1 foaf:knows :e3 .
+:e2 foaf:knows :e3 .
+:e2 foaf:knows :e4 .
+:e3 foaf:knows :e2 .
+:e3 foaf:knows :e4 .
+:e2 a dbr:Unicorn .
+:e4 a dbr:Unicorn .
+

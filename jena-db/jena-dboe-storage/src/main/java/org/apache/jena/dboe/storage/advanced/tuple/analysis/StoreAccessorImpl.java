@@ -43,12 +43,14 @@ public class StoreAccessorImpl<D, C>
     protected StorageNode<D, C, ?> storage;
     protected StoreAccessorImpl<D, C> parent;
     protected int depth = 0;
+
+    /** For any non-root node it must hold that parent.children.get(childIndex) == this */
     protected int childIndex = 0; // The ith child of the parent
     protected List<StoreAccessorImpl<D, C>> children = new ArrayList<>();
 
     protected int id = -1;
 
-    // Caches (computed on first request)
+    // Caches (computed on first request); not thread-safe
     protected StoreAccessorImpl<D, C> leastNestedNode = null;
     protected List<StoreAccessorImpl<D, C>> ancestorsCache = null;
 

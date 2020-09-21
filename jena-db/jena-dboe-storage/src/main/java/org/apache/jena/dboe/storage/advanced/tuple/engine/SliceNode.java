@@ -35,8 +35,9 @@ public class SliceNode<D, C> {
     protected Object store;
     protected StorageNode<D, C, ?> storageNode;
 
-    protected int[] initialVarIdxs;
-    protected Object[] varIdxToSliceValue;
+//  These attributes are not needed in the computation; but may be useful for debugging
+//    protected int[] initialVarIdxs;
+//    protected Object[] varIdxToSliceValue;
 
 
     protected int[] remainingVarIdxs;
@@ -55,13 +56,13 @@ public class SliceNode<D, C> {
     }
 
 
-    public int[] getInitialVarIdxs() {
-        return initialVarIdxs;
-    }
-
-    public Object[] getVarIdxToSliceValue() {
-        return varIdxToSliceValue;
-    }
+//    public int[] getInitialVarIdxs() {
+//        return initialVarIdxs;
+//    }
+//
+//    public Object[] getVarIdxToSliceValue() {
+//        return varIdxToSliceValue;
+//    }
 
 
     public static <D, C> SliceNode<D, C> create(
@@ -73,8 +74,8 @@ public class SliceNode<D, C> {
         return new SliceNode<D, C>(
                 storageNode,
                 store,
-                remainingVars.clone(),
-                new Object[remainingVars.length],
+//                remainingVars.clone(),
+//                new Object[remainingVars.length],
                 remainingVars,
                 varIdxToTupleIdxs
         );
@@ -84,14 +85,14 @@ public class SliceNode<D, C> {
             /* link to parent? */
             StorageNode<D, C, ?> storageNode,
             Object store,
-            int[]    initialVarIdxs,
-            Object[] initialVarIdxToSliceValue,
+//            int[]    initialVarIdxs,
+//            Object[] initialVarIdxToSliceValue,
             int[] remainingVars,
             int[][] varIdxToTupleIdxs) {
         super();
         this.store = store;
-        this.initialVarIdxs = initialVarIdxs;
-        this.varIdxToSliceValue = initialVarIdxToSliceValue;
+//        this.initialVarIdxs = initialVarIdxs;
+//        this.varIdxToSliceValue = initialVarIdxToSliceValue;
         this.storageNode = storageNode;
         this.remainingVarIdxs = remainingVars;
         this.varIdxToTupleIdxs = varIdxToTupleIdxs;
@@ -264,20 +265,42 @@ public class SliceNode<D, C> {
                 }
             }
 
-            if (affectedVarIdx != -1) {
-                int[] nextRemainingVarIdxs = ArrayUtils.removeElement(remainingVarIdxs, affectedVarIdx);
-                int bindingIdx = ArrayUtils.indexOf(initialVarIdxs, affectedVarIdx);
-                Object[] newBinding = varIdxToSliceValue.clone();
-                newBinding[bindingIdx] = sliceKey;
-                result = new SliceNode<>(
-                        nextStorage, nextStore,
-                        initialVarIdxs, newBinding, nextRemainingVarIdxs, varIdxToTupleIdxs);
-            } else {
-                // int[] nextRemainingVarIdxs = remainingVars.clone();
-                result = new SliceNode<>(
-                        nextStorage, nextStore,
-                        initialVarIdxs, varIdxToSliceValue, remainingVarIdxs, varIdxToTupleIdxs);
-            }
+
+            int[] nextRemainingVarIdxs = affectedVarIdx == -1
+                    ? remainingVarIdxs
+                    : ArrayUtils.removeElement(remainingVarIdxs, affectedVarIdx);
+
+            result = new SliceNode<>(
+                  nextStorage, nextStore,
+                  nextRemainingVarIdxs, varIdxToTupleIdxs);
+
+//
+//            if (affectedVarIdx != -1) {
+//                int[] nextRemainingVarIdxs = ArrayUtils.removeElement(remainingVarIdxs, affectedVarIdx);
+//                result = new SliceNode<>(
+//                        nextStorage, nextStore,
+//                        nextRemainingVarIdxs, varIdxToTupleIdxs);
+//            } else {
+//                // int[] nextRemainingVarIdxs = remainingVars.clone();
+//                result = new SliceNode<>(
+//                        nextStorage, nextStore,
+//                        remainingVarIdxs, varIdxToTupleIdxs);
+//            }
+
+//            if (affectedVarIdx != -1) {
+//                int[] nextRemainingVarIdxs = ArrayUtils.removeElement(remainingVarIdxs, affectedVarIdx);
+//                int bindingIdx = ArrayUtils.indexOf(initialVarIdxs, affectedVarIdx);
+//                Object[] newBinding = varIdxToSliceValue.clone();
+//                newBinding[bindingIdx] = sliceKey;
+//                result = new SliceNode<>(
+//                        nextStorage, nextStore,
+//                        initialVarIdxs, newBinding, nextRemainingVarIdxs, varIdxToTupleIdxs);
+//            } else {
+//                // int[] nextRemainingVarIdxs = remainingVars.clone();
+//                result = new SliceNode<>(
+//                        nextStorage, nextStore,
+//                        initialVarIdxs, varIdxToSliceValue, remainingVarIdxs, varIdxToTupleIdxs);
+//            }
         }
 
         return result;

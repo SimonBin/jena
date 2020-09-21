@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.ext.com.google.common.collect.HashBiMap;
 
 /**
  * A collection of static methods for composing storage structures such
@@ -173,6 +174,31 @@ public class StorageComposers {
         return new StorageNodeAlt3<D, C, V1, V2, V3>(tupleAccessor, child1, child2, child3);
     }
 
+
+
+    /**
+     *
+     *
+     * @param <D1> The source domain tuple type, e.g. Triple
+     * @param <C1> The source domain component type, e.g. Node
+     * @param <D2> The target domain tuple type, e.g. int[]
+     * @param <C2> The target domain component type, e.g. Integer
+     * @param <V>  The type of the store structure being wrapped; must be based on D2 and C2
+     * @param <X>  The type of the storage being wrapped
+     */
+    public static <D1, C1, D2, C2, V, X extends StorageNodeMutable<D2, C2, V>>
+        StorageNodeMutable<D1, C1, V> wrapWithDictionary(
+            X delegate,
+            TupleAccessor<D1, C1> sourceTupleAccessor
+            ) {
+
+        return new StorageNodeDictionary<D1, C1, D2, C2, V, X>(
+            delegate,
+            HashBiMap.create(),
+            sourceTupleAccessor,
+            delegate.getTupleAccessor()
+            );
+    }
 }
 
 

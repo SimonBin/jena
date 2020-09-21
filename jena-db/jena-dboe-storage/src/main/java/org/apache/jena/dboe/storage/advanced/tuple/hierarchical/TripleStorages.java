@@ -52,7 +52,7 @@ public class TripleStorages {
      *
      * @return
      */
-    public static StorageNodeMutable<Triple, Node, ?> createHyperTrieStorage() {
+    public static StorageNodeMutable<Triple, Node, ?> createHyperTrieStorageRaw() {
         TupleAccessor<Triple, Node> accessor = TupleAccessorTripleAnyToNull.INSTANCE;
 
         // TODO The leaf set suppliers should be invoked with context information such that
@@ -77,8 +77,60 @@ public class TripleStorages {
                 innerMap(1, HashMap::new, leafComponentSet(0, HashSet::new, accessor))))
         );
 
+
+
+        return result;
+    }
+
+    /**
+     * A storage that indexes triples in a nested structure in all possible ways:
+     * (S(P(O)|O(P)) | P(S(O)|O(S)) | O(P(S)|S(P)))
+     *
+     * @return
+     */
+    public static <D, C> StorageNodeMutable<D, C, ?> createHyperTrieStorage(TupleAccessor<D, C> accessor) {
+        //TupleAccessor<Triple, Node> accessor = TupleAccessorTripleAnyToNull.INSTANCE;
+
+        // TODO The leaf set suppliers should be invoked with context information such that
+        // different collation orders of the component indices can yield the same set
+        // E.g. 1=rdf:type 2=foaf:Person can reuse the set for 2=foaf:Person 1=rdf:type
+
+
+        StorageNodeMutable<D, C,
+            Alt3<
+                Map<C, Alt2<Map<C, Set<C>>, Map<C, Set<C>>>>,
+                Map<C, Alt2<Map<C, Set<C>>, Map<C, Set<C>>>>,
+                Map<C, Alt2<Map<C, Set<C>>, Map<C, Set<C>>>>>
+            >
+        result = alt3(
+            innerMap(0, HashMap::new, alt2(
+                innerMap(1, HashMap::new, leafComponentSet(2, HashSet::new, accessor)),
+                innerMap(2, HashMap::new, leafComponentSet(1, HashSet::new, accessor)))),
+            innerMap(1, HashMap::new, alt2(
+                innerMap(0, HashMap::new, leafComponentSet(2, HashSet::new, accessor)),
+                innerMap(2, HashMap::new, leafComponentSet(0, HashSet::new, accessor)))),
+            innerMap(2, HashMap::new, alt2(
+                innerMap(0, HashMap::new, leafComponentSet(1, HashSet::new, accessor)),
+                innerMap(1, HashMap::new, leafComponentSet(0, HashSet::new, accessor))))
+        );
+
         return result;
     }
 
 
+    // Let's recap
+    // [3::] [:2:] == [:2:]*[3::]
+
+    /*
+    onInsert(tuple, accessor) {
+
+    }
+
+    Set<C> find(int idx, tuple, accessor)
+
+    */
+
+    public static MapSupplier reuse(int... idxs) {
+        return null;
+    }
 }
