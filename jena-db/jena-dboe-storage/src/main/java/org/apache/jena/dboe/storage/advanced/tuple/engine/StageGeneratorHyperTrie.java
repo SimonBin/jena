@@ -1,9 +1,11 @@
 package org.apache.jena.dboe.storage.advanced.tuple.engine;
 
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeBased;
+import org.apache.jena.ext.com.google.common.base.Stopwatch;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.BasicPattern;
@@ -20,11 +22,36 @@ public class StageGeneratorHyperTrie
     implements StageGenerator
 {
     protected boolean parallel = false;
+    protected boolean bufferBindings = false;
 
-    public StageGeneratorHyperTrie(boolean parallel) {
+    public StageGeneratorHyperTrie() {
         super();
-        this.parallel = parallel;
     }
+
+
+    public static StageGeneratorHyperTrie create() {
+        return new StageGeneratorHyperTrie();
+    }
+
+    public StageGeneratorHyperTrie parallel(boolean parallel) {
+        this.parallel = parallel;
+        return this;
+    }
+
+    /**
+     * Buffer the bindings from the underlying stream in memory.
+     * Used for debugging/profiling the performance overhead of getting the bindings here
+     * directly vs passing them through the rest of the QueryIterator machinery
+     *
+     * @param bufferResult
+     * @return
+     */
+    public StageGeneratorHyperTrie bufferBindings(boolean bufferResult) {
+        this.bufferBindings = bufferResult;
+        return this;
+    }
+
+
 
     public static StorageNodeAndStore<?, Node> extractNodeAndStore(Graph graph) {
         StorageNodeAndStore<?, Node> result;
@@ -100,6 +127,12 @@ public class StageGeneratorHyperTrie
 
             if (parallel) {
                 stream = stream.parallel();
+            }
+
+            if (bufferBindings) {
+                Stopwatch sw = Stopwatch.createStarted();
+                stream = stream.collect(Collectors.toList()).stream();
+                System.err.println("Buffered result set in " + sw);
             }
 
             return WrappedIterator.create(stream.iterator());

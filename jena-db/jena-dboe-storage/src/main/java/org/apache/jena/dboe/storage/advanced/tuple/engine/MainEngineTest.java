@@ -44,12 +44,12 @@ public class MainEngineTest {
         Model model;
         Consumer<Context> cxtMutator = cxt -> {};
 
-        boolean useHyperTrie = false;
-        boolean parallel = true;
+        boolean useHyperTrie = true;
 
         if (useHyperTrie) {
             model = createHyperTrieBackedModel();
-            cxtMutator = cxt -> StageBuilder.setGenerator(cxt, new StageGeneratorHyperTrie(parallel));
+            cxtMutator = cxt -> StageBuilder.setGenerator(cxt, StageGeneratorHyperTrie
+                    .create().parallel(true).bufferBindings(true));
         } else {
             model = ModelFactory.createDefaultModel();
         }
@@ -69,13 +69,17 @@ public class MainEngineTest {
 //                .stream().limit(50).collect(Collectors.toList())
                 ;
 
-        for (int j = 0; j < 10; ++j) {
+        for (int j = 0; j < 100; ++j) {
             Stopwatch runTimeSw = Stopwatch.createStarted();
 
             int queryCounter = 0;
             long bindingCounter = 0;
             for(String queryStr : queryStrs) {
                 ++queryCounter;
+
+
+                queryStr = "SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }";
+
                 Query query = QueryFactory.create(queryStr);
 
                 Stopwatch executionTimeSw = Stopwatch.createStarted();
