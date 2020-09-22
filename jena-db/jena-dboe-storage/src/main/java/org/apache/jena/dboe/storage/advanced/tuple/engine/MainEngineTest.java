@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
+import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNode;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNodeWithCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorArrayOfInts;
@@ -51,7 +52,7 @@ public class MainEngineTest {
         Collection<String> workloads = Arrays.asList("SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }");
 
 
-        init(0, datasetFile, workloads);
+        init(1, datasetFile, workloads);
     }
 
     public static void init(int mode, String filename, Iterable<String> workloads) throws IOException {
@@ -79,7 +80,7 @@ public class MainEngineTest {
                 QueryExecution qe = QueryExecutionFactory.create(query, model[0]);
                 StageBuilder.setGenerator(qe.getContext(), StageGeneratorHyperTrie
                          .create()
-                         .parallel(true)
+                         .parallel(false)
                          .bufferBindings(false)
                          .bufferStatsCallback(System.err::println)
                 );
@@ -180,19 +181,39 @@ public class MainEngineTest {
 
 
     public static Model createHyperTrieBackedModel() {
-        TupleAccessor<int[], Integer> backendAccessor = new TupleAccessorArrayOfInts(3);
 
 //        StorageNodeMutable<int[], Integer, ?> storage =
 //                TripleStorages.createHyperTrieStorageInt(backendAccessor);
 
-        StorageNodeMutable<int[], Integer, ?> storage =
-            TripleStorages.createHyperTrieStorage(backendAccessor);
+        boolean useDict = false;
+        boolean useInts = false;
 
-        TupleCodec<Triple, Node, int[], Integer> tupleCodec
-            = TupleCodecDictionary.createForInts(TupleAccessorTripleAnyToNull.INSTANCE, backendAccessor);
+        TripleTableCore tripleTableCore;
 
-        TripleTableCore tripleTableCore =
-                TripleTableFromStorageNodeWithCodec.create(tupleCodec, storage);
+        if (useInts) {
+            TupleAccessor<int[], Integer> backendAccessor = new TupleAccessorArrayOfInts(3);
+
+            StorageNodeMutable<int[], Integer, ?> storage =
+                TripleStorages.createHyperTrieStorage(backendAccessor);
+
+            TupleCodec<Triple, Node, int[], Integer> tupleCodec
+                = TupleCodecDictionary.createForInts(TupleAccessorTripleAnyToNull.INSTANCE, backendAccessor);
+
+            tripleTableCore =
+                    TripleTableFromStorageNodeWithCodec.create(tupleCodec, storage);
+        } else {
+            TupleAccessor<Triple, Node> backendAccessor = TupleAccessorTripleAnyToNull.INSTANCE;
+
+            StorageNodeMutable<Triple, Node, ?> storage =
+                TripleStorages.createHyperTrieStorage(backendAccessor);
+
+//            TupleCodec<Triple, Node, Triple, Node> tupleCodec
+//                = TupleCodecDictionary.createForInts(TupleAccessorTripleAnyToNull.INSTANCE);
+
+            tripleTableCore =
+                    TripleTableFromStorageNode.create(storage);
+
+        }
 
 //      StorageNodeMutable<Triple, Node, ?> storage = createConventionalStorage();
 

@@ -42,6 +42,16 @@ public abstract class StorageNodeForwarding<D, C, V, X extends StorageNode<D, C,
     protected abstract X getDelegate();
 
     @Override
+    public StorageNode<D, C, V> getPublicDelegate() {
+        return getDelegate();
+    }
+
+    @Override
+    public boolean isDelegate() {
+        return true;
+    }
+
+    @Override
     public boolean isAltNode() {
         return getDelegate().isAltNode();
     }

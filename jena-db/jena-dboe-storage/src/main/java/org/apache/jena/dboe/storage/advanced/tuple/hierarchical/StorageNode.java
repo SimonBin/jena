@@ -63,6 +63,14 @@ public interface StorageNode<D, C, V> {
     // Map<C, ?> asLeafComponentMap(Object store);
     // asAltNode(Object store);
 
+    default boolean isDelegate() {
+        return false;
+    }
+
+    default StorageNode<D, C, V> getPublicDelegate() {
+        return null;
+    }
+
     /**
      * Whether the node represents a sequence of alternative
      *
