@@ -20,6 +20,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.ext.com.google.common.collect.HashBiMap;
@@ -175,9 +176,25 @@ public class StorageComposers {
     }
 
 
+    public static <D, C, V> StorageNodeMutable<D, C, V> wrapInsert(
+            StorageNodeMutable<D, C, V> delegate,
+            BiConsumer<V, D> postProcess)
+    {
+        return new StorageNodeMutableForwardingBase<D, C, V, StorageNodeMutable<D,C,V>>(delegate) {
+            @Override
+            public boolean add(V store, D tupleLike) {
+                boolean result = super.add(store, tupleLike);
+
+                postProcess.accept(store, tupleLike);
+
+                return result;
+            }
+        };
+    }
+
 
     /**
-     *
+     * DON'T USE ; maintain a TupleCodec separately instead
      *
      * @param <D1> The source domain tuple type, e.g. Triple
      * @param <C1> The source domain component type, e.g. Node

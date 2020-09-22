@@ -5,6 +5,7 @@ import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageCo
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.innerMap;
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafComponentSet;
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafMap;
+import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.wrapInsert;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -95,6 +96,23 @@ public class TripleStorages {
         // different collation orders of the component indices can yield the same set
         // E.g. 1=rdf:type 2=foaf:Person can reuse the set for 2=foaf:Person 1=rdf:type
 
+        // go through the permutations of tuple components in order and check
+        // whether for the last component there was already a prior entry with permutated parents
+        // Example: For ps(o) we check whether we already encounteered a sp(o)
+        // spo
+        // sop
+        // pso -> spo
+        // pos
+        // osp -> sop
+        // ops -> pos
+
+        SetSupplier spo = HashSet::new;
+        SetSupplier sop = HashSet::new;
+        SetSupplier pos = HashSet::new;
+
+        SetSupplier pso = SetSupplier.none(); // spo;
+        SetSupplier osp = SetSupplier.none(); // sop;
+        SetSupplier ops = SetSupplier.none(); // pos;
 
         StorageNodeMutable<D, C,
             Alt3<
@@ -102,17 +120,36 @@ public class TripleStorages {
                 Map<C, Alt2<Map<C, Set<C>>, Map<C, Set<C>>>>,
                 Map<C, Alt2<Map<C, Set<C>>, Map<C, Set<C>>>>>
             >
-        result = alt3(
+        result = wrapInsert(alt3(
             innerMap(0, HashMap::new, alt2(
-                innerMap(1, HashMap::new, leafComponentSet(2, HashSet::new, accessor)),
-                innerMap(2, HashMap::new, leafComponentSet(1, HashSet::new, accessor)))),
+                innerMap(1, HashMap::new, leafComponentSet(2, spo, accessor)),
+                innerMap(2, HashMap::new, leafComponentSet(1, sop, accessor)))),
             innerMap(1, HashMap::new, alt2(
-                innerMap(0, HashMap::new, leafComponentSet(2, HashSet::new, accessor)),
-                innerMap(2, HashMap::new, leafComponentSet(0, HashSet::new, accessor)))),
+                innerMap(0, HashMap::new, leafComponentSet(2, pso, accessor)),
+                innerMap(2, HashMap::new, leafComponentSet(0, pos, accessor)))),
             innerMap(2, HashMap::new, alt2(
-                innerMap(0, HashMap::new, leafComponentSet(1, HashSet::new, accessor)),
-                innerMap(1, HashMap::new, leafComponentSet(0, HashSet::new, accessor))))
-        );
+                innerMap(0, HashMap::new, leafComponentSet(1, osp, accessor)),
+                innerMap(1, HashMap::new, leafComponentSet(0, ops, accessor))))
+        ), (store, tup) -> {
+            C s = accessor.get(tup, 0);
+            C p = accessor.get(tup, 1);
+            C o = accessor.get(tup, 2);
+
+            Alt2<Map<C, Set<C>>, Map<C, Set<C>>> sm = store.getV1().get(s);
+            Set<C> spom = sm.getV1().get(p);
+            Set<C> sopm = sm.getV2().get(o);
+
+            Alt2<Map<C, Set<C>>, Map<C, Set<C>>> pm = store.getV2().get(p);
+            /* Set<C> psom = */ pm.getV1().put(s, spom);
+            Set<C> posm = pm.getV2().get(o);
+
+            Alt2<Map<C, Set<C>>, Map<C, Set<C>>> om = store.getV3().get(o);
+            /* Set<C> ospm = */ om.getV1().put(s, sopm);
+            /* Set<C> opsm = */ om.getV2().put(p, posm);
+
+        });
+
+
 
         return result;
     }

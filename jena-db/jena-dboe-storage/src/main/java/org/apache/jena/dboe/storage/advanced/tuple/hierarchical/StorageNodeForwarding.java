@@ -18,7 +18,9 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
@@ -38,6 +40,31 @@ public abstract class StorageNodeForwarding<D, C, V, X extends StorageNode<D, C,
     implements StorageNode<D, C, V>
 {
     protected abstract X getDelegate();
+
+    @Override
+    public boolean isAltNode() {
+        return getDelegate().isAltNode();
+    }
+
+    @Override
+    public boolean isMapNode() {
+        return getDelegate().isMapNode();
+    }
+
+    @Override
+    public boolean isSetNode() {
+        return getDelegate().isSetNode();
+    }
+
+    @Override
+    public Map<?, ?> getStoreAsMap(Object store) {
+        return getDelegate().getStoreAsMap(store);
+    }
+
+    @Override
+    public Set<?> getStoreAsSet(Object store) {
+        return getDelegate().getStoreAsSet(store);
+    }
 
     @Override
     public List<? extends StorageNode<D, C, ?>> getChildren() {

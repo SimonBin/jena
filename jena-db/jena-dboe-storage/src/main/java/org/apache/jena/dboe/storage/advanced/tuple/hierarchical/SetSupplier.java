@@ -29,6 +29,20 @@ import java.util.function.Supplier;
 public interface SetSupplier {
   <V> Set<V> get();
 
+  /**
+   * null supplier
+   *
+   * @return
+   */
+  public static SetSupplier none() {
+      return new SetSupplier() {
+        @Override
+        public <V> Set<V> get() {
+            return (Set<V>)null;
+        }
+    };
+  }
+
   public static SetSupplier force(Supplier<Set<?>> setSupplier) {
       return new SetSupplier() {
         @SuppressWarnings("unchecked")

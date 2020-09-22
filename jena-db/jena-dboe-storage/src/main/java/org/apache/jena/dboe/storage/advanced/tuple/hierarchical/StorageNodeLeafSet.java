@@ -88,7 +88,12 @@ public class StorageNodeLeafSet<D, C, V>
     @Override
     public boolean add(Set<V> set, D tupleLike) {
         V newValue = tupleToValue(tupleLike);
-        boolean result = set.add(newValue);
+
+        // TODO We should use a separate type that explicitly allows null placeholders
+        boolean result = set != null
+                ? set.add(newValue)
+                : false;
+
         return result;
     }
 

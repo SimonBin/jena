@@ -3,14 +3,12 @@ package org.apache.jena.dboe.storage.advanced.tuple.engine;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
-import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNode;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNodeWithCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorArrayOfInts;
@@ -46,10 +44,11 @@ public class MainEngineTest {
 //        String queriesFile = "/home/raven/research/jena-vs-tentris/data/watdiv/WatDiv-Queries.txt";
 
 
-        Collection<String> workloads = Files.readAllLines(
-                Paths.get(queriesFile));
-
-//      Collection<String> workloads = Arrays.asList("SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }");
+//        Collection<String> workloads = Files.readAllLines(
+//                Paths.get(queriesFile))
+//                .stream().skip(3).collect(Collectors.toList());
+//
+        Collection<String> workloads = Arrays.asList("SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }");
 
 
         init(0, datasetFile, workloads);
@@ -80,7 +79,7 @@ public class MainEngineTest {
                 QueryExecution qe = QueryExecutionFactory.create(query, model[0]);
                 StageBuilder.setGenerator(qe.getContext(), StageGeneratorHyperTrie
                          .create()
-                         .parallel(false)
+                         .parallel(true)
                          .bufferBindings(false)
                          .bufferStatsCallback(System.err::println)
                 );
@@ -135,6 +134,7 @@ public class MainEngineTest {
             for(String queryStr : workloads) {
                 ++queryCounter;
 
+//                System.out.println(queryStr);
                 Query query = QueryFactory.create(queryStr);
 
                 Stopwatch executionTimeSw = Stopwatch.createStarted();
@@ -162,7 +162,12 @@ public class MainEngineTest {
                     }
 
                     bindingCounter += count;
-                    System.out.println("Execution time: " + executionTimeSw + " - result set size: " + count);
+                    long elapsed = executionTimeSw.elapsed(TimeUnit.MILLISECONDS);
+                    System.out.println("Execution time: " + elapsed + " - result set size: " + count);
+
+                    if (elapsed > 500) {
+                        System.out.println("  SLOW: " + queryStr);
+                    }
                 }
             }
 
@@ -177,11 +182,11 @@ public class MainEngineTest {
     public static Model createHyperTrieBackedModel() {
         TupleAccessor<int[], Integer> backendAccessor = new TupleAccessorArrayOfInts(3);
 
-        StorageNodeMutable<int[], Integer, ?> storage =
-                TripleStorages.createHyperTrieStorageInt(backendAccessor);
-
 //        StorageNodeMutable<int[], Integer, ?> storage =
-//            TripleStorages.createHyperTrieStorage(backendAccessor);
+//                TripleStorages.createHyperTrieStorageInt(backendAccessor);
+
+        StorageNodeMutable<int[], Integer, ?> storage =
+            TripleStorages.createHyperTrieStorage(backendAccessor);
 
         TupleCodec<Triple, Node, int[], Integer> tupleCodec
             = TupleCodecDictionary.createForInts(TupleAccessorTripleAnyToNull.INSTANCE, backendAccessor);
