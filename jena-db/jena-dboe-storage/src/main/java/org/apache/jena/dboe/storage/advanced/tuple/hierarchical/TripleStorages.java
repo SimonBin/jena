@@ -110,9 +110,9 @@ public class TripleStorages {
         SetSupplier sop = HashSet::new;
         SetSupplier pos = HashSet::new;
 
-        SetSupplier pso = SetSupplier.none(); // spo;
-        SetSupplier osp = SetSupplier.none(); // sop;
-        SetSupplier ops = SetSupplier.none(); // pos;
+        SetSupplier pso = SetSupplier.none(); // reuses spo
+        SetSupplier osp = SetSupplier.none(); // reuses sop
+        SetSupplier ops = SetSupplier.none(); // reuses pos
 
         StorageNodeMutable<D, C,
             Alt3<

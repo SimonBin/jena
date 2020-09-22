@@ -5,12 +5,15 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -19,8 +22,6 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.BiReducer;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexedKeyReducer;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
-import org.apache.jena.ext.com.google.common.collect.HashMultiset;
-import org.apache.jena.ext.com.google.common.collect.Multiset;
 import org.apache.jena.ext.com.google.common.collect.Sets;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.BasicPattern;
@@ -31,6 +32,7 @@ import org.apache.jena.sparql.engine.binding.BindingFactory;
 
 public class EinsteinSummation {
 
+    public static final Predicate<int[]> TRUE = any -> true;
 
     /**
      * Einsum with a tuple codec
@@ -76,6 +78,7 @@ public class EinsteinSummation {
             StorageNode<?, Node, ?> storage,
             Object store,
             BasicPattern bgp,
+            boolean distinct,
             Set<Var> projectVars)
     {
         BiReducer<Binding, Node, Node> reducer = projectVars == null
@@ -94,6 +97,8 @@ public class EinsteinSummation {
                 Node::isVariable,
                 Function.identity(),
                 Function.identity(),
+                distinct,
+                projectVars,
                 BindingFactory.root(),
                 reducer);
 
@@ -133,35 +138,92 @@ public class EinsteinSummation {
             Predicate<C0> isVar, // In general we cannot pass variables through the encoder so we need a predicate
             Function<C0, C> componentEncoder, // E.g. map concrete nodes to integers via a dictionary
             Function<C, C0> componentDecoder, // E.g. map integers back to nodes via a dictionary
+            boolean distinct,
+            Set<? extends C0> requestProjection,
             A initialAccumulator,
             BiReducer<A, C0, C0> reducer // first C = variable, second C = value; both as Nodes
             )
     {
-        // First find out the set of variables
-        Set<C0> vars = new LinkedHashSet<>();
-
-        // Get the dimension of tuples from the storage
-        rootNode.getTupleAccessor().getDimension();
-
         int tupleDim = tupleAccessor.getDimension();
+
+        // First find out the set of variables
+        // Essential vars are those with more than 1 mention
+        HashMap<C0, Integer> mentionedVars = new LinkedHashMap<>();
+
         for (T tuple : btp) {
             for (int i = 0; i < tupleDim; ++i) {
                 C0 c = tupleAccessor.get(tuple, i);
                 if (isVar.test(c)) {
-                    vars.add(c);
+                    mentionedVars.compute(c, (k, v) -> v == null ? 1 : v + 1);
                 }
             }
         }
 
+        Set<C0> distinguishedVars;
+        Set<C0> nonDistinguishedVars;
+
+        if (requestProjection == null) {
+            distinguishedVars = mentionedVars.keySet();
+            nonDistinguishedVars = Collections.emptySet();
+        } else {
+            Set<C0> validProjection = new LinkedHashSet<>();
+            validProjection.addAll(requestProjection);
+            validProjection.retainAll(mentionedVars.keySet());
+
+            distinguishedVars = validProjection;
+
+            if (distinct) {
+                // Essential variables
+                // Definition Attempt 1: Non-joining non-distinguished variables
+                //     (co-occurring on the same triple pattern as distinguished variables)
+                //     can be omitted ignored
+                //  ^ The restriction to co-occurrence is probably not needed:
+                //  Either there is a triple pattern with a joining variable - then we need to compute the join
+                //  Or, consider the following:
+                //
+
+                // SELECT DISTINCT ?p { ?s ?p ?o } -> ?s and ?o are non-essential
+                // SELECT DISTINCT ?p { ?s ?p ?o . ?x ?y ?z } -> ?s and ?o are non-essential
+                //     But actually ?x ?y ?z is non-essential because if there is a solution at all
+                //     then this triple pattern will have solutions as well
+                //     If instead of ?y there was constant { ?x :c ?z }, then we check whether constant
+                //     is in the index first anyway, which makes ?x and ?z non-essential
+
+//                Set<C0> essentialVars = mentionedVars.keySet();
+                Set<C0> essentialVars = mentionedVars.entrySet().stream()
+                        .filter(e -> e.getValue() > 1).map(Entry::getKey).collect(Collectors.toSet());
+
+                nonDistinguishedVars = Sets.difference(essentialVars, distinguishedVars);
+            } else {
+                nonDistinguishedVars = Sets.difference(mentionedVars.keySet(), distinguishedVars);
+            }
+        }
+
+//        System.out.println("Btp vars for " + btp);
+//        System.out.println("  Distinct " + distinct);
+//        System.out.println("  Requested " + requestProjection);
+//        System.out.println("  Mentioned " + mentionedVars);
+//        System.out.println("  Distinguished " + distinguishedVars);
+//        System.out.println("  Non-Distinguished " + nonDistinguishedVars);
+
+        int distinguishedVarSize = distinguishedVars.size();
+
         // set up a vector of variable indices
-        int varDim = vars.size();
-        List<C0> varList = new ArrayList<>(vars);
+
+        // Put the outvars first in the list and the internal ones after
+        // When invoking the accumulator we know whether a var is projected if it is at the start of the list
+        // [ outvar1..k  internalvark+1..n]
+        int varDim = distinguishedVars.size() + nonDistinguishedVars.size();
+        List<C0> varList = new ArrayList<>(varDim);
+        varList.addAll(distinguishedVars);
+        varList.addAll(nonDistinguishedVars);
+
         int[] varIdxs = new int[varDim];
 
         // Use var = varList[varIdx] for the reverse mapping
-        Map<C0, Integer> varToVarIdx = new HashMap<>();
+        Map<C0, Integer> varToProjVarIdx = new HashMap<>();
         for (int r = 0; r < varDim; ++r) {
-            varToVarIdx.put(varList.get(r), r);
+            varToProjVarIdx.put(varList.get(r), r);
             varIdxs[r] = r;
         }
 
@@ -179,7 +241,7 @@ public class EinsteinSummation {
 
             for (int i = 0; i < tupleDim; ++i) {
                 C0 rawValue = tupleAccessor.get(tuple, i);
-                Integer varIdx = varToVarIdx.get(rawValue);
+                Integer varIdx = varToProjVarIdx.get(rawValue);
 
                 if (varIdx != null) {
                     remainingVarIdxs = ArrayUtils.add(remainingVarIdxs, varIdx);
@@ -193,7 +255,7 @@ public class EinsteinSummation {
                 C0 rawValue = tupleAccessor.get(tuple, i);
 
                 // if value is not a variable then..
-                if (!varToVarIdx.containsKey(rawValue)) {
+                if (!isVar.test(rawValue)) {
                     C value = componentEncoder.apply(rawValue);
 
                     tupleSlice = tupleSlice.sliceOnComponentWithValue(i, value);
@@ -209,23 +271,49 @@ public class EinsteinSummation {
             initialSlices.add(tupleSlice);
         }
 
-        List<Multiset<C>> varIdxToValues = new ArrayList<Multiset<C>>(varDim);
-        for (int i = 0; i < varDim; ++i) {
-            varIdxToValues.add(HashMultiset.create());
-        }
 
         // Wrap the incoming reducer with another one that maps var indices to the actual vars
         IndexedKeyReducer<A, C> varIdxBasedReducer = (acc, varIdx, encodedValue) -> {
-            C0 var = varList.get(varIdx);
-            C0 decodedValue = componentDecoder.apply(encodedValue);
-            return reducer.reduce(acc, var, decodedValue);
+            A r;
+            // Distinguished variables have lower indices
+            // For non-distinguished variables just pass on the accumulator
+            if (varIdx < distinguishedVarSize) {
+                C0 var = varList.get(varIdx);
+                C0 decodedValue = componentDecoder.apply(encodedValue);
+                r = reducer.reduce(acc, var, decodedValue);
+            } else {
+                r = acc;
+            }
+            return r;
         };
 
+        // If distinct is enabled then we do not have to iterate
+        // all combinations of non-distinguished variables:
+        // E.g. if we have SELECT DISTINCT ?x ?y ?z { ?x ?y ?z . ?a ?b ?c }
+        // then as soon as ?x ?y ?z are no longer remaining we can abort after a single
+        // match for ?a ?b ?c
+        Predicate<int[]> testAbortOnMatch = !distinct
+                ? remainingVarIdxs -> false
+                : remainingVarIdxs -> {
+                    boolean r = true;
+                    for (int i = 0; i < remainingVarIdxs.length; ++i) {
+                        int varIdx = remainingVarIdxs[i];
+
+                        // If there is a distinguished variable we cannot abort early
+                        if (varIdx < distinguishedVarSize) {
+                            r = false;
+                            break;
+                        }
+                    }
+                    return r;
+                };
 
         // Do not execute anything unless an operation is invoked on the stream
         Stream<A> stream = Stream.of(initialAccumulator).flatMap(acc -> recurse(
                 varDim,
                 varIdxs,
+                false,
+                testAbortOnMatch,
                 initialSlices,
                 acc,
                 varIdxBasedReducer));
@@ -255,6 +343,8 @@ public class EinsteinSummation {
     public static <C, A> Stream<A> recurse(
             int varDim,
             int[] remainingVarIdxs,
+            boolean abortOnMatch,
+            Predicate<int[]> testAbortOnMatch, // A predicate that can become true if the remaining varIdxs do not contain any distinguished variable
             List<SliceNode<?, C>> slices,
             A accumulator,
             IndexedKeyReducer<A, C> reducer // receives varIdx and value
@@ -289,10 +379,6 @@ public class EinsteinSummation {
                 for(int tupleIdx : varInSliceComponents) {
                     Set<C> valuesContrib = slice.getValuesForComponent(tupleIdx);
 
-//                    if (valuesContrib.isEmpty()) {
-//                        System.out.println("should never happen");
-//                    }
-
                     valuesForPickedVarIdx.add(valuesContrib);
                 }
             }
@@ -326,67 +412,67 @@ public class EinsteinSummation {
             break;
         }
 
-        List<SliceNode<?, C>> sliceableByPickedVar = new ArrayList<>();
-        List<SliceNode<?, C>> nonSliceableByPickedVar = new ArrayList<>();
+        List<SliceNode<?, C>> sliceableByPickedVar;
+        List<SliceNode<?, C>> nonSliceableByPickedVar;
+        if (slices.size() != 1) {
+            sliceableByPickedVar = new ArrayList<>();
+            nonSliceableByPickedVar = new ArrayList<>();
 
-        for (SliceNode<?, C> slice : slices) {
-            if (slice.hasRemainingVarIdx(pickedVarIdx)) {
-                sliceableByPickedVar.add(slice);
-            } else {
-                nonSliceableByPickedVar.add(slice);
-            }
-        }
-
-        return remainingValuesOfPickedVar.stream().flatMap(value -> {
-            return sliceByValue(
-                    varDim,
-                    nextRemainingVarIdxs,
-                    accumulator,
-                    reducer,
-                    pickedVarIdx,
-                    sliceableByPickedVar,
-                    nonSliceableByPickedVar,
-                    value);
-        });
-    }
-
-
-    public static <C, K> Stream<K> sliceByValue(
-            int varDim,
-            int[] nextRemainingVarIdxs,
-            K accumulator,
-            IndexedKeyReducer<K, C> reducer,
-            int pickedVarIdx,
-            List<SliceNode<?, C>> sliceableByPickedVar,
-            List<SliceNode<?, C>> nonSliceableByPickedVar,
-            C value) {
-
-
-        // Perhaps Interables.concat?
-        List<SliceNode<?, C>> allNextSlices = new ArrayList<>(nonSliceableByPickedVar);
-
-//        if (nonSliceableByPickedVar.size() > 2) {
-//            System.out.println("Non-sliceable " + nonSliceableByPickedVar.size() + " sliceable " + sliceableByPickedVar.size());
-//
-//        }
-
-        for (SliceNode<?, C> slice : sliceableByPickedVar) {
-            SliceNode<?, C> nextSlice = slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
-
-            if (nextSlice != null) {
-                if (nextSlice.getRemainingVars().length != 0) {
-                    allNextSlices.add(nextSlice);
+            for (SliceNode<?, C> slice : slices) {
+                if (slice.hasRemainingVarIdx(pickedVarIdx)) {
+                    sliceableByPickedVar.add(slice);
+                } else {
+                    nonSliceableByPickedVar.add(slice);
                 }
             }
+        } else {
+            SliceNode<?, C> slice = slices.get(0);
+            if (slice.hasRemainingVarIdx(pickedVarIdx)) {
+                sliceableByPickedVar = Collections.singletonList(slice);
+                nonSliceableByPickedVar = Collections.emptyList();
+            } else {
+                sliceableByPickedVar = Collections.emptyList();
+                nonSliceableByPickedVar = Collections.singletonList(slice);
+            }
 
         }
 
-        K nextAccumulator = reducer.reduce(accumulator, pickedVarIdx, value);
+        // Test whether to set the flag that the next iteration should abort after the first match
+        // If this call already has the flag set there is no need to recheck it
+        boolean abortNextRecursionOnMatch = abortOnMatch || testAbortOnMatch.test(nextRemainingVarIdxs);
 
-        // All slices that mentioned a certain var are now constrained to one of the
-        // var's value
-        return recurse(varDim, nextRemainingVarIdxs, allNextSlices, nextAccumulator, reducer);
+        Stream<A> tmpStream = remainingValuesOfPickedVar.stream().flatMap(value -> {
+            // Perhaps Interables.concat?
+            List<SliceNode<?, C>> allNextSlices = new ArrayList<>(nonSliceableByPickedVar);
+
+            for (SliceNode<?, C> slice : sliceableByPickedVar) {
+                SliceNode<?, C> nextSlice = slice.sliceOnVarIdxAndValue(pickedVarIdx, value);
+
+                if (nextSlice != null) {
+                    if (nextSlice.getRemainingVars().length != 0) {
+                        allNextSlices.add(nextSlice);
+                    }
+                }
+
+            }
+            A nextAccumulator = reducer.reduce(accumulator, pickedVarIdx, value);
+
+            // All slices that mentioned a certain var are now constrained to one of the
+            // var's value
+            return recurse(varDim, nextRemainingVarIdxs, abortNextRecursionOnMatch, testAbortOnMatch, allNextSlices, nextAccumulator, reducer);
+        });
+
+//        Stream<A> result = tmpStream;
+        Stream<A> result = abortOnMatch
+                ? tmpStream.limit(1)
+                : tmpStream;
+
+        return result;
     }
+
+
+
+
 
     public static <C>  int findBestSliceVarIdx(
             int varDim,

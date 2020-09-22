@@ -15,6 +15,7 @@ import org.apache.jena.util.iterator.NiceIterator;
  * An adaption of {@link QueryIterTriplePattern} that generalizes to arbitrary
  * patterns that need to be substituted on each input binding.
  *
+ *
  * @author raven
  *
  * @param <P>

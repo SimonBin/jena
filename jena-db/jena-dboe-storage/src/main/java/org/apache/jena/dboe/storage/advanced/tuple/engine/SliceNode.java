@@ -159,7 +159,7 @@ public class SliceNode<D, C> {
         Object indexStore = null;
 
         if (storageNode.isAltNode()) {
-            // If we are positioned at the root then we assume to be positioned at an alt node
+            // If we are positioned at the root or an inner then we assume to be positioned at an alt node
             int childIdx = findChildThatIndexesByTupleIdx(storageNode, tupleIdx);
             indexNode = storageNode.getChildren().get(childIdx);
             indexStore = storageNode.chooseSubStoreRaw(store, childIdx);
@@ -198,24 +198,6 @@ public class SliceNode<D, C> {
         StorageNodeAndStore<D, C> index = findStorageNodeThatIndexesByComponentIdx(tupleIdx, storageNode, store);
         StorageNode<D, C, ?> indexNode = index.getStorage();
         Object indexStore = index.getStore();
-
-//            if (storageNode.isAltNode()) {
-//                // If we are positioned at the root then we assume to be positioned at an alt node
-//                int childIdx = findChildThatIndexesByTupleIdx(storageNode, tupleIdx);
-//                indexNode = storageNode.getChildren().get(childIdx);
-//                indexStore = storageNode.chooseSubStoreRaw(store, childIdx);
-//
-//            } else {
-//                // We assume to be at a leaf which is implicitly an alt1 node with itself as the child
-//                indexNode = storageNode;
-//                indexStore = store;
-//
-//                int remainingDimension = storageNode.getKeyTupleIdxs()[0];
-//                if (remainingDimension != tupleIdx) {
-//                    throw new RuntimeException("Request to slice by component " + tupleIdx + " but remaining is only " + remainingDimension);
-//                }
-//            }
-
 
         StorageNode<D, C, ?> nextStorage = null;
         Object nextStore = null;
@@ -274,56 +256,9 @@ public class SliceNode<D, C> {
                   nextStorage, nextStore,
                   nextRemainingVarIdxs, varIdxToTupleIdxs);
 
-//
-//            if (affectedVarIdx != -1) {
-//                int[] nextRemainingVarIdxs = ArrayUtils.removeElement(remainingVarIdxs, affectedVarIdx);
-//                result = new SliceNode<>(
-//                        nextStorage, nextStore,
-//                        nextRemainingVarIdxs, varIdxToTupleIdxs);
-//            } else {
-//                // int[] nextRemainingVarIdxs = remainingVars.clone();
-//                result = new SliceNode<>(
-//                        nextStorage, nextStore,
-//                        remainingVarIdxs, varIdxToTupleIdxs);
-//            }
-
-//            if (affectedVarIdx != -1) {
-//                int[] nextRemainingVarIdxs = ArrayUtils.removeElement(remainingVarIdxs, affectedVarIdx);
-//                int bindingIdx = ArrayUtils.indexOf(initialVarIdxs, affectedVarIdx);
-//                Object[] newBinding = varIdxToSliceValue.clone();
-//                newBinding[bindingIdx] = sliceKey;
-//                result = new SliceNode<>(
-//                        nextStorage, nextStore,
-//                        initialVarIdxs, newBinding, nextRemainingVarIdxs, varIdxToTupleIdxs);
-//            } else {
-//                // int[] nextRemainingVarIdxs = remainingVars.clone();
-//                result = new SliceNode<>(
-//                        nextStorage, nextStore,
-//                        initialVarIdxs, varIdxToSliceValue, remainingVarIdxs, varIdxToTupleIdxs);
-//            }
         }
 
         return result;
-
-
-
-        // map the resultVarIdx to tupleIdx
-        // e.g. (?a ?b ?c) -> ?a is in subject position, so ?a maps to tuple index 0
-        // actually, just specialize on the tupleIdx and handle the var mapping on the outside
-
-        // Find a child that can handle tupleIdx
-        //storageNode.constrainChild(tupleIdx, value);
-
-        // Advance the storageNode and the store to it
-
-
-
-        // storageNode.str
-        // BreadthFirstSearchLib.breadthFirstFindFirst(storageNode::getChildren, successorFunction, predicate)
-
-
-        // accessor.getStorage()
-        // storageNode.get
     }
 
 

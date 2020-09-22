@@ -3,10 +3,13 @@ package org.apache.jena.dboe.storage.advanced.tuple.engine;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNode;
@@ -32,6 +35,7 @@ import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.ResultSetMgr;
 import org.apache.jena.riot.resultset.ResultSetLang;
 import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.main.QC;
 import org.apache.jena.sparql.engine.main.StageBuilder;
 
 public class MainEngineTest {
@@ -45,14 +49,20 @@ public class MainEngineTest {
 //        String queriesFile = "/home/raven/research/jena-vs-tentris/data/watdiv/WatDiv-Queries.txt";
 
 
-//        Collection<String> workloads = Files.readAllLines(
-//                Paths.get(queriesFile))
-//                .stream().skip(3).collect(Collectors.toList());
+        Collection<String> workloads = Files.readAllLines(
+                Paths.get(queriesFile))
+                // .stream().skip(3).collect(Collectors.toList())
+                ;
 //
-        Collection<String> workloads = Arrays.asList("SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }");
+//        workloads = Arrays.asList("SELECT DISTINCT ?b ?d ?e WHERE { ?a a ?b . ?c a ?d . ?a ?e ?c . }");
+//        workloads = Arrays.asList("SELECT DISTINCT ?a ?b ?c WHERE { ?a ?b ?c . ?x ?y ?z . }");
+//        workloads = Arrays.asList("SELECT DISTINCT ?s WHERE { ?s a ?foo . ?s a ?bar }");
+
+//        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o }");
+//        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o . ?x ?z ?y }");
 
 
-        init(1, datasetFile, workloads);
+        init(0, datasetFile, workloads);
     }
 
     public static void init(int mode, String filename, Iterable<String> workloads) throws IOException {
@@ -78,6 +88,7 @@ public class MainEngineTest {
             model[0] = createHyperTrieBackedModel();
             queryExecutor = query -> {
                 QueryExecution qe = QueryExecutionFactory.create(query, model[0]);
+                QC.setFactory(qe.getContext(), OpExecutorTupleEngine2.opExecFactory);
                 StageBuilder.setGenerator(qe.getContext(), StageGeneratorHyperTrie
                          .create()
                          .parallel(false)

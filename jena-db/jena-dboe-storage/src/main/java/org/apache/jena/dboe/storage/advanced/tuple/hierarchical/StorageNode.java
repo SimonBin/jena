@@ -183,15 +183,15 @@ public interface StorageNode<D, C, V> {
         Object result;
 
         // For performance the try/catch should only be active if a debug flag is set
-        try {
+//        try {
             result = chooseSubStore((V)store, subStoreIdx);
-        } catch (Exception e) {
-            throw new RuntimeException("Mismatch of data and schema;"
-                    + "could not access alt " + subStoreIdx
-                    + " at a schema of type " + this.getClass()
-                    + " for data of type " +  store.getClass()
-                    + " " + store, e);
-        }
+//        } catch (Exception e) {
+//            throw new RuntimeException("Mismatch of data and schema;"
+//                    + "could not access alt " + subStoreIdx
+//                    + " at a schema of type " + this.getClass()
+//                    + " for data of type " +  store.getClass()
+//                    + " " + store, e);
+//        }
         return result;
     }
 

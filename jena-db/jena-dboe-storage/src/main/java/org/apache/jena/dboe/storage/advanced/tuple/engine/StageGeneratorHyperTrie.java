@@ -1,6 +1,7 @@
 package org.apache.jena.dboe.storage.advanced.tuple.engine;
 
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -34,13 +35,38 @@ public class StageGeneratorHyperTrie
     protected boolean bufferBindings = false;
     protected Consumer<String> bufferStatsCallback = null;
 
+    protected boolean distinct;
+    protected Set<Var> projection;
+
     public StageGeneratorHyperTrie() {
         super();
     }
 
 
+    @Override
+    protected StageGeneratorHyperTrie clone() {
+        return StageGeneratorHyperTrie.create()
+            .parallel(parallel)
+            .bufferBindings(bufferBindings)
+            .bufferStatsCallback(bufferStatsCallback)
+            .distinct(distinct)
+            .project(projection);
+    }
+
+
     public static StageGeneratorHyperTrie create() {
         return new StageGeneratorHyperTrie();
+    }
+
+    public StageGeneratorHyperTrie distinct(boolean distinct) {
+        this.distinct = distinct;
+        return this;
+    }
+
+
+    public StageGeneratorHyperTrie project(Set<Var> projection) {
+        this.projection = projection;
+        return this;
     }
 
     public StageGeneratorHyperTrie parallel(boolean parallel) {
@@ -101,11 +127,11 @@ public class StageGeneratorHyperTrie
 
     @Override
     public QueryIterator execute(BasicPattern pattern, QueryIterator input, ExecutionContext execCxt) {
-
         QueryIterator result = new QueryIterRepeatApply(input, execCxt) {
             @Override
             protected QueryIterator nextStage(Binding binding) {
-                QueryIterator r = new QueryIterBgpHyperTrie(binding, pattern, execCxt);
+                QueryIterBgpHyperTrie r = new QueryIterBgpHyperTrie(binding, pattern, execCxt, distinct, projection);
+                r.initIterator();
                 return r;
             }
         };
@@ -114,8 +140,9 @@ public class StageGeneratorHyperTrie
     }
 
 
+
     /**
-     * Non-static inner class; shares the parallel flag
+     * Non-static inner class; shares several flags (parallel, distinct, etc)
      *
      * @author raven
      *
@@ -126,7 +153,10 @@ public class StageGeneratorHyperTrie
         public QueryIterBgpHyperTrie(
                 Binding binding,
                 BasicPattern templatePattern,
-                ExecutionContext cxt) {
+                ExecutionContext cxt,
+                boolean distinct,
+                Set<Var> projection
+                ) {
             super(binding, templatePattern, cxt);
         }
 
@@ -145,7 +175,7 @@ public class StageGeneratorHyperTrie
                 stream = EinsteinSummation.einsum(
                         (StorageNode<?, Node, ?>)storageAndStore.getStorage(),
                         storageAndStore.getStore(),
-                        pattern, null);
+                        pattern, distinct, projection);
             } else {
 
                 TupleCodec<Triple, Node, Object, Object> codec = (TupleCodec<Triple, Node, Object, Object>)storageAndStore.getTupleCodec();
@@ -158,6 +188,8 @@ public class StageGeneratorHyperTrie
                         Node::isVariable,
                         codec::encodeComponent,
                         codec::decodeComponent,
+                        distinct,
+                        projection,
                         BindingFactory.root(),
                         (binding, varNode, valueNode) -> BindingFactory.binding(binding, (Var)varNode, valueNode));
 
