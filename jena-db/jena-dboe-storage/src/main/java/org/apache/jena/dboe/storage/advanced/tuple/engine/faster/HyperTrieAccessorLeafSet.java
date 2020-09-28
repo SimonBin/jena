@@ -7,23 +7,34 @@ import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeLeafS
 public class HyperTrieAccessorLeafSet<C>
     implements HyperTrieAccessor<C>
 {
-    protected StorageNodeLeafSet<?, C, C> storageNode;
+    protected StorageNodeLeafSet<?, C, ?> storageNode;
+    protected int indexedComponentIdx;
 
-    public HyperTrieAccessorLeafSet(StorageNodeLeafSet<?, C, C> storageNode) {
+    public HyperTrieAccessorLeafSet(StorageNodeLeafSet<?, C, ?> storageNode) {
         super();
         this.storageNode = storageNode;
+        if (storageNode.getKeyTupleIdxs().length != 1) {
+            throw new IllegalArgumentException("Storage node must index by exactly 1 component");
+        }
+
+        this.indexedComponentIdx = storageNode.getKeyTupleIdxs()[0];
     }
+
+//    @Override
+//    public int getIndexedComponentIdx() {
+//        return indexedComponentIdx;
+//    }
 
     @Override
     public Set<C> getValuesForComponent(Object altStore, int componentIdx) {
-        assert storageNode.getKeyTupleIdxs()[0] == componentIdx;
+        assert indexedComponentIdx == componentIdx;
 
         return (Set<C>)altStore;
     }
 
     @Override
     public Object getStoreForSliceByComponentByValue(Object altStore, int componentIdx, C value) {
-        assert storageNode.getKeyTupleIdxs()[0] == componentIdx;
+        assert indexedComponentIdx == componentIdx;
 
         Set<C> set = (Set<C>)altStore;
         Object result = set.contains(value) ? this : null;
@@ -32,10 +43,9 @@ public class HyperTrieAccessorLeafSet<C>
 
     @Override
     public HyperTrieAccessor<C> getAccessorForComponent(int componentIdx) {
-        throw new UnsupportedOperationException("A leaf node doesn't have further components that can be accessed");
-//        assert storageNode.getKeyTupleIdxs()[0] == componentIdx;
-//
-//        return this;
+        assert indexedComponentIdx == componentIdx;
+
+        return this;
     }
 
 }

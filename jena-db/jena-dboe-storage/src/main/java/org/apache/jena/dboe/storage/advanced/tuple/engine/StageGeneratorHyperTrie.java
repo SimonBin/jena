@@ -9,6 +9,9 @@ import java.util.stream.Stream;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNodeWithCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
+import org.apache.jena.dboe.storage.advanced.tuple.engine.faster.EinsteinSummationFaster;
+import org.apache.jena.dboe.storage.advanced.tuple.engine.faster.HyperTrieAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.HyperTrieBased;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeBased;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;
@@ -101,22 +104,38 @@ public class StageGeneratorHyperTrie
             GraphFromTripleTableCore g = (GraphFromTripleTableCore)graph;
             TripleTableCore ttc = g.getTripleTable();
 
+
+            Object store;
+            StorageNode<?, ?, ?> storageNode;
+            TupleCodec<?, ?, ?, ?> tupleCodec = null;
+            HyperTrieAccessor<?> hyperTrieAccessor = null;
+
+
             if (ttc instanceof StorageNodeBased) {
 
                 // A graph based on a triple table must have Node objects as components
                 @SuppressWarnings("unchecked")
                 StorageNodeBased<?, ?, ?> snb = (StorageNodeBased<?, ?, ?>)ttc;
 
-                result = new StorageNodeAndStoreAndCodec<>(snb.getStorageNode(), snb.getStore(), null);
-            } else if (ttc instanceof TripleTableFromStorageNodeWithCodec) {
-                TripleTableFromStorageNodeWithCodec<?, ?, ?> tmp = (TripleTableFromStorageNodeWithCodec<?, ?, ?>)ttc;
-
-                result = new StorageNodeAndStoreAndCodec(tmp.getStorageNode(), tmp.getStore(), tmp.getTupleCodec());
-
+                storageNode = snb.getStorageNode();
+                store = snb.getStorageNode();
             } else {
                 throw new RuntimeException("TripleTableCore does not implement StorageNodeBased");
             }
 
+            if (ttc instanceof TripleTableFromStorageNodeWithCodec) {
+                TripleTableFromStorageNodeWithCodec<?, ?, ?> tmp = (TripleTableFromStorageNodeWithCodec<?, ?, ?>)ttc;
+
+                tupleCodec = tmp.getTupleCodec();
+            }
+
+            if (ttc instanceof HyperTrieBased) {
+                HyperTrieBased<?> htb = (HyperTrieBased<?>)ttc;
+
+                hyperTrieAccessor = htb.getHyperTrieAccessor();
+            }
+
+            result = new StorageNodeAndStoreAndCodec(storageNode, store, tupleCodec, hyperTrieAccessor);
 
         } else {
             throw new RuntimeException("Graph does not implement GraphFromTripleTableCore: " + graph.getClass());
@@ -170,6 +189,61 @@ public class StageGeneratorHyperTrie
             Graph graph = getExecContext().getActiveGraph() ;
             StorageNodeAndStoreAndCodec<?, ?> storageAndStore = StageGeneratorHyperTrie.extractNodeAndStore(graph);
 
+            boolean useNewApproach = true;
+
+            Stream<Binding> stream = useNewApproach
+                    ? newApproach(storageAndStore)
+                    : oldApproach(storageAndStore);
+
+            if (parallel) {
+                stream = stream.parallel();
+            }
+
+            if (bufferBindings) {
+                Stopwatch sw = Stopwatch.createStarted();
+                List<Binding> buffer = stream.collect(Collectors.toList());
+                if (bufferStatsCallback != null) {
+                    bufferStatsCallback.accept("Buffered result set of size " + buffer.size() + " in " + sw);
+                }
+
+                stream = buffer.stream();
+            }
+
+            return WrappedIterator.create(stream.iterator());
+        }
+
+
+
+        public Stream<Binding> newApproach(StorageNodeAndStoreAndCodec<?, ?> storageAndStore) {
+            Stream<Binding> stream;
+            if (storageAndStore.getTupleCodec() == null) {
+                stream = EinsteinSummationFaster.einsum(
+                        (HyperTrieAccessor<Node>)storageAndStore.getHyperTrieAccessor(),
+                        storageAndStore.getStore(),
+                        pattern, distinct, projection);
+            } else {
+
+                TupleCodec<Triple, Node, Object, Object> codec = (TupleCodec<Triple, Node, Object, Object>)storageAndStore.getTupleCodec();
+
+                stream = EinsteinSummationFaster.<Node, Object, Triple, Binding>einsumGeneric(
+                        (HyperTrieAccessor<Object>)storageAndStore.getHyperTrieAccessor(),
+                        storageAndStore.getStore(),
+                        pattern,
+                        TupleAccessorTripleAnyToNull.INSTANCE,
+                        Node::isVariable,
+                        codec::encodeComponent,
+                        codec::decodeComponent,
+                        distinct,
+                        projection,
+                        BindingFactory.root(),
+                        (binding, varNode, valueNode) -> BindingFactory.binding(binding, (Var)varNode, valueNode));
+
+            }
+            return stream;
+        }
+
+
+        public Stream<Binding> oldApproach(StorageNodeAndStoreAndCodec<?, ?> storageAndStore) {
             Stream<Binding> stream;
             if (storageAndStore.getTupleCodec() == null) {
                 stream = EinsteinSummation.einsum(
@@ -194,22 +268,7 @@ public class StageGeneratorHyperTrie
                         (binding, varNode, valueNode) -> BindingFactory.binding(binding, (Var)varNode, valueNode));
 
             }
-
-            if (parallel) {
-                stream = stream.parallel();
-            }
-
-            if (bufferBindings) {
-                Stopwatch sw = Stopwatch.createStarted();
-                List<Binding> buffer = stream.collect(Collectors.toList());
-                if (bufferStatsCallback != null) {
-                    bufferStatsCallback.accept("Buffered result set of size " + buffer.size() + " in " + sw);
-                }
-
-                stream = buffer.stream();
-            }
-
-            return WrappedIterator.create(stream.iterator());
+            return stream;
         }
     }
 

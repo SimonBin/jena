@@ -120,7 +120,7 @@ public class SliceNode<D, C> {
      */
     public SliceNode<D, C> sliceOnVarIdxAndValue(int varIdx, C value) {
         if(remainingVarIdxs.length == 0) {
-            System.out.println("its empty here");
+            throw new RuntimeException("its empty here");
         }
 
         SliceNode<D, C> result;
@@ -234,23 +234,7 @@ public class SliceNode<D, C> {
 
         if (nextStorage != null) {
 
-            // Find the variable that mapped to that tuple (if any*) and remove it from
-            // remaining vars
-            // * Components of a tuple are not required to map to variables
-            int affectedVarIdx = -1;
-            for (int i = 0; i < remainingVarIdxs.length; ++i) {
-                int varIdx = remainingVarIdxs[i];
-                int tupleIdxs[] = varIdxToTupleIdxs[varIdx];
-                if (ArrayUtils.contains(tupleIdxs, tupleIdx)) {
-                    affectedVarIdx = varIdx;
-                    break;
-                }
-            }
-
-
-            int[] nextRemainingVarIdxs = affectedVarIdx == -1
-                    ? remainingVarIdxs
-                    : ArrayUtils.removeElement(remainingVarIdxs, affectedVarIdx);
+            int[] nextRemainingVarIdxs = removeRemainingVarByTupleIdx(tupleIdx, remainingVarIdxs, varIdxToTupleIdxs);
 
             result = new SliceNode<>(
                   nextStorage, nextStore,
@@ -259,6 +243,34 @@ public class SliceNode<D, C> {
         }
 
         return result;
+    }
+
+
+    /**
+     * The mapping of variable indices to the tuple idxs they belong to
+     * [?x, foo, ?x]
+     * the variable ?x maps to the indices 0 and 2
+     *
+     */
+    public static int[] removeRemainingVarByTupleIdx(int tupleIdx, int[] remainingVarIdxs, int[][] varIdxToTupleIdxs) {
+        // Find the variable that mapped to that tuple (if any*) and remove it from
+        // remaining vars
+        // * Components of a tuple are not required to map to variables
+        int affectedVarIdPos = -1;
+        for (int i = 0; i < remainingVarIdxs.length; ++i) {
+            int varIdx = remainingVarIdxs[i];
+            int tupleIdxs[] = varIdxToTupleIdxs[varIdx];
+            if (ArrayUtils.contains(tupleIdxs, tupleIdx)) {
+                affectedVarIdPos = i;
+                break;
+            }
+        }
+
+
+        int[] nextRemainingVarIdxs = affectedVarIdPos == -1
+                ? remainingVarIdxs
+                : ArrayUtils.remove(remainingVarIdxs, affectedVarIdPos);
+        return nextRemainingVarIdxs;
     }
 
 

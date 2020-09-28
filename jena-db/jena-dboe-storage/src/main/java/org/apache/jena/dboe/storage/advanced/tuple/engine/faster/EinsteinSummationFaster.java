@@ -21,8 +21,6 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.BiReducer;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexedKeyReducer;
-import org.apache.jena.dboe.storage.advanced.tuple.engine.SliceNode;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
 import org.apache.jena.ext.com.google.common.collect.Sets;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.BasicPattern;
@@ -31,7 +29,7 @@ import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.binding.BindingFactory;
 
 
-public class EinsteinSummation {
+public class EinsteinSummationFaster {
 
     public static final Predicate<int[]> TRUE = any -> true;
 
@@ -76,7 +74,7 @@ public class EinsteinSummation {
 //    }
 
     public static Stream<Binding> einsum(
-            StorageNode<?, Node, ?> storage,
+            HyperTrieAccessor<Node> storage,
             Object store,
             BasicPattern bgp,
             boolean distinct,
@@ -90,7 +88,7 @@ public class EinsteinSummation {
                         : binding);
 
         Stream<Binding> result =
-        EinsteinSummation.einsumGeneric(
+        EinsteinSummationFaster.einsumGeneric(
                 storage,
                 store,
                 bgp.getList(),
@@ -132,7 +130,7 @@ public class EinsteinSummation {
      * @param isVar Test whether a value for C is a variable
      */
     public static <C0, C, T, A>  Stream<A> einsumGeneric(
-            StorageNode<?, C, ?> rootNode,
+            HyperTrieAccessor<C> rootNode,
             Object store,
             Iterable<T> btp,
             TupleAccessor<T, C0> tupleAccessor,
@@ -229,7 +227,7 @@ public class EinsteinSummation {
         }
 
 
-        List<SliceNode<?, C>> initialSlices = new ArrayList<>();
+        List<SliceNode2<C>> initialSlices = new ArrayList<>();
 
         // Set up the initial Slice states for the tuples
         outer: for (T tuple : btp) {
@@ -249,7 +247,7 @@ public class EinsteinSummation {
                     varIdxToTupleIdxs[varIdx] = ArrayUtils.add(varIdxToTupleIdxs[varIdx], i);
                 }
             }
-            SliceNode<?, C> tupleSlice = SliceNode.create(rootNode, store, remainingVarIdxs, varIdxToTupleIdxs);
+            SliceNode2<C> tupleSlice = new SliceNode2<>(store, rootNode, remainingVarIdxs, varIdxToTupleIdxs);
 
             // specialize the tuples in the btp by the mentioned constants
             for (int i = 0; i < tupleDim; ++i) {
@@ -259,7 +257,7 @@ public class EinsteinSummation {
                 if (!isVar.test(rawValue)) {
                     C value = componentEncoder.apply(rawValue);
 
-                    tupleSlice = tupleSlice.sliceOnComponentWithValue(i, value);
+                    tupleSlice = tupleSlice.slicerForComponentIdx(i).apply(value);
 
                     if (tupleSlice == null) {
                         // a constant mentioned in the bgp is not found in an index -
@@ -309,15 +307,26 @@ public class EinsteinSummation {
                     return r;
                 };
 
+        @SuppressWarnings("unchecked")
+        SliceNode2<C>[] initialSlicesArr = initialSlices.toArray(new SliceNode2[0]);
+
         // Do not execute anything unless an operation is invoked on the stream
-        Stream<A> stream = Stream.of(initialAccumulator).flatMap(acc -> recurse(
-                varDim,
-                varIdxs,
-                false,
-                testAbortOnMatch,
-                initialSlices,
+        StateSpaceSearch<A, C> search = new StateSpaceSearch<>(varDim, varIdxBasedReducer, testAbortOnMatch);
+        Stream<A> stream = Stream.of(initialAccumulator).flatMap(acc -> search.recurse(
                 acc,
-                varIdxBasedReducer));
+                varIdxs,
+                initialSlicesArr,
+                false
+                ));
+
+//        Stream<A> stream = Stream.of(initialAccumulator).flatMap(acc -> recurse(
+//                varDim,
+//                varIdxs,
+//                false,
+//                testAbortOnMatch,
+//                initialSlices,
+//                acc,
+//                varIdxBasedReducer));
 
         return stream;
     }
@@ -356,36 +365,64 @@ public class EinsteinSummation {
  * @param <C>
  */
 class StateSpaceSearch<A, C> {
-//    int varDim;
-    protected int[] remainingVarIds;
-    protected int remainingVarIdsLen;
-    protected boolean abortOnMatch;
+    int varDim;
     protected Predicate<int[]> testAbortOnMatch; // A predicate that can become true if the remaining varIdxs do not contain any distinguished variable
-    protected List<SliceNode<?, C>> slices;
     protected IndexedKeyReducer<A, C> reducer; // receives varIdx and value
 
 
-    public Stream<A> recurse(A accumulator) {
-        if (remainingVarIds.length == 0) {
+    public StateSpaceSearch(int varDim,
+            IndexedKeyReducer<A, C> reducer,
+            Predicate<int[]> testAbortOnMatch) {
+        super();
+        this.varDim = varDim;
+        this.reducer = reducer;
+        this.testAbortOnMatch = testAbortOnMatch;
+    }
+
+
+    public Stream<A> recurse(
+        A accumulator,
+        int[] remainingVarIds,
+        SliceNode2<C>[] slices,
+        boolean abortOnMatch
+        )
+    {
+        int pickedVarId;
+        int[] nextRemainingVarIdxs;
+
+        switch (remainingVarIds.length) {
+        case 0:
             return Stream.of(accumulator);
+        case 1:
+            // Shortcut for the last iteration
+            pickedVarId = remainingVarIds[0];
+            nextRemainingVarIdxs = null;
+            break;
+        default:
+            int pickedVarIdPos = findBestSliceVarIdx(remainingVarIds, slices); //varDim, remainingVarIdxs, slices);
+            pickedVarId = remainingVarIds[pickedVarIdPos];
+
+            nextRemainingVarIdxs = ArrayUtils.remove(remainingVarIds, pickedVarIdPos);
         }
 
+        // int sliceCount = dataStoreAccessors.length;
+
         // Find out which variable to pick
-        // For each varId iterate all slices and find out the minimum and maximum number of valuee
-        int pickedVarIdPos = findBestSliceVarIdx(); //varDim, remainingVarIdxs, slices);
-        int pickedVarId = remainingVarIds[pickedVarIdPos];
-        ArrayShiftUtils.takeOut(remainingVarIds, remainingVarIdsLen, pickedVarIdPos);
-        --remainingVarIdsLen;
+        // For each varId iterate all slices and find out the minimum and maximum number of value
+
 
         // Find all slices that project that variable in any of its remaining components
         // Use an identity hash set in case some of the sets turn out to be references to the same set
         Set<Set<C>> valuesForPickedVarIdx = Sets.newIdentityHashSet();
-        for (SliceNode<?, C> slice : slices) {
-            int[] varInSliceComponents = slice.getComponentsForVar(pickedVarId);
+        for (SliceNode2<C> slice : slices) {
+            //SliceNode<?, C> slice : slices
+            int[] varInSliceComponents = slice.getVarIdxToTupleIdxs()[pickedVarId];
 
             if (varInSliceComponents != null) {
                 for(int tupleIdx : varInSliceComponents) {
+//                    Object store = dataStores[i];
                     Set<C> valuesContrib = slice.getValuesForComponent(tupleIdx);
+                    // Set<C> valuesContrib = slice.getValuesForComponent(tupleIdx);
 
                     valuesForPickedVarIdx.add(valuesContrib);
                 }
@@ -420,61 +457,82 @@ class StateSpaceSearch<A, C> {
             break;
         }
 
-        List<SliceNode<?, C>> sliceableByPickedVar;
-        List<SliceNode<?, C>> nonSliceableByPickedVar;
-        if (slices.size() != 1) {
-            sliceableByPickedVar = new ArrayList<>();
-            nonSliceableByPickedVar = new ArrayList<>();
+        List<SliceNode2<C>> nonSliceableByPickedVar;
+        List<SliceNode2<C>.Slicer> slicersByPickedVar;
+        if (slices.length == 1) {
+            SliceNode2<C> slice = slices[0];
+            if (slice.hasRemainingVarIdx(pickedVarId)) {
+                slicersByPickedVar = Collections.singletonList(slice.slicerForVarIdx(pickedVarId));
+                nonSliceableByPickedVar = Collections.emptyList();
+            } else {
+                slicersByPickedVar = Collections.emptyList();
+                nonSliceableByPickedVar = Collections.singletonList(slice);
+            }
+        } else {
+            slicersByPickedVar = new ArrayList<>(slices.length);
+            nonSliceableByPickedVar = new ArrayList<>(slices.length);
 
-            for (SliceNode<?, C> slice : slices) {
+            for (SliceNode2<C> slice : slices) {
                 if (slice.hasRemainingVarIdx(pickedVarId)) {
-                    sliceableByPickedVar.add(slice);
+                    SliceNode2<C>.Slicer slicer = slice.slicerForVarIdx(pickedVarId);
+                    slicersByPickedVar.add(slicer);
                 } else {
                     nonSliceableByPickedVar.add(slice);
                 }
             }
-        } else {
-            SliceNode<?, C> slice = slices.get(0);
-            if (slice.hasRemainingVarIdx(pickedVarId)) {
-                sliceableByPickedVar = Collections.singletonList(slice);
-                nonSliceableByPickedVar = Collections.emptyList();
-            } else {
-                sliceableByPickedVar = Collections.emptyList();
-                nonSliceableByPickedVar = Collections.singletonList(slice);
-            }
-
         }
+
+
+        @SuppressWarnings("unchecked")
+        SliceNode2<C>[] staticPart = nonSliceableByPickedVar.toArray(new SliceNode2[0]);
+        int staticPartLen = staticPart.length;
+
+        int maxDynamicPartSize = slices.length - staticPart.length;
 
         // Test whether to set the flag that the next iteration should abort after the first match
         // If this call already has the flag set there is no need to recheck it
         boolean abortNextRecursionOnMatch = abortOnMatch || testAbortOnMatch.test(nextRemainingVarIdxs);
 
-        Stream<A> tmpStream = remainingValuesOfPickedVar.stream().flatMap(value -> {
-            // Perhaps Interables.concat?
-            List<SliceNode<?, C>> allNextSlices = new ArrayList<>(nonSliceableByPickedVar);
 
-            for (SliceNode<?, C> slice : sliceableByPickedVar) {
-                SliceNode<?, C> nextSlice = slice.sliceOnVarIdxAndValue(pickedVarId, value);
+        Stream<A> tmpStream;
+        if (nextRemainingVarIdxs.length > 1) {
 
-                if (nextSlice != null) {
-                    if (nextSlice.getRemainingVars().length != 0) {
-                        allNextSlices.add(nextSlice);
+            tmpStream = remainingValuesOfPickedVar.stream().flatMap(value -> {
+                @SuppressWarnings("unchecked")
+                SliceNode2<C>[] rawDynamicPart = new SliceNode2[maxDynamicPartSize];
+                int usedDynamicPartLen = 0;
+
+                for (SliceNode2<C>.Slicer slicer : slicersByPickedVar) {
+                    SliceNode2<C> nextSlice = slicer.apply(value);
+
+                    if (nextSlice != null) {
+                        if (nextSlice.getRemainingVars().length != 0) {
+                            rawDynamicPart[usedDynamicPartLen++] = nextSlice;
+                        }
                     }
                 }
-            }
 
-            A nextAccumulator = reducer.reduce(accumulator, pickedVarId, value);
+                @SuppressWarnings("unchecked")
+                SliceNode2<C>[] nextSlices = new SliceNode2[staticPartLen + usedDynamicPartLen];
+                System.arraycopy(staticPart, 0, nextSlices, 0, staticPartLen);
+                System.arraycopy(rawDynamicPart, 0, nextSlices, staticPartLen, usedDynamicPartLen);
 
-            // All slices that mentioned a certain var are now constrained to one of the
-            // var's value
-            return appendAction(
-                    recurse(nextAccumulator),
-                    () -> {
-                        ++remainingVarIdsLen;
-                        ArrayShiftUtils.putBack(remainingVarIds, remainingVarIdsLen, pickedVarIdPos, pickedVarId);
-                    });
-        });
+                A nextAccumulator = reducer.reduce(accumulator, pickedVarId, value);
 
+                // All slices that mentioned a certain var are now constrained to one of the
+                // var's value
+                return recurse(
+                        nextAccumulator,
+                        nextRemainingVarIdxs,
+                        nextSlices,
+                        abortNextRecursionOnMatch);
+            });
+        } else {
+            tmpStream = remainingValuesOfPickedVar.stream().map(value -> {
+                A nextAccumulator = reducer.reduce(accumulator, pickedVarId, value);
+                return nextAccumulator;
+            });
+        }
 //        Stream<A> result = tmpStream;
         Stream<A> result = abortOnMatch
                 ? tmpStream.limit(1)
@@ -519,14 +577,16 @@ class StateSpaceSearch<A, C> {
      * @param slices
      * @return
      */
-    // List<SliceNode<?, C>> slices
-
-    int[] mins = new int[varDim];
-    public int findBestSliceVarIdx() {
+    public int findBestSliceVarIdx(
+            int[] remainingVarIds,
+            SliceNode2<C>[] slices
+         ) {
+        int[] mins = new int[varDim];
+        int remainingVarIdsLen = remainingVarIds.length;
 
         int bestVarIdx = remainingVarIds[0];
 
-        if (remainingVarIdsLen> 1) {
+        if (remainingVarIds.length > 1) {
 //            int varDim = varIdxToValues.size();
             // int[] maxs = new int[varDim];
 
@@ -543,7 +603,7 @@ class StateSpaceSearch<A, C> {
             // Arrays.fill(varIdxToNumDifferentSizes, 0);
 //            Arrays.fill(maxs, 0);
 
-            for (SliceNode<?, C> slice : slices) {
+            for (SliceNode2<C> slice : slices) {
 
                 for (int varIdx : slice.getRemainingVars()) {
                     Set<C> minSet = slice.getSmallestValueSetForVarIdx(varIdx);
@@ -559,7 +619,7 @@ class StateSpaceSearch<A, C> {
                 }
             }
 
-            for (SliceNode<?, C> slice : slices) {
+            for (SliceNode2<C> slice : slices) {
                 for (int varIdx : slice.getRemainingVars()) {
                     int mmax = slice.getLargestValueSetForVarIdx(varIdx).size();
 
@@ -576,7 +636,7 @@ class StateSpaceSearch<A, C> {
             int varIdxIdx = 0;
             // for (int varIdx : remainingVarIdxs) {
             for (int i = 0; i < remainingVarIdsLen; ++i) {
-                int varIdx = remainingVarIdx[i];
+                int varIdx = remainingVarIds[i];
                 float score = varToScore[varIdx];
 
                 if (score < bestVarIdxScore) {
