@@ -90,8 +90,11 @@ public class SliceNode2<C> {
 
         public SliceNode2<C> apply(C value) {
             Object subStore = storeAccessor.getStoreForSliceByComponentByValue(store, bestMatchTupleIdx, value);
-            HyperTrieAccessor<C> subAccessor = storeAccessor.getAccessorForComponent(bestMatchTupleIdx);
-            SliceNode2<C> result = new SliceNode2<>(subStore, subAccessor, nextRemainingVarIdxs, varIdxToTupleIdxs);
+            SliceNode2<C> result = null;
+            if (subStore != null) {
+                HyperTrieAccessor<C> subAccessor = storeAccessor.getAccessorForComponent(bestMatchTupleIdx);
+                result = new SliceNode2<>(subStore, subAccessor, nextRemainingVarIdxs, varIdxToTupleIdxs);
+            }
             return result;
         }
     }
