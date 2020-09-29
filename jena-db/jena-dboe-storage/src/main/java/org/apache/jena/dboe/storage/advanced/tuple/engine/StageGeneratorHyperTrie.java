@@ -118,7 +118,7 @@ public class StageGeneratorHyperTrie
                 StorageNodeBased<?, ?, ?> snb = (StorageNodeBased<?, ?, ?>)ttc;
 
                 storageNode = snb.getStorageNode();
-                store = snb.getStorageNode();
+                store = snb.getStore();
             } else {
                 throw new RuntimeException("TripleTableCore does not implement StorageNodeBased");
             }

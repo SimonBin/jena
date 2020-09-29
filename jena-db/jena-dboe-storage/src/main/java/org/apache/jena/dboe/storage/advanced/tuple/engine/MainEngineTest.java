@@ -12,6 +12,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
+import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromHyperTrie;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNode;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNodeWithCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
@@ -222,7 +223,7 @@ public class MainEngineTest {
 //                = TupleCodecDictionary.createForInts(TupleAccessorTripleAnyToNull.INSTANCE);
 
             tripleTableCore =
-                    TripleTableFromStorageNode.create(storage);
+                    TripleTableFromHyperTrie.create(storage);
 
         }
 

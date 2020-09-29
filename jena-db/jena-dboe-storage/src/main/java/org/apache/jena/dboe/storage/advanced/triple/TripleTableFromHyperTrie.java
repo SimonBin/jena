@@ -13,14 +13,21 @@ public class TripleTableFromHyperTrie<V>
 {
     protected HyperTrieAccessor<Node> hyperTrieAccessor;
 
-    public TripleTableFromHyperTrie(StorageNodeMutable<Triple, Node, V> rootStorageNode, V store) {
+    public TripleTableFromHyperTrie(StorageNodeMutable<Triple, Node, V> rootStorageNode, V store,
+            HyperTrieAccessor<Node> hyperTrieAccessor) {
         super(rootStorageNode, store);
-        this.hyperTrieAccessor = HyperTrieAccessors.index(rootStorageNode);
+        this.hyperTrieAccessor = hyperTrieAccessor;
     }
 
     @Override
     public HyperTrieAccessor<Node> getHyperTrieAccessor() {
         return hyperTrieAccessor;
+    }
+
+    public static <V> TripleTableFromHyperTrie<V> create(StorageNodeMutable<Triple, Node, V> rootStorageNode) {
+        V store = rootStorageNode.newStore();
+        HyperTrieAccessor<Node> hyperTrieAccessor = HyperTrieAccessors.index(rootStorageNode);
+        return new TripleTableFromHyperTrie<V>(rootStorageNode, store, hyperTrieAccessor);
     }
 
 }

@@ -365,6 +365,9 @@ public class EinsteinSummationFaster {
  * @param <C>
  */
 class StateSpaceSearch<A, C> {
+
+    public static final int[] EMPTY_INT_ARRAY = new int[0];
+
     int varDim;
     protected Predicate<int[]> testAbortOnMatch; // A predicate that can become true if the remaining varIdxs do not contain any distinguished variable
     protected IndexedKeyReducer<A, C> reducer; // receives varIdx and value
@@ -378,6 +381,7 @@ class StateSpaceSearch<A, C> {
         this.reducer = reducer;
         this.testAbortOnMatch = testAbortOnMatch;
     }
+
 
 
     public Stream<A> recurse(
@@ -396,10 +400,10 @@ class StateSpaceSearch<A, C> {
         case 1:
             // Shortcut for the last iteration
             pickedVarId = remainingVarIds[0];
-            nextRemainingVarIdxs = null;
+            nextRemainingVarIdxs = EMPTY_INT_ARRAY;
             break;
         default:
-            int pickedVarIdPos = findBestSliceVarIdx(remainingVarIds, slices); //varDim, remainingVarIdxs, slices);
+            int pickedVarIdPos = findBestSliceVarIdxPos(remainingVarIds, slices); //varDim, remainingVarIdxs, slices);
             pickedVarId = remainingVarIds[pickedVarIdPos];
 
             nextRemainingVarIdxs = ArrayUtils.remove(remainingVarIds, pickedVarIdPos);
@@ -495,7 +499,7 @@ class StateSpaceSearch<A, C> {
 
 
         Stream<A> tmpStream;
-        if (nextRemainingVarIdxs.length > 1) {
+        if (nextRemainingVarIdxs.length > 0) {
 
             tmpStream = remainingValuesOfPickedVar.stream().flatMap(value -> {
                 @SuppressWarnings("unchecked")
@@ -577,14 +581,15 @@ class StateSpaceSearch<A, C> {
      * @param slices
      * @return
      */
-    public int findBestSliceVarIdx(
+    public int findBestSliceVarIdxPos(
             int[] remainingVarIds,
             SliceNode2<C>[] slices
          ) {
         int[] mins = new int[varDim];
         int remainingVarIdsLen = remainingVarIds.length;
 
-        int bestVarIdx = remainingVarIds[0];
+        // int bestVarIdx = remainingVarIds[0];
+        int bestVarIdxPos = 0;
 
         if (remainingVarIds.length > 1) {
 //            int varDim = varIdxToValues.size();
@@ -632,20 +637,21 @@ class StateSpaceSearch<A, C> {
                 varToScore[varIdx] /= (float)numInvolvedSetSizes;
             }
 
-            float bestVarIdxScore = varToScore[bestVarIdx];
-            int varIdxIdx = 0;
+            float bestVarIdxScore = varToScore[remainingVarIds[bestVarIdxPos]];
+//            int varIdxIdx = 0;
             // for (int varIdx : remainingVarIdxs) {
-            for (int i = 0; i < remainingVarIdsLen; ++i) {
+
+            for (int i = 1; i < remainingVarIdsLen; ++i) {
                 int varIdx = remainingVarIds[i];
                 float score = varToScore[varIdx];
 
                 if (score < bestVarIdxScore) {
                     bestVarIdxScore = score;
-                    bestVarIdx = varIdx;
+                    bestVarIdxPos = i;
                 }
             }
         }
-        return bestVarIdx;
+        return bestVarIdxPos;
     }
 
 }
