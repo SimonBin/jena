@@ -42,12 +42,12 @@ import org.apache.jena.sparql.engine.main.StageBuilder;
 public class MainEngineTest {
 
     public static void main(String[] args) throws IOException {
-//        String datasetFile = "/home/raven/research/jena-vs-tentris/data/swdf/swdf.nt";
+        String datasetFile = "/home/raven/research/jena-vs-tentris/data/swdf/swdf.nt";
 //        String datasetFile = "/home/raven/research/jena-vs-tentris/data/watdiv/watdiv-15.nt";
-        String datasetFile = "/home/raven/research/jena-vs-tentris/data/watdiv/watdiv-100.nt";
+//        String datasetFile = "/home/raven/research/jena-vs-tentris/data/watdiv/watdiv-100.nt";
 
-//        String queriesFile = "/home/raven/research/jena-vs-tentris/data/swdf/SWDF-Queries.txt";
-        String queriesFile = "/home/raven/research/jena-vs-tentris/data/watdiv/WatDiv-Queries.txt";
+        String queriesFile = "/home/raven/research/jena-vs-tentris/data/swdf/SWDF-Queries.txt";
+//        String queriesFile = "/home/raven/research/jena-vs-tentris/data/watdiv/WatDiv-Queries.txt";
 
 
         Collection<String> workloads = Files.readAllLines(
@@ -61,6 +61,7 @@ public class MainEngineTest {
 
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o }");
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o . ?x ?z ?y }");
+//      workloads = Arrays.asList("SELECT DISTINCT * { ?s ?p ?o }");
 
 
         init(0, datasetFile, workloads);

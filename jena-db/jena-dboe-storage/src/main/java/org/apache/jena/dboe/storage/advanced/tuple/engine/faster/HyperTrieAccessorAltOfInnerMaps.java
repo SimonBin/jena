@@ -5,6 +5,7 @@ import java.util.Set;
 
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
 
+
 public class HyperTrieAccessorAltOfInnerMaps<C>
     implements HyperTrieAccessor<C>
 {

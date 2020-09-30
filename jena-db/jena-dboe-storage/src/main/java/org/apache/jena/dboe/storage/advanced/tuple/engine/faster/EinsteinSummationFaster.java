@@ -384,7 +384,190 @@ class StateSpaceSearch<A, C> {
 
 
 
+
+
     public Stream<A> recurse(
+            A accumulator,
+            int[] remainingVarIds,
+            SliceNode2<C>[] slices,
+            boolean abortOnMatch
+            )
+        {
+            int pickedVarId;
+            int[] nextRemainingVarIdxs;
+
+            switch (remainingVarIds.length) {
+            case 0:
+                return Stream.of(accumulator);
+            case 1:
+                // Shortcut for the last iteration
+                pickedVarId = remainingVarIds[0];
+                nextRemainingVarIdxs = EMPTY_INT_ARRAY;
+                break;
+            default:
+                int pickedVarIdPos = findBestSliceVarIdxPos(remainingVarIds, slices); //varDim, remainingVarIdxs, slices);
+                pickedVarId = remainingVarIds[pickedVarIdPos];
+
+                nextRemainingVarIdxs = ArrayUtils.remove(remainingVarIds, pickedVarIdPos);
+            }
+
+            // Find all slices that project that variable in any of its remaining components
+            // Use an identity hash set in case some of the sets turn out to be references to the same set
+
+            // The optimization is the following is that the identity hash set is only allocated if
+            // there is more than a single set of a variable involved
+
+            Set<C> remainingValuesOfPickedVar = null;
+
+
+            Set<Set<C>> valuesForPickedVarIdx = null;
+            for (SliceNode2<C> slice : slices) {
+                int[] varInSliceComponents = slice.getVarIdxToTupleIdxs()[pickedVarId];
+
+                if (varInSliceComponents != null) {
+                    for(int tupleIdx : varInSliceComponents) {
+                        Set<C> valuesContrib = slice.getValuesForComponent(tupleIdx);
+
+                        if (remainingValuesOfPickedVar == null) {
+                            remainingValuesOfPickedVar = valuesContrib;
+                        } else {
+                            if (valuesForPickedVarIdx == null) {
+                                if (remainingValuesOfPickedVar != valuesContrib) {
+                                    valuesForPickedVarIdx = Sets.newIdentityHashSet();
+                                    valuesForPickedVarIdx.add(remainingValuesOfPickedVar);
+                                    valuesForPickedVarIdx.add(valuesContrib);
+                                }
+                            } else {
+                                valuesForPickedVarIdx.add(valuesContrib);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Created the intersection of all value sets
+            // Sort the contributions by size (smallest first)
+
+            if (valuesForPickedVarIdx != null) {
+                switch (valuesForPickedVarIdx.size()) {
+                case 0:
+                    remainingValuesOfPickedVar = Collections.emptySet();
+                    break;
+                case 1:
+                    remainingValuesOfPickedVar = valuesForPickedVarIdx.iterator().next();
+                    break;
+                default: // (valueContribs.size() > 1)
+                    List<Set<C>> valueContribs = new ArrayList<>(valuesForPickedVarIdx);
+
+                    // The sorting of the sets by size is VERY important!
+                    // Consider computing the intersection between two sets of sizes 100.000 and 1
+                    // We do not want to copy 100K values just to retain 1
+                    Collections.sort(valueContribs, (a, b) -> a.size() - b.size());
+
+                    remainingValuesOfPickedVar = new HashSet<>(valueContribs.get(0));
+                    for (int i = 1; i < valueContribs.size(); ++i) {
+                        Set<C> contrib = valueContribs.get(i);
+                        remainingValuesOfPickedVar.retainAll(contrib);
+                    }
+                    break;
+                }
+            }
+
+            int staticPartIdx = 0;
+            int slicersIdx = 0;
+            for (SliceNode2<C> slice : slices) {
+                if (slice.hasRemainingVarIdx(pickedVarId)) {
+                    if (slice.getRemainingVars().length > 1) {
+                        ++slicersIdx;
+                    }
+
+                } else {
+                    ++staticPartIdx;
+                }
+            }
+
+            int staticPartLen = staticPartIdx;
+            int slicersByPickedVarCount = slicersIdx;
+
+            @SuppressWarnings("unchecked")
+            SliceNode2<C>[] staticPart = new SliceNode2[staticPartLen];
+            @SuppressWarnings("unchecked")
+            SliceNode2<C>.Slicer[] slicersByPickedVar = new SliceNode2.Slicer[slicersByPickedVarCount];
+
+
+            slicersIdx = 0;
+            staticPartIdx = 0;
+            for (SliceNode2<C> slice : slices) {
+                if (slice.hasRemainingVarIdx(pickedVarId)) {
+                    if (slice.getRemainingVars().length > 1) {
+                        SliceNode2<C>.Slicer slicer = slice.slicerForVarIdx(pickedVarId);
+                        slicersByPickedVar[slicersIdx++] = slicer;
+                    }
+
+                } else {
+                    staticPart[staticPartIdx++] = slice;
+                }
+            }
+
+
+            int totalNextSlicesCount = staticPartLen + slicersByPickedVarCount;
+
+            // Test whether to set the flag that the next iteration should abort after the first match
+            // If this call already has the flag set there is no need to recheck it
+            boolean abortNextRecursionOnMatch = abortOnMatch || testAbortOnMatch.test(nextRemainingVarIdxs);
+
+
+            Stream<A> tmpStream;
+            if (nextRemainingVarIdxs.length > 0) {
+
+                @SuppressWarnings("unchecked")
+                SliceNode2<C>[] nextSlices = new SliceNode2[totalNextSlicesCount];
+                System.arraycopy(staticPart, 0, nextSlices, 0, staticPartLen);
+
+                tmpStream = remainingValuesOfPickedVar.stream().flatMap(value -> {
+                    for (int i = 0; i < slicersByPickedVarCount; ++i) {
+                        // The values are based on the intersection of the involved slices' value sets
+                        // So slicing must always succeed
+                        SliceNode2<C>.Slicer slicer = slicersByPickedVar[i];
+                        SliceNode2<C> nextSlice = slicer.apply(value);
+
+                        if (nextSlice == null) {
+                            System.out.println("WTF");
+                        }
+
+                        nextSlices[staticPartLen + i] = nextSlice;
+                    }
+
+                    A nextAccumulator = reducer.reduce(accumulator, pickedVarId, value);
+
+                    // All slices that mentioned a certain var are now constrained to one of the
+                    // var's value
+                    return recurse(
+                            nextAccumulator,
+                            nextRemainingVarIdxs,
+                            nextSlices,
+                            abortNextRecursionOnMatch);
+                });
+            } else {
+                tmpStream = remainingValuesOfPickedVar.stream().map(value -> {
+                    A nextAccumulator = reducer.reduce(accumulator, pickedVarId, value);
+                    return nextAccumulator;
+                });
+            }
+//            Stream<A> result = tmpStream;
+            Stream<A> result = abortOnMatch
+                    ? tmpStream.limit(1)
+                    : tmpStream;
+
+            return result;
+        }
+
+
+
+
+
+
+    public Stream<A> recurseBasic(
         A accumulator,
         int[] remainingVarIds,
         SliceNode2<C>[] slices,
@@ -500,6 +683,10 @@ class StateSpaceSearch<A, C> {
 
         Stream<A> tmpStream;
         if (nextRemainingVarIdxs.length > 0) {
+//            @SuppressWarnings("unchecked")
+//            SliceNode2<C>[] nextSlices = new SliceNode2[staticPartLen + maxDynamicPartSize];
+//            System.arraycopy(staticPart, 0, nextSlices, 0, staticPartLen);
+
 
             tmpStream = remainingValuesOfPickedVar.stream().flatMap(value -> {
                 @SuppressWarnings("unchecked")
@@ -507,13 +694,18 @@ class StateSpaceSearch<A, C> {
                 int usedDynamicPartLen = 0;
 
                 for (SliceNode2<C>.Slicer slicer : slicersByPickedVar) {
+                    // The values are based on the intersection of the involved slices' value sets
+                    // So slicing must always succeed
                     SliceNode2<C> nextSlice = slicer.apply(value);
 
-                    if (nextSlice != null) {
+//                    if (nextSlice != null) {
                         if (nextSlice.getRemainingVars().length != 0) {
                             rawDynamicPart[usedDynamicPartLen++] = nextSlice;
                         }
-                    }
+//                    } else {
+//                        throw new RuntimeException("interesting");
+////                        return Stream.empty();
+//                    }
                 }
 
                 @SuppressWarnings("unchecked")
@@ -525,7 +717,7 @@ class StateSpaceSearch<A, C> {
 
                 // All slices that mentioned a certain var are now constrained to one of the
                 // var's value
-                return recurse(
+                return recurseBasic(
                         nextAccumulator,
                         nextRemainingVarIdxs,
                         nextSlices,
@@ -591,66 +783,66 @@ class StateSpaceSearch<A, C> {
         // int bestVarIdx = remainingVarIds[0];
         int bestVarIdxPos = 0;
 
-        if (remainingVarIds.length > 1) {
+//        if (remainingVarIds.length > 1) {
 //            int varDim = varIdxToValues.size();
-            // int[] maxs = new int[varDim];
+        // int[] maxs = new int[varDim];
 
-            @SuppressWarnings("unchecked")
-            Set<Integer>[] varIdxToInvolvedSetSizes = (Set<Integer>[])new Set[varDim];
-            for (int varIdx : remainingVarIds) {
-                varIdxToInvolvedSetSizes[varIdx] = new HashSet<>();
-            }
+        @SuppressWarnings("unchecked")
+        Set<Integer>[] varIdxToInvolvedSetSizes = (Set<Integer>[])new Set[varDim];
+        for (int varIdx : remainingVarIds) {
+            varIdxToInvolvedSetSizes[varIdx] = new HashSet<>();
+        }
 
-            float[] varToScore = new float[varDim];
+        float[] varToScore = new float[varDim];
 
-            Arrays.fill(mins, Integer.MAX_VALUE);
-            Arrays.fill(varToScore, 1.0f);
-            // Arrays.fill(varIdxToNumDifferentSizes, 0);
+        Arrays.fill(mins, Integer.MAX_VALUE);
+        Arrays.fill(varToScore, 1.0f);
+        // Arrays.fill(varIdxToNumDifferentSizes, 0);
 //            Arrays.fill(maxs, 0);
 
-            for (SliceNode2<C> slice : slices) {
+        for (SliceNode2<C> slice : slices) {
 
-                for (int varIdx : slice.getRemainingVars()) {
-                    Set<C> minSet = slice.getSmallestValueSetForVarIdx(varIdx);
-                    int min = minSet.size();
+            for (int varIdx : slice.getRemainingVars()) {
+                Set<C> minSet = slice.getSmallestValueSetForVarIdx(varIdx);
+                int min = minSet.size();
 
-                    mins[varIdx] = Math.min(mins[varIdx], min);
+                mins[varIdx] = Math.min(mins[varIdx], min);
 
 
-                    Set<Integer> involvedSetSizes = varIdxToInvolvedSetSizes[varIdx];
-                    Set<C> maxSet = slice.getLargestValueSetForVarIdx(varIdx);
-                    involvedSetSizes.add(min);
-                    involvedSetSizes.add(maxSet.size());
-                }
-            }
-
-            for (SliceNode2<C> slice : slices) {
-                for (int varIdx : slice.getRemainingVars()) {
-                    int mmax = slice.getLargestValueSetForVarIdx(varIdx).size();
-
-                    varToScore[varIdx] *= (mins[varIdx] / (float)mmax);
-                }
-            }
-
-            for (int varIdx : remainingVarIds) {
-                int numInvolvedSetSizes = varIdxToInvolvedSetSizes[varIdx].size();
-                varToScore[varIdx] /= (float)numInvolvedSetSizes;
-            }
-
-            float bestVarIdxScore = varToScore[remainingVarIds[bestVarIdxPos]];
-//            int varIdxIdx = 0;
-            // for (int varIdx : remainingVarIdxs) {
-
-            for (int i = 1; i < remainingVarIdsLen; ++i) {
-                int varIdx = remainingVarIds[i];
-                float score = varToScore[varIdx];
-
-                if (score < bestVarIdxScore) {
-                    bestVarIdxScore = score;
-                    bestVarIdxPos = i;
-                }
+                Set<Integer> involvedSetSizes = varIdxToInvolvedSetSizes[varIdx];
+                Set<C> maxSet = slice.getLargestValueSetForVarIdx(varIdx);
+                involvedSetSizes.add(min);
+                involvedSetSizes.add(maxSet.size());
             }
         }
+
+        for (SliceNode2<C> slice : slices) {
+            for (int varIdx : slice.getRemainingVars()) {
+                int mmax = slice.getLargestValueSetForVarIdx(varIdx).size();
+
+                varToScore[varIdx] *= (mins[varIdx] / (float)mmax);
+            }
+        }
+
+        for (int varIdx : remainingVarIds) {
+            int numInvolvedSetSizes = varIdxToInvolvedSetSizes[varIdx].size();
+            varToScore[varIdx] /= (float)numInvolvedSetSizes;
+        }
+
+        float bestVarIdxScore = varToScore[remainingVarIds[bestVarIdxPos]];
+//            int varIdxIdx = 0;
+        // for (int varIdx : remainingVarIdxs) {
+
+        for (int i = 1; i < remainingVarIdsLen; ++i) {
+            int varIdx = remainingVarIds[i];
+            float score = varToScore[varIdx];
+
+            if (score < bestVarIdxScore) {
+                bestVarIdxScore = score;
+                bestVarIdxPos = i;
+            }
+        }
+//        }
         return bestVarIdxPos;
     }
 
