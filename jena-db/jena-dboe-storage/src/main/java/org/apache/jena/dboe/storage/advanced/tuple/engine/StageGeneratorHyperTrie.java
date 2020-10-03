@@ -150,7 +150,6 @@ public class StageGeneratorHyperTrie
             @Override
             protected QueryIterator nextStage(Binding binding) {
                 QueryIterBgpHyperTrie r = new QueryIterBgpHyperTrie(binding, pattern, execCxt, distinct, projection);
-                r.initIterator();
                 return r;
             }
         };

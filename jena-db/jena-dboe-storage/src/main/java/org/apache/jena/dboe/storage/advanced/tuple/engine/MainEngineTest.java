@@ -62,6 +62,7 @@ public class MainEngineTest {
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o }");
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o . ?x ?z ?y }");
 //      workloads = Arrays.asList("SELECT DISTINCT * { ?s ?p ?o }");
+      workloads = Arrays.asList("SELECT * { ?s ?p ?o }");
 
 
         init(0, datasetFile, workloads);
@@ -177,7 +178,7 @@ public class MainEngineTest {
 
                     bindingCounter += count;
                     long elapsed = executionTimeSw.elapsed(TimeUnit.MILLISECONDS);
-                    System.out.println("Execution time: " + elapsed + " - result set size: " + count);
+//                    System.out.println("Execution time: " + elapsed + " - result set size: " + count);
 
                     if (elapsed > 500) {
                         System.out.println("  SLOW: " + queryStr);
