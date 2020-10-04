@@ -42,12 +42,12 @@ import org.apache.jena.sparql.engine.main.StageBuilder;
 public class MainEngineTest {
 
     public static void main(String[] args) throws IOException {
-        String datasetFile = "/home/raven/research/jena-vs-tentris/data/swdf/swdf.nt";
-//        String datasetFile = "/home/raven/research/jena-vs-tentris/data/watdiv/watdiv-15.nt";
+//        String datasetFile = "/home/raven/research/jena-vs-tentris/data/swdf/swdf.nt";
+        String datasetFile = "/home/raven/research/jena-vs-tentris/data/watdiv/watdiv-15.nt";
 //        String datasetFile = "/home/raven/research/jena-vs-tentris/data/watdiv/watdiv-100.nt";
 
-        String queriesFile = "/home/raven/research/jena-vs-tentris/data/swdf/SWDF-Queries.txt";
-//        String queriesFile = "/home/raven/research/jena-vs-tentris/data/watdiv/WatDiv-Queries.txt";
+//        String queriesFile = "/home/raven/research/jena-vs-tentris/data/swdf/SWDF-Queries.txt";
+        String queriesFile = "/home/raven/research/jena-vs-tentris/data/watdiv/WatDiv-Queries.txt";
 
 
         Collection<String> workloads = Files.readAllLines(
@@ -62,7 +62,9 @@ public class MainEngineTest {
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o }");
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o . ?x ?z ?y }");
 //      workloads = Arrays.asList("SELECT DISTINCT * { ?s ?p ?o }");
-      workloads = Arrays.asList("SELECT * { ?s ?p ?o }");
+//      workloads = Arrays.asList("SELECT * { ?s ?p ?o }");
+//      workloads = Arrays.asList("SELECT DISTINCT ?s { ?s ?p ?o }");
+//      workloads = Arrays.asList("PREFIX  swrc: <http://swrc.ontoware.org/ontology#> PREFIX  rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> PREFIX  foaf: <http://xmlns.com/foaf/0.1/>  SELECT DISTINCT  ?authorname ?affiliationname WHERE   { ?person   rdf:type          foaf:Person ;               foaf:name         ?authorname ;               swrc:affiliation  ?affiliation .     ?affiliation  foaf:name     ?affiliationname   }");
 
 
         init(0, datasetFile, workloads);

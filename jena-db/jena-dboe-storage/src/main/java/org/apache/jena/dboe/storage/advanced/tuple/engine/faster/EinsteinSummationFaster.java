@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -151,6 +151,8 @@ public class EinsteinSummationFaster {
             BiReducer<A, C0, C0> reducer // first C = variable, second C = value; both as Nodes
             )
     {
+        boolean postProcessDistinct = false;
+
         int tupleDim = tupleAccessor.getDimension();
 
         // First find out the set of variables
@@ -201,6 +203,8 @@ public class EinsteinSummationFaster {
                         .filter(e -> e.getValue() > 1).map(Entry::getKey).collect(Collectors.toSet());
 
                 nonDistinguishedVars = Sets.difference(essentialVars, distinguishedVars);
+
+                postProcessDistinct = !nonDistinguishedVars.isEmpty();
             } else {
                 nonDistinguishedVars = Sets.difference(mentionedVars.keySet(), distinguishedVars);
             }
@@ -255,7 +259,7 @@ public class EinsteinSummationFaster {
                     varIdxToTupleIdxs[varIdx] = ArrayUtils.add(varIdxToTupleIdxs[varIdx], i);
                 }
             }
-            SliceNode2<C> tupleSlice = new SliceNode2<>(store, rootNode, remainingVarIdxs, varIdxToTupleIdxs);
+            SliceNode2<C> tupleSlice = SliceNode2.create(store, rootNode, remainingVarIdxs, varIdxToTupleIdxs);
 
             // specialize the tuples in the btp by the mentioned constants
             for (int i = 0; i < tupleDim; ++i) {
@@ -315,23 +319,39 @@ public class EinsteinSummationFaster {
                     return r;
                 };
 
-        @SuppressWarnings("unchecked")
-        SliceNode2<C>[] initialSlicesArr = initialSlices.toArray(new SliceNode2[0]);
+//        @SuppressWarnings("unchecked")
+//        SliceNode2<C>[] initialSlicesArr = initialSlices.toArray(new SliceNode2[0]);
+        int n = initialSlices.size();
 
         Stream<A> stream;
-        if (initialSlicesArr.length == 0) {
+        if (n == 0) {
             stream = Stream.empty();
         } else {
+            @SuppressWarnings("unchecked")
+            SliceNode2Accessor<C>[] sliceAccessors = new SliceNode2Accessor[n];
+            Object[] stores = new Object[n];
+
+            for (int i = 0; i < n; ++i) {
+                SliceNode2<C> sliceNode = initialSlices.get(i);
+                sliceAccessors[i] = sliceNode.getSliceAccessor();
+                stores[i] = sliceNode.getStore();
+            }
 
             // Do not execute anything unless an operation is invoked on the stream
             StateSpaceSearch<A, C> search = new StateSpaceSearch<>(varDim, varIdxBasedReducer, testAbortOnMatch);
             stream = Stream.of(initialAccumulator).flatMap(acc -> search.recurse(
                     acc,
                     varIdxs,
-                    initialSlicesArr,
+                    sliceAccessors,
+                    stores,
                     false
                     ));
         }
+
+        if (postProcessDistinct) {
+            stream = stream.distinct();
+        }
+
 //        Stream<A> stream = Stream.of(initialAccumulator).flatMap(acc -> recurse(
 //                varDim,
 //                varIdxs,
@@ -427,6 +447,98 @@ class StateSpaceSearch<A, C> {
         Stream<A> apply(A acc, Object store, C value);
     }
 
+    public abstract class PreparedSliceProcessorBase
+        implements PreparedSliceProcessor<A, C>
+    {
+        protected int nextVarId;
+        protected Slicer<C> slicer;
+        protected Slicer<C> nextSlicer;
+        protected boolean abortOnMatch;
+
+        public PreparedSliceProcessorBase(int nextVarId, Slicer<C> slicer, Slicer<C> nextSlicer, boolean abortOnMatch) {
+            super();
+            this.nextVarId = nextVarId;
+            this.slicer = slicer;
+            this.nextSlicer = nextSlicer;
+            this.abortOnMatch = abortOnMatch;
+        }
+
+        @Override
+        public Stream<A> apply(A acc, Object store, C value) {
+            Stream<A> tmpStream = doApply(acc, store, value);
+            Stream<A> result = abortOnMatch
+                    ? tmpStream.limit(1)
+                    : tmpStream;
+            return result;
+
+        }
+
+        public abstract Stream<A> doApply(A acc, Object store, C value);
+    }
+
+    public class PreparedSliceProcessorLeaf
+        extends PreparedSliceProcessorBase
+    {
+        public PreparedSliceProcessorLeaf(int nextVarId, Slicer<C> slicer, Slicer<C> nextSlicer, boolean abortOnMatch) {
+            super(nextVarId, slicer, nextSlicer, abortOnMatch);
+        }
+
+        public Stream<A> doApply(A acc, Object store, C value) {
+            Object nextStore = slicer.apply(store, value);
+            return nextSlicer.values(nextStore).stream().map(v -> {
+                A nextAccumulator = reducer.reduce(acc, nextVarId, v);
+                return nextAccumulator;
+            });
+        }
+
+    }
+
+
+    public class PreparedSliceProcessorInner
+        extends PreparedSliceProcessorBase
+    {
+        protected PreparedSliceProcessor<A, C> next;
+
+        public PreparedSliceProcessorInner(int nextVarId, Slicer<C> slicer, Slicer<C> nextSlicer,
+                boolean abortOnMatch, PreparedSliceProcessor<A, C> next) {
+            super(nextVarId, slicer, nextSlicer, abortOnMatch);
+            this.next = next;
+        }
+
+        @Override
+        public Stream<A> doApply(A acc, Object store, C value) {
+            Object nextStore = slicer.apply(store, value);
+
+            return nextSlicer.values(nextStore).stream().flatMap(v -> {
+                A nextAccumulator = reducer.reduce(acc, nextVarId, v);
+                return next.apply(nextAccumulator, nextStore, v);
+            });
+        }
+    }
+
+    public PreparedSliceProcessor<A, C> prepare(SliceNode2Accessor<C> sliceAccessor, int[] remainingVarIds, boolean abortOnMatch) {
+
+        int pickedVarIdPos = 0;
+        int pickedVarId = remainingVarIds[pickedVarIdPos];
+        int[] nextRemainingVarIdxs = ArrayUtils.remove(remainingVarIds, pickedVarIdPos);
+
+
+        Slicer<C> slicer = sliceAccessor.slicerForVarIdx(pickedVarId);
+        if (nextRemainingVarIdxs.length == 1) {
+            int lastVarIdx = nextRemainingVarIdxs[0];
+            Slicer<C> lastSlicer = slicer.subStoreAccessor().slicerForVarIdx(lastVarIdx);
+
+            return new PreparedSliceProcessorLeaf(lastVarIdx, slicer, lastSlicer, abortOnMatch);
+        } else {
+            boolean abortNextRecursionOnMatch = abortOnMatch || testAbortOnMatch.test(nextRemainingVarIdxs);
+            int nextVarIdx = nextRemainingVarIdxs[0];
+            Slicer<C> nextSlicer = slicer.subStoreAccessor().slicerForVarIdx(nextVarIdx);
+            PreparedSliceProcessor<A, C> next = prepare(slicer.subStoreAccessor(), nextRemainingVarIdxs, abortNextRecursionOnMatch);
+            return new PreparedSliceProcessorInner(nextVarIdx, slicer, nextSlicer, abortOnMatch, next);
+        }
+    }
+
+    /*
     public PreparedSliceProcessor<A, C> prepare(SliceNode2Accessor<C> sliceAccessor, int[] remainingVarIds) {
 
         int pickedVarIdPos = 0;
@@ -459,79 +571,115 @@ class StateSpaceSearch<A, C> {
             };
         }
     }
-
+*/
 
     // Special case to speed up serving a cartesian product from a single slice
     public Stream<A> recurseSingleSlice(
             A accumulator,
             int[] remainingVarIds,
-            SliceNode2<C>[] slices,
+            SliceNode2Accessor<C> sliceAccessor,
+            Object store,
             boolean abortOnMatch
             )
     {
         int pickedVarIdPos = 0;
         int pickedVarId = remainingVarIds[pickedVarIdPos];
-        int[] nextRemainingVarIdxs = ArrayUtils.remove(remainingVarIds, pickedVarIdPos);
+        // int[] nextRemainingVarIdxs = ArrayUtils.remove(remainingVarIds, pickedVarIdPos);
 
-        SliceNode2Accessor<C> sliceAccessor = new SliceNode2Accessor<>(slices[0].storeAccessor, slices[0].remainingVarIdxs, slices[0].varIdxToTupleIdxs);
-        Object store = slices[0].store;
+//        SliceNode2Accessor<C> sliceAccessor = new SliceNode2Accessor<>(slices[0].storeAccessor, slices[0].remainingVarIdxs, slices[0].varIdxToTupleIdxs);
+//        Object store = slices[0].store;
 //        Foobar<A, C> fn = prepare(sliceAccessor, nextRemainingVarIdxs);
-        PreparedSliceProcessor<A, C> fn = prepare(sliceAccessor, remainingVarIds);
+
 //        return fn.apply(accumulator, str, null);
         Slicer<C> slicer = sliceAccessor.slicerForVarIdx(pickedVarId);
         Set<C> values = slicer.values(store);
-//
-        Stream<A> result = values.stream().flatMap(v -> {
-//            Object nextStore = slicer.apply(str, v);
-            A nextAccumulator = reducer.reduce(accumulator, pickedVarId, v);
-            return fn.apply(nextAccumulator, store, v);
-        });
+
+        Stream<A> tmpStream;
+        if (remainingVarIds.length > 1) {
+            PreparedSliceProcessor<A, C> fn = prepare(sliceAccessor, remainingVarIds, abortOnMatch);
+            tmpStream = values.stream().flatMap(v -> {
+                A nextAccumulator = reducer.reduce(accumulator, pickedVarId, v);
+                return fn.apply(nextAccumulator, store, v);
+            });
+        } else {
+            tmpStream = values.stream().map(v -> {
+                A nextAccumulator = reducer.reduce(accumulator, pickedVarId, v);
+                return nextAccumulator;
+            });
+        }
+
+        Stream<A> result = abortOnMatch
+                ? tmpStream.limit(1)
+                : tmpStream;
 
         return result;
-
-////            Stream<A> result = tmpStream;
-//        Stream<A> result = abortOnMatch
-//                ? tmpStream.limit(1)
-//                : tmpStream;
-
     }
 
 
     public Stream<A> recurse(
             A accumulator,
             int[] remainingVarIds,
-            SliceNode2<C>[] slices,
+            //SliceNode2<C>[] slices,
+            SliceNode2Accessor<C>[] sliceAccessors,
+            Object[] stores,
             boolean abortOnMatch
             )
-        {
-            if (slices.length == 1) {
-//                PreparedSliceProcessor<A, C> fn = prepare(sliceAccessor, remainingVarIds);
-//                Stream<A> tmp =  fn.apply(accumulator, store, null);
-                Stream<A> baseStream = recurseSingleSlice(accumulator, remainingVarIds, slices, abortOnMatch);
+    {
+        int n = sliceAccessors.length;
+
+            boolean abortRecursionOnMatch = abortOnMatch || testAbortOnMatch.test(remainingVarIds);
+
+            if (n == 1) {
+                if (remainingVarIds.length == 0) {
+                    return Stream.of(accumulator);
+                }
+
+                Stream<A> baseStream = recurseSingleSlice(
+                        accumulator,
+                        remainingVarIds,
+                        sliceAccessors[0],
+                        stores[0],
+                        abortRecursionOnMatch);
 
                 if (true) {
-                    // return baseStream.collect(Collectors.toList()).stream();
-                    return baseStream;
-                }
-                if (false) {
-                    BlockingQueue<A> queue = new ArrayBlockingQueue<A>(128);
+                    return baseStream.collect(Collectors.toList()).stream();
+//                    return baseStream;
+                } else {
+                    BlockingQueue<A> queue = new LinkedBlockingQueue<>(64);
 
 
                     Object POISON = new Object();
+
                     ForkJoinPool.commonPool().execute(() -> {
-                        baseStream.forEach(queue::offer);
+                        baseStream.forEach(t -> {
+                            try {
+                                queue.put(t);
+                            } catch (InterruptedException e1) {
+                                throw new RuntimeException(e1);
+                            }
+                        });
                         try {
-                            queue.offer((A)POISON);
+                            queue.put((A)POISON);
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
                     });
-    //                baseStream.parallel().forEach(item -> queue.offer(item));
-    //                Thread thread = new Thread(() -> {
-    //                    baseStream.forEach(queue::offer);
-    //                    queue.offer((A)POISON);
-    //                });
-    //                thread.start();
+//                    baseStream.parallel().forEach(item -> queue.offer(item));
+//                    Thread thread = new Thread(() -> {
+//                        baseStream.forEach(t -> {
+//                            try {
+//                                queue.put(t);
+//                            } catch (InterruptedException e1) {
+//                                throw new RuntimeException(e1);
+//                            }
+//                        });
+//                        try {
+//                            queue.put((A)POISON);
+//                        } catch (Exception e) {
+//                            e.printStackTrace();
+//                        }
+//                    });
+//                    thread.start();
 
                     //Stopwatch sw = Stopwatch.createStarted();
     //                tmp = tmp.collect(Collectors.toList()).stream();
@@ -571,9 +719,9 @@ class StateSpaceSearch<A, C> {
                 nextRemainingVarIdxs = EMPTY_INT_ARRAY;
                 break;
             default:
-                int pickedVarIdPos = slices.length == 1
+                int pickedVarIdPos = n == 1
                         ? 0
-                        : findBestSliceVarIdxPos(remainingVarIds, slices);
+                        : findBestSliceVarIdxPos(remainingVarIds, sliceAccessors, stores);
 
                 pickedVarId = remainingVarIds[pickedVarIdPos];
                 nextRemainingVarIdxs = ArrayUtils.remove(remainingVarIds, pickedVarIdPos);
@@ -588,12 +736,16 @@ class StateSpaceSearch<A, C> {
             Set<C> remainingValuesOfPickedVar = null;
 
             Set<Set<C>> valuesForPickedVarIdx = null;
-            for (SliceNode2<C> slice : slices) {
-                int[] varInSliceComponents = slice.getVarIdxToTupleIdxs()[pickedVarId];
+            //for (SliceNode2<C> slice : slices) {
+            for (int i = 0; i < n; ++i) {
+                SliceNode2Accessor<C> sliceAccessor = sliceAccessors[i];
+                Object store = stores[i];
+
+                int[] varInSliceComponents = sliceAccessor.getVarIdxToTupleIdxs()[pickedVarId];
 
                 if (varInSliceComponents != null) {
                     for(int tupleIdx : varInSliceComponents) {
-                        Set<C> valuesContrib = slice.getValuesForComponent(tupleIdx);
+                        Set<C> valuesContrib = sliceAccessor.getValuesForComponent(store, tupleIdx);
 
                         if (remainingValuesOfPickedVar == null) {
                             remainingValuesOfPickedVar = valuesContrib;
@@ -651,9 +803,9 @@ class StateSpaceSearch<A, C> {
             int staticPartIdx = 0;
             int slicersIdx = 0;
 
-            for (SliceNode2<C> slice : slices) {
-                if (slice.hasRemainingVarIdx(pickedVarId)) {
-                    if (slice.getRemainingVars().length > 1) {
+            for (SliceNode2Accessor<C> sliceAccessor : sliceAccessors) {
+                if (sliceAccessor.hasRemainingVarIdx(pickedVarId)) {
+                    if (sliceAccessor.getRemainingVars().length > 1) {
                         ++slicersIdx;
                     }
 
@@ -666,22 +818,34 @@ class StateSpaceSearch<A, C> {
             int slicersByPickedVarCount = slicersIdx;
 
             @SuppressWarnings("unchecked")
-            SliceNode2<C>[] staticPart = new SliceNode2[staticPartLen];
+//            SliceNode2Accessor<C>[] staticPart = new SliceNode2Accessor[staticPartLen];
+            SliceNode2Accessor<C>[] staticSliceAccessors = new SliceNode2Accessor[staticPartLen];
+            Object[] staticStores = new Object[staticPartLen];
+
+
             @SuppressWarnings("unchecked")
-            SliceNode2<C>.Slicer[] slicersByPickedVar = new SliceNode2.Slicer[slicersByPickedVarCount];
+            SliceNode2Accessor.Slicer<C>[] slicersByPickedVar = new SliceNode2Accessor.Slicer[slicersByPickedVarCount];
+            Object[] dynamicStores = new Object[slicersByPickedVarCount];
 
 
             slicersIdx = 0;
             staticPartIdx = 0;
-            for (SliceNode2<C> slice : slices) {
-                if (slice.hasRemainingVarIdx(pickedVarId)) {
-                    if (slice.getRemainingVars().length > 1) {
-                        SliceNode2<C>.Slicer slicer = slice.slicerForVarIdx(pickedVarId);
-                        slicersByPickedVar[slicersIdx++] = slicer;
-                    }
+            // for (SliceNode2Accessor<C> slice : sliceAccessors) {
+            for (int i = 0; i < n; ++i) {
+                SliceNode2Accessor<C> sliceAccessor = sliceAccessors[i];
+                Object store = stores[i];
 
+                if (sliceAccessor.hasRemainingVarIdx(pickedVarId)) {
+                    if (sliceAccessor.getRemainingVars().length > 1) {
+                        SliceNode2Accessor.Slicer<C> slicer = sliceAccessor.slicerForVarIdx(pickedVarId);
+                        slicersByPickedVar[slicersIdx] = slicer;
+                        dynamicStores[slicersIdx] = store;
+                        ++slicersIdx;
+                    }
                 } else {
-                    staticPart[staticPartIdx++] = slice;
+                    staticSliceAccessors[staticPartIdx] = sliceAccessor;
+                    staticStores[staticPartIdx] = store;
+                    ++staticPartIdx;
                 }
             }
 
@@ -690,25 +854,33 @@ class StateSpaceSearch<A, C> {
 
             // Test whether to set the flag that the next iteration should abort after the first match
             // If this call already has the flag set there is no need to recheck it
-            boolean abortNextRecursionOnMatch = abortOnMatch || testAbortOnMatch.test(nextRemainingVarIdxs);
+//            boolean abortNextRecursionOnMatch = abortOnMatch || testAbortOnMatch.test(nextRemainingVarIdxs);
 
 
             Stream<A> tmpStream;
             if (nextRemainingVarIdxs.length > 0) {
 
                 @SuppressWarnings("unchecked")
-                SliceNode2<C>[] nextSlices = new SliceNode2[totalNextSlicesCount];
-                System.arraycopy(staticPart, 0, nextSlices, 0, staticPartLen);
+                SliceNode2Accessor<C>[] nextSliceAccessors = new SliceNode2Accessor[totalNextSlicesCount];
+                Object[] nextStores = new Object[totalNextSlicesCount];
+                System.arraycopy(staticSliceAccessors, 0, nextSliceAccessors, 0, staticPartLen);
+                System.arraycopy(staticStores, 0, nextStores, 0, staticPartLen);
+
+                for (int i = 0; i < slicersByPickedVarCount; ++i) {
+                    nextSliceAccessors[staticPartLen + i] = slicersByPickedVar[i].subStoreAccessor();
+                }
 
                 tmpStream = remainingValuesOfPickedVar.stream().flatMap(value -> {
 //                    SliceNode2<C>[] nextSlices = nextSlicesRaw.clone();
                     for (int i = 0; i < slicersByPickedVarCount; ++i) {
                         // The values are based on the intersection of the involved slices' value sets
                         // So slicing must always succeed
-                        SliceNode2<C>.Slicer slicer = slicersByPickedVar[i];
-                        SliceNode2<C> nextSlice = slicer.apply(value);
+                        SliceNode2Accessor.Slicer<C> slicer = slicersByPickedVar[i];
+                        // SliceNode2Accessor<C> nextSlice = slicer.apply(value);
+                        Object store = dynamicStores[i];
+                        Object nextStore = slicer.apply(store, value);
 
-                        nextSlices[staticPartLen + i] = nextSlice;
+                        nextStores[staticPartLen + i] = nextStore;
                     }
 
                     A nextAccumulator = reducer.reduce(accumulator, pickedVarId, value);
@@ -718,8 +890,9 @@ class StateSpaceSearch<A, C> {
                     return recurse(
                             nextAccumulator,
                             nextRemainingVarIdxs,
-                            nextSlices,
-                            abortNextRecursionOnMatch);
+                            nextSliceAccessors,
+                            nextStores,
+                            abortRecursionOnMatch);
                 });
             } else {
                 tmpStream = remainingValuesOfPickedVar.stream().map(value -> {
@@ -728,7 +901,7 @@ class StateSpaceSearch<A, C> {
                 });
             }
 //            Stream<A> result = tmpStream;
-            Stream<A> result = abortOnMatch
+            Stream<A> result = abortRecursionOnMatch
                     ? tmpStream.limit(1)
                     : tmpStream;
 
@@ -936,6 +1109,101 @@ class StateSpaceSearch<A, C> {
 
 
 
+
+    /**
+     * Lower final score is better
+     *
+     * @param <C>
+     * @param varDim
+     * @param remainingVarIds
+     * @param slices
+     * @return
+     */
+    public int findBestSliceVarIdxPos(
+            int[] remainingVarIds,
+            SliceNode2Accessor<C>[] sliceAccessors,
+            Object[] stores
+            //SliceNode2<C>[] slices
+         ) {
+
+        int n = sliceAccessors.length;
+
+        int[] mins = new int[varDim];
+        int remainingVarIdsLen = remainingVarIds.length;
+
+        // int bestVarIdx = remainingVarIds[0];
+        int bestVarIdxPos = 0;
+
+//        if (remainingVarIds.length > 1) {
+//            int varDim = varIdxToValues.size();
+        // int[] maxs = new int[varDim];
+
+        @SuppressWarnings("unchecked")
+        Set<Integer>[] varIdxToInvolvedSetSizes = (Set<Integer>[])new Set[varDim];
+        for (int varIdx : remainingVarIds) {
+            varIdxToInvolvedSetSizes[varIdx] = new HashSet<>();
+        }
+
+        float[] varToScore = new float[varDim];
+
+        Arrays.fill(mins, Integer.MAX_VALUE);
+        Arrays.fill(varToScore, 1.0f);
+        // Arrays.fill(varIdxToNumDifferentSizes, 0);
+//            Arrays.fill(maxs, 0);
+
+        // for (SliceNode2Accessor<C> sliceAccessor : sliceAcessors) {
+        for (int i = 0; i < n; ++i) {
+
+            SliceNode2Accessor<C> sliceAccessor = sliceAccessors[i];
+            Object store = stores[i];
+
+            for (int varIdx : sliceAccessor.getRemainingVars()) {
+                Set<C> minSet = sliceAccessor.getSmallestValueSetForVarIdx(store, varIdx);
+                int min = minSet.size();
+
+                mins[varIdx] = Math.min(mins[varIdx], min);
+
+
+                Set<Integer> involvedSetSizes = varIdxToInvolvedSetSizes[varIdx];
+                Set<C> maxSet = sliceAccessor.getLargestValueSetForVarIdx(store, varIdx);
+                involvedSetSizes.add(min);
+                involvedSetSizes.add(maxSet.size());
+            }
+        }
+
+        // for (SliceNode2<C> slice : slices) {
+        for (int i = 0; i < n; ++i) {
+            SliceNode2Accessor<C> sliceAccessor = sliceAccessors[i];
+            Object store = stores[i];
+
+            for (int varIdx : sliceAccessor.getRemainingVars()) {
+                int mmax = sliceAccessor.getLargestValueSetForVarIdx(store, varIdx).size();
+
+                varToScore[varIdx] *= (mins[varIdx] / (float)mmax);
+            }
+        }
+
+        for (int varIdx : remainingVarIds) {
+            int numInvolvedSetSizes = varIdxToInvolvedSetSizes[varIdx].size();
+            varToScore[varIdx] /= (float)numInvolvedSetSizes;
+        }
+
+        float bestVarIdxScore = varToScore[remainingVarIds[bestVarIdxPos]];
+//            int varIdxIdx = 0;
+        // for (int varIdx : remainingVarIdxs) {
+
+        for (int i = 1; i < remainingVarIdsLen; ++i) {
+            int varIdx = remainingVarIds[i];
+            float score = varToScore[varIdx];
+
+            if (score < bestVarIdxScore) {
+                bestVarIdxScore = score;
+                bestVarIdxPos = i;
+            }
+        }
+//        }
+        return bestVarIdxPos;
+    }
 
     /**
      * Lower final score is better

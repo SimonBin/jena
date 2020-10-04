@@ -1,7 +1,6 @@
 package org.apache.jena.dboe.storage.advanced.tuple.engine.faster;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Set;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -23,6 +22,10 @@ public class SliceNode2Accessor<C> {
         this.varIdxToTupleIdxs = varIdxToTupleIdxs;
     }
 
+
+    public HyperTrieAccessor<C> getStoreAccessor() {
+        return storeAccessor;
+    }
 
     public Set<C> getValuesForComponent(Object store, int tupleIdx) {
 //        Object subStore = storeAccessor.getStoreForSliceByComponentByValue(store, 0, NodeFactory.createURI("http://www.example.org/e4"));
@@ -233,24 +236,24 @@ public class SliceNode2Accessor<C> {
 
 
 
-    public Slicer slicerForComponentIdx(int componentIdx) {
+    public Slicer<C> slicerForComponentIdx(int componentIdx) {
         int[] nextRemainingVarIdxs = SliceNode.removeRemainingVarByTupleIdx(componentIdx, remainingVarIdxs, varIdxToTupleIdxs);
 
         HyperTrieAccessor<C> nextStoreAccessor = storeAccessor.getAccessorForComponent(componentIdx);
 
-        Slicer result = new SlicerSimple(nextStoreAccessor, componentIdx, nextRemainingVarIdxs);
+        Slicer<C> result = new SlicerSimple(nextStoreAccessor, componentIdx, nextRemainingVarIdxs);
         return result;
     }
 
 
-    public Slicer slicerForVarIdx(int varIdx) {
+    public Slicer<C> slicerForVarIdx(int varIdx) {
         assert remainingVarIdxs.length != 0;
         assert hasRemainingVarIdx(varIdx);
 
         int[] nextRemainingVarIdxs = ArrayUtils.removeElement(remainingVarIdxs, varIdx);
         int[] tupleIdxs = varIdxToTupleIdxs[varIdx];
 
-        Slicer result = tupleIdxs == null
+        Slicer<C> result = tupleIdxs == null
                 ? null
                 : tupleIdxs.length != 1
                     ? new SlicerComplex(storeAccessor.getAccessorForComponent(tupleIdxs[0]), tupleIdxs, nextRemainingVarIdxs)

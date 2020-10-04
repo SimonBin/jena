@@ -5,7 +5,97 @@ import java.util.Set;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.jena.dboe.storage.advanced.tuple.engine.SliceNode;
 
+
 public class SliceNode2<C> {
+    protected SliceNode2Accessor<C> sliceAccessor;
+    protected Object store;
+
+    public SliceNode2(SliceNode2Accessor<C> sliceAccessor, Object store) {
+        super();
+        this.sliceAccessor = sliceAccessor;
+        this.store = store;
+    }
+
+    public SliceNode2Accessor<C> getSliceAccessor() {
+        return sliceAccessor;
+    }
+
+    public Object getStore() {
+        return store;
+    }
+
+    public static <C> SliceNode2<C> create(Object store, HyperTrieAccessor<C> storeAccessor, int[] remainingVarIdxs,
+            int[][] varIdxToTupleIdxs) {
+        return new SliceNode2<>(new SliceNode2Accessor<C>(storeAccessor, remainingVarIdxs, varIdxToTupleIdxs), store);
+    }
+
+
+    public  Set<C> getValuesForComponent(int tupleIdx) {
+        Set<C> result = sliceAccessor.getValuesForComponent(store, tupleIdx);
+        return result;
+    }
+
+
+    public int[] getRemainingVars() {
+        return sliceAccessor.getRemainingVars();
+    }
+
+    public int[][] getVarIdxToTupleIdxs() {
+        return sliceAccessor.getVarIdxToTupleIdxs();
+    }
+
+    public boolean hasRemainingVarIdx(int varIdx) {
+        return sliceAccessor.hasRemainingVarIdx(varIdx);
+    }
+
+    public Set<C> getSmallestValueSetForVarIdx(int varIdx) {
+        Set<C> result = sliceAccessor.getSmallestValueSetForVarIdx(store, varIdx);
+        return result;
+    }
+
+    public Set<C> getLargestValueSetForVarIdx(int varIdx) {
+        Set<C> result = sliceAccessor.getLargestValueSetForVarIdx(store, varIdx);
+        return result;
+    }
+
+    public class Slicer
+    {
+        protected SliceNode2Accessor.Slicer<C> slicer;
+
+        public Slicer(SliceNode2Accessor.Slicer<C> slicer) {
+            super();
+            this.slicer = slicer;
+        }
+
+        public SliceNode2<C> apply(C value) {
+            Object subStore = slicer.apply(store, value);
+
+            SliceNode2<C> result = null;
+            if (subStore != null) {
+                SliceNode2Accessor<C> subAccessor = slicer.subStoreAccessor();// storeAccessor.getAccessorForComponent(bestMatchTupleIdx);
+                result = new SliceNode2<>(subAccessor, subStore);
+            }
+            return result;
+        }
+    }
+
+    public Slicer slicerForComponentIdx(int componentIdx) {
+        SliceNode2Accessor.Slicer<C> slicer = sliceAccessor.slicerForComponentIdx(componentIdx);
+        return new Slicer(slicer);
+    }
+
+    public Slicer slicerForVarIdx(int varIdx) {
+        SliceNode2Accessor.Slicer<C> slicer = sliceAccessor.slicerForVarIdx(varIdx);
+        Slicer result = slicer == null
+                ? null
+                : new Slicer(slicer);
+
+        return result;
+    }
+}
+
+
+class SliceNode2Old<C> {
     protected Object store;
     protected HyperTrieAccessor<C> storeAccessor;
 
@@ -13,7 +103,7 @@ public class SliceNode2<C> {
     protected int[][] varIdxToTupleIdxs;
 
 
-    public SliceNode2(Object store, HyperTrieAccessor<C> storeAccessor, int[] remainingVarIdxs,
+    public SliceNode2Old(Object store, HyperTrieAccessor<C> storeAccessor, int[] remainingVarIdxs,
             int[][] varIdxToTupleIdxs) {
         super();
         this.store = store;
@@ -88,12 +178,12 @@ public class SliceNode2<C> {
 
 
 
-        public SliceNode2<C> apply(C value) {
+        public SliceNode2Old<C> apply(C value) {
             Object subStore = storeAccessor.getStoreForSliceByComponentByValue(store, bestMatchTupleIdx, value);
-            SliceNode2<C> result = null;
+            SliceNode2Old<C> result = null;
             if (subStore != null) {
                 HyperTrieAccessor<C> subAccessor = storeAccessor.getAccessorForComponent(bestMatchTupleIdx);
-                result = new SliceNode2<>(subStore, subAccessor, nextRemainingVarIdxs, varIdxToTupleIdxs);
+                result = new SliceNode2Old<>(subStore, subAccessor, nextRemainingVarIdxs, varIdxToTupleIdxs);
             }
             return result;
         }

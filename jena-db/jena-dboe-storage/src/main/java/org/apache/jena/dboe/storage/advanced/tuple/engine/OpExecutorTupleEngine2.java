@@ -50,13 +50,15 @@ public class OpExecutorTupleEngine2 extends OpExecutor {
     @Override
     protected QueryIterator execute(OpProject opProject, QueryIterator input) {
         this.HACK_projectSeen = new LinkedHashSet<>(opProject.getVars());
-        return super.execute(opProject, input);
+//        return super.execute(opProject, input);
+        return exec(opProject.getSubOp(), input);
     }
 
     @Override
     protected QueryIterator execute(OpDistinct opDistinct, QueryIterator input) {
         HACK_distinctSeen = true;
-        return super.execute(opDistinct, input);
+//        return super.execute(opDistinct, input);
+        return exec(opDistinct.getSubOp(), input);
     }
 
 
