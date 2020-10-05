@@ -2,6 +2,15 @@ package org.apache.jena.dboe.storage.advanced.tuple.engine.faster;
 
 import java.util.Arrays;
 
+/**
+ * These utils are no longer needed: The intent was to speed up recursion by temporarily removing
+ * and later re-adding items from arrays passed as arguments by meaens of shifting elements,
+ * but experiments suggested that creating copies
+ * of the arrays (with an element removed) is much faster.
+ *
+ * @author raven
+ *
+ */
 public class ArrayShiftUtils {
     /**
      * Shift elements between len and idx left; overrides idx

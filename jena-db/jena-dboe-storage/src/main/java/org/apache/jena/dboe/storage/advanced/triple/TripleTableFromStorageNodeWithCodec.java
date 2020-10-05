@@ -23,6 +23,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleTableCore;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleTableFromStorageNodeWithCodecBase;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodecBased;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 
@@ -35,7 +36,7 @@ import org.apache.jena.graph.Triple;
  */
 public class TripleTableFromStorageNodeWithCodec<D2, C2, V>
     extends TupleTableFromStorageNodeWithCodecBase<Triple, Node, D2, C2, V>
-    implements TripleTableCore
+    implements TripleTableCore, TupleCodecBased<Triple, Node, D2, C2>
 {
     public TripleTableFromStorageNodeWithCodec(
             TupleCodec<Triple, Node, D2, C2> tupleCodec,
@@ -51,6 +52,10 @@ public class TripleTableFromStorageNodeWithCodec<D2, C2, V>
         return new TripleTableFromStorageNodeWithCodec<D2, C2, V>(tupleCodec, rootStorageNode, store);
     }
 
+    @Override
+    public TupleCodec<Triple, Node, D2, C2> getTupleCodec() {
+        return tupleCodec;
+    }
 
     @Override
     public Stream<Triple> find(Node s, Node p, Node o) {

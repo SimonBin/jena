@@ -7,7 +7,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
-import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNodeWithCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.engine.faster.EinsteinSummationFaster;
 import org.apache.jena.dboe.storage.advanced.tuple.engine.faster.HyperTrieAccessor;
@@ -15,6 +14,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.HyperTrieBased;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeBased;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodecBased;
 import org.apache.jena.ext.com.google.common.base.Stopwatch;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
@@ -104,7 +104,6 @@ public class StageGeneratorHyperTrie
             GraphFromTripleTableCore g = (GraphFromTripleTableCore)graph;
             TripleTableCore ttc = g.getTripleTable();
 
-
             Object store;
             StorageNode<?, ?, ?> storageNode;
             TupleCodec<?, ?, ?, ?> tupleCodec = null;
@@ -123,8 +122,8 @@ public class StageGeneratorHyperTrie
                 throw new RuntimeException("TripleTableCore does not implement StorageNodeBased");
             }
 
-            if (ttc instanceof TripleTableFromStorageNodeWithCodec) {
-                TripleTableFromStorageNodeWithCodec<?, ?, ?> tmp = (TripleTableFromStorageNodeWithCodec<?, ?, ?>)ttc;
+            if (ttc instanceof TupleCodecBased) {
+                TupleCodecBased<?, ?, ?, ?> tmp = (TupleCodecBased<?, ?, ?, ?>)ttc;
 
                 tupleCodec = tmp.getTupleCodec();
             }

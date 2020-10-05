@@ -2,6 +2,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.engine.faster;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,6 +28,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.analysis.BiReducer;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexedKeyReducer;
 import org.apache.jena.dboe.storage.advanced.tuple.engine.faster.SliceNode2Accessor.Slicer;
 import org.apache.jena.ext.com.google.common.collect.AbstractIterator;
+import org.apache.jena.ext.com.google.common.collect.Iterators;
 import org.apache.jena.ext.com.google.common.collect.Sets;
 import org.apache.jena.ext.com.google.common.collect.Streams;
 import org.apache.jena.graph.Node;
@@ -34,6 +36,8 @@ import org.apache.jena.sparql.core.BasicPattern;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.binding.BindingFactory;
+import org.apache.jena.sparql.engine.binding.BindingMap;
+
 
 
 public class EinsteinSummationFaster {
@@ -79,6 +83,68 @@ public class EinsteinSummationFaster {
 //
 //        return result;
 //    }
+
+    static class NestedBinding {
+        public NestedBinding parent;
+        public Var var;
+        public Node node;
+
+        public NestedBinding(NestedBinding parent, Var var, Node node) {
+            super();
+            this.parent = parent;
+            this.var = var;
+            this.node = node;
+        }
+
+        public static Binding toBinding(NestedBinding nb) {
+            BindingMap result = BindingFactory.create();
+            NestedBinding current = nb;
+            while (current != null) {
+                result.add(nb.var, nb.node);
+                current = current.parent;
+            }
+
+            return result;
+        }
+    }
+
+    // Instead of creating hashmap backed bindings directly, this method first creates a nested
+    // structure of the var-value mapping and creates the bindings in a final mapping step
+    // The idea is to avoid creating a hashmap and inserting to it for every partial binding
+    // Does not seem to have any significant positive effect
+    public static Stream<Binding> einsumNestedBinding(
+            HyperTrieAccessor<Node> storage,
+            Object store,
+            BasicPattern bgp,
+            boolean distinct,
+            Set<Var> projectVars)
+    {
+        BiReducer<NestedBinding, Node, Node> reducer = projectVars == null
+                ? (binding, varNode, valueNode) -> new NestedBinding(binding, (Var)varNode, valueNode)
+                // Skip binding creation of non-projected vars in order to save a few CPU cycles
+                : (binding, varNode, valueNode) -> (projectVars.contains(varNode)
+                        ? new NestedBinding(binding, (Var)varNode, valueNode)
+                        : binding);
+//        BiReducer<Binding, Node, Node> reducer = (binding, varNode, valueNode) -> binding;
+
+        Stream<NestedBinding> result =
+        EinsteinSummationFaster.einsumGeneric(
+                storage,
+                store,
+                bgp.getList(),
+                TupleAccessorTripleAnyToNull.INSTANCE,
+                Node::isVariable,
+                Function.identity(),
+                Function.identity(),
+                distinct,
+                projectVars,
+                null,
+                reducer);
+
+        Stream<Binding> rr = result.map(NestedBinding::toBinding);
+
+        return rr;
+    }
 
     public static Stream<Binding> einsum(
             HyperTrieAccessor<Node> storage,
@@ -466,11 +532,8 @@ class StateSpaceSearch<A, C> {
         @Override
         public Stream<A> apply(A acc, Object store, C value) {
             Stream<A> tmpStream = doApply(acc, store, value);
-            Stream<A> result = abortOnMatch
-                    ? tmpStream.limit(1)
-                    : tmpStream;
+            Stream<A> result = limitToOneItem(tmpStream, abortOnMatch);
             return result;
-
         }
 
         public abstract Stream<A> doApply(A acc, Object store, C value);
@@ -580,17 +643,11 @@ class StateSpaceSearch<A, C> {
             SliceNode2Accessor<C> sliceAccessor,
             Object store,
             boolean abortOnMatch
-            )
+        )
     {
         int pickedVarIdPos = 0;
         int pickedVarId = remainingVarIds[pickedVarIdPos];
-        // int[] nextRemainingVarIdxs = ArrayUtils.remove(remainingVarIds, pickedVarIdPos);
 
-//        SliceNode2Accessor<C> sliceAccessor = new SliceNode2Accessor<>(slices[0].storeAccessor, slices[0].remainingVarIdxs, slices[0].varIdxToTupleIdxs);
-//        Object store = slices[0].store;
-//        Foobar<A, C> fn = prepare(sliceAccessor, nextRemainingVarIdxs);
-
-//        return fn.apply(accumulator, str, null);
         Slicer<C> slicer = sliceAccessor.slicerForVarIdx(pickedVarId);
         Set<C> values = slicer.values(store);
 
@@ -608,9 +665,7 @@ class StateSpaceSearch<A, C> {
             });
         }
 
-        Stream<A> result = abortOnMatch
-                ? tmpStream.limit(1)
-                : tmpStream;
+        Stream<A> result = limitToOneItem(tmpStream, abortOnMatch);
 
         return result;
     }
@@ -641,69 +696,7 @@ class StateSpaceSearch<A, C> {
                         stores[0],
                         abortRecursionOnMatch);
 
-                if (true) {
-                    return baseStream.collect(Collectors.toList()).stream();
-//                    return baseStream;
-                } else {
-                    BlockingQueue<A> queue = new LinkedBlockingQueue<>(64);
-
-
-                    Object POISON = new Object();
-
-                    ForkJoinPool.commonPool().execute(() -> {
-                        baseStream.forEach(t -> {
-                            try {
-                                queue.put(t);
-                            } catch (InterruptedException e1) {
-                                throw new RuntimeException(e1);
-                            }
-                        });
-                        try {
-                            queue.put((A)POISON);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    });
-//                    baseStream.parallel().forEach(item -> queue.offer(item));
-//                    Thread thread = new Thread(() -> {
-//                        baseStream.forEach(t -> {
-//                            try {
-//                                queue.put(t);
-//                            } catch (InterruptedException e1) {
-//                                throw new RuntimeException(e1);
-//                            }
-//                        });
-//                        try {
-//                            queue.put((A)POISON);
-//                        } catch (Exception e) {
-//                            e.printStackTrace();
-//                        }
-//                    });
-//                    thread.start();
-
-                    //Stopwatch sw = Stopwatch.createStarted();
-    //                tmp = tmp.collect(Collectors.toList()).stream();
-
-                    Stream<A> tmp;
-                    Iterator<A> it = new AbstractIterator<A>() {
-                        @Override
-                        protected A computeNext() {
-                            A r;
-                            try {
-                                r = queue.take();
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException(e);
-                            }
-                            return r == POISON ? endOfData() : r;
-                        }
-                    };
-
-                    tmp = Streams.stream(it);
-
-    //                System.err.println(sw);
-                    return tmp;
-                }
-
+                return bufferStream(baseStream);
             }
 
 
@@ -901,15 +894,21 @@ class StateSpaceSearch<A, C> {
                 });
             }
 //            Stream<A> result = tmpStream;
-            Stream<A> result = abortRecursionOnMatch
-                    ? tmpStream.limit(1)
-                    : tmpStream;
+            Stream<A> result = limitToOneItem(tmpStream, abortRecursionOnMatch);
+//            Stream<A> result = abortRecursionOnMatch
+//                    ? tmpStream.limit(1)
+//                    : tmpStream;
 
             return result;
         }
 
 
-
+    public static <T> Stream<T> limitToOneItem(Stream<T> stream, boolean onOrOff) {
+        Stream<T> result = onOrOff
+                ? stream.limit(1)
+                : stream;
+        return result;
+    }
 
 
 
@@ -1106,8 +1105,157 @@ class StateSpaceSearch<A, C> {
         return result;
     }
 
+    // TODO Collecting to list first gives a significant boost* at the expense of
+    // storing the whole result set in memory
+    // Using a thread to asynchronously buffer to a blocking queue did not
+    // result in a similar performance - any ideas?
+    // * for SELECT * { ?s ?p ?o } on swdf it nearly halves the execution time
+    // ~250-300ms becomes 150ms
+//  return baseStream.collect(Collectors.toCollection(() -> new ArrayList(1024))).stream();
+    public static <T> Stream<T> bufferStream(Stream<T> baseStream) {
+        return baseStream.collect(Collectors.toList()).stream();
+    }
+
+    public static <T> Stream<T> bufferStreamC(Stream<T> baseStream) {
+        Iterator<List<T>> it = Iterators.partition(baseStream.iterator(), 8192);
+        return Streams.stream(it).flatMap(Collection::stream);
+    }
+
+    public static <T> Stream<T> bufferStreamD(Stream<T> baseStream) {
+        BlockingQueue<List<T>> queue = new LinkedBlockingQueue<>(128);
 
 
+        List<T> POISON = new ArrayList<T>();
+
+        ForkJoinPool.commonPool().execute(() -> {
+//        new Thread(() -> {
+            Iterator<List<T>> it = Iterators.partition(baseStream.iterator(), 128);
+            while (it.hasNext()) {
+                try {
+//                  System.out.println(queue.size());
+                  queue.put(it.next());
+              } catch (InterruptedException e1) {
+                  throw new RuntimeException(e1);
+              }
+            }
+
+            try {
+                queue.put((List<T>)POISON);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+
+        Stream<T> tmp;
+        Iterator<T> it = new AbstractIterator<T>() {
+            Iterator<T> it = null;
+
+            @Override
+            protected T computeNext() {
+                if (it == null || !it.hasNext()) {
+                    List<T> list;
+//                    try {
+                        while ((list = queue.poll()) == null) {}
+
+
+                        if (list == POISON) {
+                            return endOfData();
+                        }
+
+//                    } catch (InterruptedException e) {
+//                        throw new RuntimeException(e);
+//                    }
+                    it = list.iterator();
+                }
+
+                T r = it.next();
+
+                return r;
+            }
+        };
+
+        tmp = Streams.stream(it);
+
+//                System.err.println(sw);
+        return tmp;
+    }
+
+    public static <T> Stream<T> bufferStreamA(Stream<T> baseStream) {
+        BlockingQueue<T> queue = new LinkedBlockingQueue<>(128);
+
+
+        Object POISON = new Object();
+
+        ForkJoinPool.commonPool().execute(() -> {
+            baseStream.forEach(t -> {
+                try {
+//                    System.out.println(queue.size());
+                    queue.put(t);
+                } catch (InterruptedException e1) {
+                    throw new RuntimeException(e1);
+                }
+            });
+            try {
+                queue.put((T)POISON);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+//        baseStream.parallel().forEach(item -> queue.offer(item));
+//        Thread thread = new Thread(() -> {
+//            baseStream.forEach(t -> {
+//                try {
+//                    queue.put(t);
+//                } catch (InterruptedException e1) {
+//                    throw new RuntimeException(e1);
+//                }
+//            });
+//            try {
+//                queue.put((A)POISON);
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//        });
+//        thread.start();
+
+        //Stopwatch sw = Stopwatch.createStarted();
+//                tmp = tmp.collect(Collectors.toList()).stream();
+
+        Stream<T> tmp;
+        Iterator<T> it = new AbstractIterator<T>() {
+            Collection<T> cache = new ArrayList<>(1024);
+            Iterator<T> it = cache.iterator();
+
+            @Override
+            protected T computeNext() {
+                if (!it.hasNext()) {
+                    cache.clear();
+                    queue.drainTo(cache);
+
+                    if (cache.isEmpty()) {
+                        try {
+                            T item = queue.take();
+                            cache.add(item);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+
+                    it = cache.iterator();
+                }
+
+                T r = it.next();
+
+                return r == POISON ? endOfData() : r;
+            }
+        };
+
+        tmp = Streams.stream(it);
+
+//                System.err.println(sw);
+        return tmp;
+    }
 
 
     /**

@@ -9,16 +9,16 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromHyperTrie;
-import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNode;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNodeWithCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorArrayOfInts;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeWrapperCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TripleStorages;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodecDictionary;
@@ -42,12 +42,12 @@ import org.apache.jena.sparql.engine.main.StageBuilder;
 public class MainEngineTest {
 
     public static void main(String[] args) throws IOException {
-//        String datasetFile = "/home/raven/research/jena-vs-tentris/data/swdf/swdf.nt";
-        String datasetFile = "/home/raven/research/jena-vs-tentris/data/watdiv/watdiv-15.nt";
+        String datasetFile = "/home/raven/research/jena-vs-tentris/data/swdf/swdf.nt";
+//        String datasetFile = "/home/raven/research/jena-vs-tentris/data/watdiv/watdiv-15.nt";
 //        String datasetFile = "/home/raven/research/jena-vs-tentris/data/watdiv/watdiv-100.nt";
 
-//        String queriesFile = "/home/raven/research/jena-vs-tentris/data/swdf/SWDF-Queries.txt";
-        String queriesFile = "/home/raven/research/jena-vs-tentris/data/watdiv/WatDiv-Queries.txt";
+        String queriesFile = "/home/raven/research/jena-vs-tentris/data/swdf/SWDF-Queries.txt";
+//        String queriesFile = "/home/raven/research/jena-vs-tentris/data/watdiv/WatDiv-Queries.txt";
 
 
         Collection<String> workloads = Files.readAllLines(
@@ -62,7 +62,7 @@ public class MainEngineTest {
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o }");
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o . ?x ?z ?y }");
 //      workloads = Arrays.asList("SELECT DISTINCT * { ?s ?p ?o }");
-//      workloads = Arrays.asList("SELECT * { ?s ?p ?o }");
+      workloads = Arrays.asList("SELECT * { ?s ?p ?o }");
 //      workloads = Arrays.asList("SELECT DISTINCT ?s { ?s ?p ?o }");
 //      workloads = Arrays.asList("PREFIX  swrc: <http://swrc.ontoware.org/ontology#> PREFIX  rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> PREFIX  foaf: <http://xmlns.com/foaf/0.1/>  SELECT DISTINCT  ?authorname ?affiliationname WHERE   { ?person   rdf:type          foaf:Person ;               foaf:name         ?authorname ;               swrc:affiliation  ?affiliation .     ?affiliation  foaf:name     ?affiliationname   }");
 
@@ -221,13 +221,23 @@ public class MainEngineTest {
             TupleAccessor<Triple, Node> backendAccessor = TupleAccessorTripleAnyToNull.INSTANCE;
 
             StorageNodeMutable<Triple, Node, ?> storage =
-                TripleStorages.createHyperTrieStorage(backendAccessor);
+                TripleStorages.createHyperTrieStorageIdentity(backendAccessor);
+
+            StorageNodeWrapperCodec<Triple, Node, ?, ?> tmp = StorageComposers.wrapWithCanonicalization(storage);
+            storage = tmp;
+
+            TupleCodec<Triple, Node, Triple, Node> tupleCodec = tmp.getCodec();
+
+//            TupleCodec<Triple, Node, Triple, Node> tupleCodec
+//                = TupleCodecCanonical.create(TupleAccessorTripleAnyToNull.INSTANCE);
 
 //            TupleCodec<Triple, Node, Triple, Node> tupleCodec
 //                = TupleCodecDictionary.createForInts(TupleAccessorTripleAnyToNull.INSTANCE);
 
             tripleTableCore =
-                    TripleTableFromHyperTrie.create(storage);
+                    TripleTableFromHyperTrie.create(storage, tupleCodec);
+//            tripleTableCore =
+//                    TripleTableFromStorageNodeWithCodec.create(tupleCodec, storage);
 
         }
 

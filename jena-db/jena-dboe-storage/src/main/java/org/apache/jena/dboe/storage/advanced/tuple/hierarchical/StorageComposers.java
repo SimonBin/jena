@@ -193,6 +193,20 @@ public class StorageComposers {
     }
 
 
+    public static <D, C, V, X extends StorageNodeMutable<D, C, V>>
+        StorageNodeWrapperCodec<D, C, V, X> wrapWithCanonicalization(
+            X delegate
+            ) {
+
+        TupleCodec<D, C, D, C> tupleCodec = TupleCodecCanonical.create(delegate.getTupleAccessor());
+
+        return new StorageNodeWrapperCodec<D, C, V, X>(
+            delegate,
+            tupleCodec
+            );
+    }
+
+
     /**
      * DON'T USE ; maintain a TupleCodec separately instead
      *

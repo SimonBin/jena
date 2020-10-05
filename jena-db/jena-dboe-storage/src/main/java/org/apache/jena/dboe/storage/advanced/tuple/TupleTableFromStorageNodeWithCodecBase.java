@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeBased;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
@@ -38,7 +39,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
 * @param <V> Store type such as a Map<Node, Set<Triple>>
 */
 public abstract class TupleTableFromStorageNodeWithCodecBase<D1, C1, D2, C2, V>
-   implements TupleTableCore<D1, C1>
+   implements TupleTableCore<D1, C1>, StorageNodeBased<D2, C2, V>
 {
     /** convert domain tuples to those supported by the storage */
     protected TupleCodec<D1, C1, D2, C2> tupleCodec;
@@ -63,12 +64,12 @@ public abstract class TupleTableFromStorageNodeWithCodecBase<D1, C1, D2, C2, V>
         return tupleCodec;
     }
 
-//   @Override
+   @Override
     public StorageNodeMutable<D2, C2, V> getStorageNode() {
         return rootStorageNode;
     }
 
-//   @Override
+   @Override
     public V getStore() {
         return store;
     }

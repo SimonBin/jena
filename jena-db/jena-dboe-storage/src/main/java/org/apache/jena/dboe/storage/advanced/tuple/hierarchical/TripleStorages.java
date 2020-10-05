@@ -9,11 +9,13 @@ import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageCo
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
+import org.apache.jena.ext.com.google.common.collect.Sets;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 
@@ -83,13 +85,25 @@ public class TripleStorages {
         return result;
     }
 
+
+    public static <D, C> StorageNodeMutable<D, C, ?> createHyperTrieStorage(
+            TupleAccessor<D, C> accessor) {
+        return createHyperTrieStorage(accessor, HashMap::new, HashSet::new);
+    }
+
+    public static <D, C> StorageNodeMutable<D, C, ?> createHyperTrieStorageIdentity(
+            TupleAccessor<D, C> accessor) {
+        return createHyperTrieStorage(accessor, IdentityHashMap::new, Sets::newConcurrentHashSet);
+    }
+
     /**
      * A storage that indexes triples in a nested structure in all possible ways:
      * (S(P(O)|O(P)) | P(S(O)|O(S)) | O(P(S)|S(P)))
      *
      * @return
      */
-    public static <D, C> StorageNodeMutable<D, C, ?> createHyperTrieStorage(TupleAccessor<D, C> accessor) {
+    public static <D, C> StorageNodeMutable<D, C, ?> createHyperTrieStorage(
+            TupleAccessor<D, C> accessor, MapSupplier mapSupplier, SetSupplier setSupplier) {
         //TupleAccessor<Triple, Node> accessor = TupleAccessorTripleAnyToNull.INSTANCE;
 
         // TODO The leaf set suppliers should be invoked with context information such that
@@ -106,9 +120,9 @@ public class TripleStorages {
         // osp -> sop
         // ops -> pos
 
-        SetSupplier spo = HashSet::new;
-        SetSupplier sop = HashSet::new;
-        SetSupplier pos = HashSet::new;
+        SetSupplier spo = setSupplier;
+        SetSupplier sop = setSupplier;
+        SetSupplier pos = setSupplier;
 
         SetSupplier pso = SetSupplier.none(); // reuses spo
         SetSupplier osp = SetSupplier.none(); // reuses sop
@@ -121,15 +135,15 @@ public class TripleStorages {
                 Map<C, Alt2<Map<C, Set<C>>, Map<C, Set<C>>>>>
             >
         result = wrapInsert(alt3(
-            innerMap(0, HashMap::new, alt2(
-                innerMap(1, HashMap::new, leafComponentSet(2, spo, accessor)),
-                innerMap(2, HashMap::new, leafComponentSet(1, sop, accessor)))),
-            innerMap(1, HashMap::new, alt2(
-                innerMap(0, HashMap::new, leafComponentSet(2, pso, accessor)),
-                innerMap(2, HashMap::new, leafComponentSet(0, pos, accessor)))),
-            innerMap(2, HashMap::new, alt2(
-                innerMap(0, HashMap::new, leafComponentSet(1, osp, accessor)),
-                innerMap(1, HashMap::new, leafComponentSet(0, ops, accessor))))
+            innerMap(0, mapSupplier, alt2(
+                innerMap(1, mapSupplier, leafComponentSet(2, spo, accessor)),
+                innerMap(2, mapSupplier, leafComponentSet(1, sop, accessor)))),
+            innerMap(1, mapSupplier, alt2(
+                innerMap(0, mapSupplier, leafComponentSet(2, pso, accessor)),
+                innerMap(2, mapSupplier, leafComponentSet(0, pos, accessor)))),
+            innerMap(2, mapSupplier, alt2(
+                innerMap(0, mapSupplier, leafComponentSet(1, osp, accessor)),
+                innerMap(1, mapSupplier, leafComponentSet(0, ops, accessor))))
         ), (store, tup) -> {
             C s = accessor.get(tup, 0);
             C p = accessor.get(tup, 1);
