@@ -2,15 +2,15 @@ package org.apache.jena.dboe.storage.advanced.tuple.engine.faster;
 
 import java.util.Set;
 
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeLeafSet;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeLeafComponentSet;
 
 public class HyperTrieAccessorLeafSet<C>
     implements HyperTrieAccessor<C>
 {
-    protected StorageNodeLeafSet<?, C, ?> storageNode;
+    protected StorageNodeLeafComponentSet<?, C, ?> storageNode;
     protected int indexedComponentIdx;
 
-    public HyperTrieAccessorLeafSet(StorageNodeLeafSet<?, C, ?> storageNode) {
+    public HyperTrieAccessorLeafSet(StorageNodeLeafComponentSet<?, C, ?> storageNode) {
         super();
         this.storageNode = storageNode;
         if (storageNode.getKeyTupleIdxs().length != 1) {

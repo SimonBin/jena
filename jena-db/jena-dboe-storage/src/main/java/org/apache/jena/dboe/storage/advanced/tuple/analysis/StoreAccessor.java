@@ -70,6 +70,13 @@ public interface StoreAccessor<D, C> {
 
     // reflexive, starts with the root, last element is this
     List<? extends StoreAccessor<D, C>> ancestors();
+
+
+    /**
+     * Return the least nested child (or this) which <b>holds domain tuples</b>.
+     *
+     * @return
+     */
     StoreAccessor<D, C> leastNestedChildOrSelf();
 
 

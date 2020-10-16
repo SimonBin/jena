@@ -41,10 +41,10 @@ abstract class StorageNodeMapBase<D, C, K, V>
 {
     protected MapSupplier mapSupplier;
     // protected TupleToKey<? extends K, C> keyFunction;
-    TupleValueFunction<C, K> keyFunction;
+    protected TupleValueFunction<C, K> keyFunction;
 
     // Reverse mapping of key to components
-    TupleAccessorCore<? super K, ? extends C> keyToComponent;
+    protected TupleAccessorCore<? super K, ? extends C> keyToComponent;
 
     public K tupleToKey(D tupleLike) {
         K result = keyFunction.map(tupleLike, (d, i) -> tupleAccessor.get(d, tupleIdxs[i]));
@@ -217,7 +217,6 @@ abstract class StorageNodeMapBase<D, C, K, V>
     public <T> Streamer<Map<K, V>, Tuple<C>> streamerForKeysAsTuples(
             T pattern,
             TupleAccessorCore<? super T, ? extends C> accessor) {
-        // FIXME Implement Auto-generated method stub
         return null;
     }
 

@@ -214,6 +214,7 @@ public class TupleQueryAnalyzer {
                     accessorForContent,
                     bestMatchForPattern.getMatchedConstraintIdxs(),
                     LinkedLists.copyOf(proj));
+
         }
 
         return result;
@@ -400,7 +401,8 @@ public class TupleQueryAnalyzer {
         // TODO This code will break if the  assumption is lifted
 
         // We are returning domain objects so uniqueness is assumeds
-        if (accessor.getChildren().isEmpty()) {
+        // if (accessor.getChildren().isEmpty()) {
+        if (accessor.getChildren().isEmpty() && accessor.getStorage().holdsDomainTuples()) {
             Streamer<?, D> contentStreamer = accessor
                     .streamerForContent(tupleQuery.getPattern(), List::get);
 
@@ -423,13 +425,20 @@ public class TupleQueryAnalyzer {
                 Streamer<?, Tuple<C>> tupleStreamer = store -> tmp.streamRaw(store)
                         .map(projector::apply);
 
-                result = store -> new ResultStreamerFromTuple<D, C>(projection.length, () -> tupleStreamer.streamRaw(store), domainAccessor);
+                int[] finalProj = projection;
+                result = store -> new ResultStreamerFromTuple<D, C>(finalProj.length, () -> tupleStreamer.streamRaw(store), domainAccessor);
             } else {
                 Streamer<?, D> tmp = contentStreamer;
                 result = store -> new ResultStreamerFromDomain<D, C>(() -> tmp.streamRaw(store), domainAccessor);
             }
 
         } else {
+            if (projection == null) {
+                int dim = domainAccessor.getDimension();
+                projection = IntStream.range(0, dim).toArray();
+            }
+
+
             if (projection.length == 1) {
                 // Here we assume that the accessor node is positioned on the one the holds the
                 // keys we want to project
@@ -449,7 +458,8 @@ public class TupleQueryAnalyzer {
                         keyToTupleReducer)
                 .streamRaw(store).map(Entry::getKey).map(keyToTupleReducer::makeTuple);
 
-                result = store -> new ResultStreamerFromTuple<D, C>(projection.length, () -> tupleStreamer.streamRaw(store), domainAccessor);
+                int[] finalProj = projection;
+                result = store -> new ResultStreamerFromTuple<D, C>(finalProj.length, () -> tupleStreamer.streamRaw(store), domainAccessor);
             }
         }
 

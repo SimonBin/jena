@@ -20,6 +20,6 @@ public class TestHyperTrie {
                 "  ?u  a          dbr:Unicorn\n" +
                 "}");
 
-        MainEngineTest.init(0, "tentris-example.ttl", workloads);
+        MainEngineTest.init(0, false, "tentris-example.ttl", workloads);
     }
 }

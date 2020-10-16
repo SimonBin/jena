@@ -7,6 +7,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -38,6 +40,7 @@ import org.apache.jena.riot.resultset.ResultSetLang;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.main.QC;
 import org.apache.jena.sparql.engine.main.StageBuilder;
+import org.apache.jena.sparql.resultset.ResultSetCompare;
 
 public class MainEngineTest {
 
@@ -62,15 +65,15 @@ public class MainEngineTest {
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o }");
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o . ?x ?z ?y }");
 //      workloads = Arrays.asList("SELECT DISTINCT * { ?s ?p ?o }");
-      workloads = Arrays.asList("SELECT * { ?s ?p ?o }");
+//      workloads = Arrays.asList("SELECT * { ?s ?p ?o }");
 //      workloads = Arrays.asList("SELECT DISTINCT ?s { ?s ?p ?o }");
 //      workloads = Arrays.asList("PREFIX  swrc: <http://swrc.ontoware.org/ontology#> PREFIX  rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> PREFIX  foaf: <http://xmlns.com/foaf/0.1/>  SELECT DISTINCT  ?authorname ?affiliationname WHERE   { ?person   rdf:type          foaf:Person ;               foaf:name         ?authorname ;               swrc:affiliation  ?affiliation .     ?affiliation  foaf:name     ?affiliationname   }");
 
 
-        init(0, datasetFile, workloads);
+        init(0, true, datasetFile, workloads);
     }
 
-    public static void init(int mode, String filename, Iterable<String> workloads) throws IOException {
+    public static void init(int mode, boolean validate, String filename, Iterable<String> workloads) throws IOException {
 
 //        if (args.length != 3) {
 //            System.out.println("Requires 3 arguments: [MODE] [FILE-OR-ENDPOINT] [WORKLOAD]");
@@ -80,6 +83,7 @@ public class MainEngineTest {
 
         Model[] model = {null};
         Function<Query, QueryExecution> queryExecutor = null;
+        Function<Query, QueryExecution> validateQueryExecutor = null;
 
         // 0 = hyper trie, 1 = default model, 2 = tentris
         //int mode = 0;
@@ -121,6 +125,9 @@ public class MainEngineTest {
             throw new RuntimeException("no mode with this id");
         }
 
+        if (validate) {
+            validateQueryExecutor = query -> QueryExecutionFactory.create(query, model[0]);
+        }
 
         if (model[0] != null) {
             Stopwatch loadingSw = Stopwatch.createStarted();
@@ -134,14 +141,16 @@ public class MainEngineTest {
 
 
         for (int i = 0; i < 1; ++i) {
-            doWork(queryExecutor, workloads);
+            doWork(queryExecutor, workloads, validateQueryExecutor);
         }
     }
 
 
-
-    public static void doWork(Function<Query, QueryExecution> queryExecutor, Iterable<String> workloads) throws IOException {
-
+    public static void doWork(
+            Function<Query, QueryExecution> queryExecutor,
+            Iterable<String> workloads,
+            Function<Query, QueryExecution> validateQueryExecutor
+        ) throws IOException {
 
         for (int j = 0; j < 100; ++j) {
             Stopwatch runTimeSw = Stopwatch.createStarted();
@@ -156,29 +165,40 @@ public class MainEngineTest {
 
                 Stopwatch executionTimeSw = Stopwatch.createStarted();
                 try (QueryExecution qe = queryExecutor.apply(query)) {
-
                     ResultSet rs = qe.execSelect();
+                    if (validateQueryExecutor != null) {
+                        try (QueryExecution qe2 = validateQueryExecutor.apply(query)) {
+                            ResultSet rs2 = qe2.execSelect();
+                            boolean isEqual = ResultSetCompare.equalsByTerm(rs, rs2);
+                            if (!isEqual) {
+                                throw new RuntimeException("Difference in result sets detected for query: " + queryStr);
+                            }
+                        }
 
-                    boolean reparseResultSet = false;
-                    if (reparseResultSet) {
-                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                        ResultSetMgr.write(baos, rs, ResultSetLang.SPARQLResultSetJSON);
-                        rs = ResultSetMgr.read(new ByteArrayInputStream(baos.toByteArray()), ResultSetLang.SPARQLResultSetJSON);
+                    } else {
+
+                        boolean reparseResultSet = false;
+                        if (reparseResultSet) {
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            ResultSetMgr.write(baos, rs, ResultSetLang.SPARQLResultSetJSON);
+                            rs = ResultSetMgr.read(new ByteArrayInputStream(baos.toByteArray()), ResultSetLang.SPARQLResultSetJSON);
+                        }
+
+    //                    long count = ResultSetFormatter.consume(rs);
+
+                        // ResultSetFormatter.consume materializes all Model objects which
+                        // may take significantly more time than just listing the bindings
+                        long count = 0;
+                        while (rs.hasNext()) {
+                            Binding b = rs.nextBinding();
+    //                        System.out.println(b);
+                            ++count;
+    //                        break;
+                        }
+
+                        bindingCounter += count;
                     }
 
-//                    long count = ResultSetFormatter.consume(rs);
-
-                    // ResultSetFormatter.consume materializes all Model objects which
-                    // may take significantly more time than just listing the bindings
-                    long count = 0;
-                    while (rs.hasNext()) {
-                        Binding b = rs.nextBinding();
-//                        System.out.println(b);
-                        ++count;
-//                        break;
-                    }
-
-                    bindingCounter += count;
                     long elapsed = executionTimeSw.elapsed(TimeUnit.MILLISECONDS);
 //                    System.out.println("Execution time: " + elapsed + " - result set size: " + count);
 
@@ -221,7 +241,7 @@ public class MainEngineTest {
             TupleAccessor<Triple, Node> backendAccessor = TupleAccessorTripleAnyToNull.INSTANCE;
 
             StorageNodeMutable<Triple, Node, ?> storage =
-                TripleStorages.createHyperTrieStorageIdentity(backendAccessor);
+                TripleStorages.createHyperTrieStorage(backendAccessor, LinkedHashMap::new, LinkedHashSet::new);
 
             StorageNodeWrapperCodec<Triple, Node, ?, ?> tmp = StorageComposers.wrapWithCanonicalization(storage);
             storage = tmp;

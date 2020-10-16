@@ -88,6 +88,17 @@ public interface StorageNode<D, C, V> {
         return false;
     }
 
+
+    /**
+     * Experimental flag.
+     * Indicates whether this storage node's values are of "domain tuples" i.e. instances of type D
+     *
+     * @return
+     */
+    default boolean holdsDomainTuples() {
+        return false;
+    }
+
     default Map<?, ?> getStoreAsMap(Object store) {
         throw new UnsupportedOperationException("Not a map storage node; storage node type is " + this.getClass());
     }
@@ -174,6 +185,16 @@ public interface StorageNode<D, C, V> {
     <T> Streamer<V, ?> streamerForKeys(T pattern, TupleAccessorCore<? super T, ? extends C> accessor);
 
 
+    /**
+     * Obtain components from the internal representation of key
+     * that was used for indexing w.r.t. {@link #getKeyTupleIdxs()}.
+     *
+     *
+     * @param key
+     * @param idx In the range 0 to {@link getKeyTupleIdxs().length} (exclusive)
+     * 		If a key has no components calling this method will always raise {@link IndexOutOfBoundsException}
+     * @return
+     */
     C getKeyComponentRaw(Object key, int idx);
 
     Object chooseSubStore(V store, int subStoreIdx);

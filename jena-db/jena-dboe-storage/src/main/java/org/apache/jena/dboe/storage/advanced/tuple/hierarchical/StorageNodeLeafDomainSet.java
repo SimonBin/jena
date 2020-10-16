@@ -31,6 +31,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.ext.com.google.common.collect.Maps;
 
 /**
+ * Essentially a view of a Set<D> as a Map<Void, Set<D>>
  *
  * @author Claus Stadler 11/09/2020
  *
@@ -38,12 +39,12 @@ import org.apache.jena.ext.com.google.common.collect.Maps;
  * @param <C>
  * @param <V>
  */
-public class StorageNodeLeafSet<D, C, V>
+public class StorageNodeLeafDomainSet<D, C, V>
     extends StorageNodeSetBase<D, C, V>
 {
     protected TupleValueFunction<C, V> valueFunction;
 
-    public StorageNodeLeafSet(
+    public StorageNodeLeafDomainSet(
             TupleAccessor<D, C> tupleAccessor,
             SetSupplier setSupplier,
             TupleValueFunction<C, V> valueFunction
@@ -52,16 +53,22 @@ public class StorageNodeLeafSet<D, C, V>
         this.valueFunction = valueFunction;
     }
 
-    public StorageNodeLeafSet(
-            int tupleIdxs[],
-            TupleAccessor<D, C> tupleAccessor,
-            SetSupplier setSupplier,
-            TupleValueFunction<C, V> valueFunction
-            ) {
-        super(tupleIdxs, tupleAccessor, setSupplier);
-        this.valueFunction = valueFunction;
-    }
+//    public StorageNodeLeafDomainSet(
+//            int tupleIdxs[],
+//            TupleAccessor<D, C> tupleAccessor,
+//            SetSupplier setSupplier,
+//            boolean holdsDomainTuples,
+//            TupleValueFunction<C, V> valueFunction
+//            ) {
+//        super(tupleIdxs, tupleAccessor, setSupplier);
+//        this.valueFunction = valueFunction;
+//    }
+//
 
+    @Override
+    public boolean holdsDomainTuples() {
+        return true;
+    }
 
     @Override
     public boolean isSetNode() {

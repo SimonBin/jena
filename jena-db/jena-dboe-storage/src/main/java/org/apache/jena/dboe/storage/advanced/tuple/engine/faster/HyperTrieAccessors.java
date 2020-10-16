@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeLeafSet;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeLeafComponentSet;
 import org.apache.jena.ext.com.google.common.graph.Traverser;
 
 public class HyperTrieAccessors {
@@ -41,7 +41,7 @@ public class HyperTrieAccessors {
 
         if (storageNode.isSetNode()) {
             @SuppressWarnings("unchecked")
-            StorageNodeLeafSet<?, C, ?> leafStorageNode = (StorageNodeLeafSet<?, C, ?>)storageNode;
+            StorageNodeLeafComponentSet<?, C, ?> leafStorageNode = (StorageNodeLeafComponentSet<?, C, ?>)storageNode;
             result = new HyperTrieAccessorLeafSet<>(leafStorageNode);
         } else if (storageNode.isDelegate()) {
             result = index(tupleDim, storageNode.getPublicDelegate());

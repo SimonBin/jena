@@ -37,7 +37,7 @@ public class StorageComposers {
     public static <D, C> StorageNodeMutable<D, C, Set<D>> leafSet(
             SetSupplier setSupplier,
             TupleAccessor<D, C> tupleAccessor) {
-        return new StorageNodeLeafSet<D, C, D>(
+        return new StorageNodeLeafDomainSet<D, C, D>(
                 tupleAccessor,
                 setSupplier,
                 // Ugly identity mapping of domain tuples to themselves as values - can we do better?
@@ -49,13 +49,14 @@ public class StorageComposers {
             int tupleIdx,
             SetSupplier setSupplier,
             TupleAccessor<D, C> tupleAccessor) {
-        return new StorageNodeLeafSet<D, C, C>(
+        return new StorageNodeLeafComponentSet<D, C, C>(
                 new int[] {tupleIdx},
                 tupleAccessor,
                 setSupplier,
-                // Ugly identity mapping of domain tuples to themselves as values - can we do better?
-                // TupleValueFunction.newComponent(tupleIdx)
-                TupleValueFunction::component0
+                // TupleValueFunction that returns the tuple's component based on the first indexe in the tupleIdx array;
+                // i.e. tuple[tupleIdx[0]]
+                TupleValueFunction::component0,
+                (key, idx) -> key // TODO Ensure that only component 0 is requested
                 );
     }
 

@@ -17,7 +17,10 @@
 
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
+import java.util.function.Function;
 import java.util.stream.Stream;
+
+import org.apache.jena.dboe.storage.advanced.tuple.analysis.StreamTransform;
 
 
 /**
@@ -36,6 +39,22 @@ import java.util.stream.Stream;
 public interface Streamer<V, T> {
 
     Stream<T> stream(V store);
+
+    default <U> Streamer<V, U> mapStream(StreamTransform<T, U> streamTransform) {
+        return store -> streamTransform.apply(stream(store));
+    }
+
+    /**
+     * Convenience method to derive a new streamer that transforms the items
+     * emitted by the original streamer.
+     *
+     * @param <U>
+     * @param itemTransform
+     * @return
+     */
+    default <U> Streamer<V, U> mapItems(Function<T, U> itemTransform) {
+        return store -> stream(store).map(itemTransform);
+    }
 
     @SuppressWarnings("unchecked")
     default Stream<T> streamRaw(Object store) {
