@@ -38,6 +38,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinde
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerFromComponent;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerFromDomain;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerFromTuple;
+import org.apache.jena.vocabulary.RDF;
 
 import com.github.andrewoma.dexx.collection.LinkedLists;
 import com.github.jsonldjava.shaded.com.google.common.collect.Sets;
@@ -60,7 +61,19 @@ public class TupleQueryAnalyzer {
     public static <D, C> NodeStats<D, C> analyze(
             TupleQuery<C> tupleQuery,
             StoreAccessor<D, C> node) {
-        return analyze(tupleQuery, node, new int[] {10, 10, 1, 100});
+
+        int[] componentWeights;
+
+        // FIXME This check does not belong to this generic analyze method but one for RDF tuples!
+        if (RDF.Nodes.type.equals(tupleQuery.getConstraint(1))) {
+            // Declare the subject to be more selective than the object
+            componentWeights = new int[] {1, 1, 10, 100};
+        } else {
+            // By default assume that the object component is the most selective one
+            componentWeights = new int[] {10, 10, 1, 100};
+        }
+
+        return analyze(tupleQuery, node, componentWeights);
     }
 
     /**
@@ -93,8 +106,7 @@ public class TupleQueryAnalyzer {
                 ? IntStream.range(0, tupleQuery.getDimension()).boxed().collect(Collectors.toCollection(LinkedHashSet::new))
                 : IntStream.of(project).boxed().collect(Collectors.toCollection(LinkedHashSet::new));
 
-
-        // The best candidate
+        // The best candidate so far
         NodeStats<D, C> result = null;
 
         // First we look for candidates that answer the constraints efficiently
@@ -112,7 +124,9 @@ public class TupleQueryAnalyzer {
         }
 
         if (patternMatches.isEmpty()) {
-//             throw new RuntimeException("Found 0 nodes in the index structure to answer request; index is empty or internal error");
+            // For the given pattern no storageNode was found that could
+            // satisfy any of the constraints; add the initial node
+            // itself as a candidate
             patternMatches.add(new NodeStats<D, C>(node, LinkedLists.of(), LinkedLists.of()));
         }
 
@@ -145,8 +159,10 @@ public class TupleQueryAnalyzer {
             // By 'deepening' the found candidates we may be able to serve remaining components
             // of the requested projection
 
-            // Only for the best match
-            for (NodeStats<D, C> candidate : Collections.singleton(patternMatches.get(0))) {
+            // Only check the best match as it covers the most constraints
+            Set<NodeStats<D, C>> deepeningCands = Collections.singleton(patternMatches.get(0));
+
+            for (NodeStats<D, C> candidate : deepeningCands) {
 
                 boolean canServeProjection = candidate.getMatchedProjectIdxSet()
                         .containsAll(proj);
@@ -265,11 +281,15 @@ public class TupleQueryAnalyzer {
 
         int[] currentIxds = node.getStorage().getKeyTupleIdxs();
 
+        // A storageNode must index by one or more components to be suitable for index lookup
         boolean suitableForIndexLookup = currentIxds.length > 0;
+
+        // Initially true but may be set to false
         boolean canDoIndexedLookup = true;
 
         // Check that we are not facing redundant indexing by the same components
         boolean contributesToCover = false;
+
         for (int i = 0; i < currentIxds.length; ++i) {
             int componentIdx = currentIxds[i];
             C c = tupleQuery.getConstraint(componentIdx);
@@ -280,7 +300,8 @@ public class TupleQueryAnalyzer {
             }
         }
 
-        // Iterate through alternative subindexes whether any is more specific for the pattern than the current match
+        // Iterate through alternative sub-indexes for whether is one
+        // that covers more constraints of the pattern than the current match
         boolean foundEvenBetterCandidate = false;
 
         com.github.andrewoma.dexx.collection.List<Integer> newMatchedComponents = matchedConstraintIdxs;

@@ -96,6 +96,7 @@ public abstract class TupleTableFromStorageNodeBase<D, C, V>
     @Override
     public ResultStreamer<D, C, Tuple<C>> find(TupleQuery<C> tupleQuery) {
         NodeStats<D, C> bestMatch = TupleQueryAnalyzer.analyze(tupleQuery, storeAccessor);
+        System.out.println("Obtained " + bestMatch + " as best match for " + tupleQuery);
         ResultStreamerBinder<D, C, Tuple<C>> binder = TupleQueryAnalyzer.createResultStreamer(
                 bestMatch,
                 tupleQuery,

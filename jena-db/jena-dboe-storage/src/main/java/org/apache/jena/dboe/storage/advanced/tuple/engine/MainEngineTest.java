@@ -65,12 +65,12 @@ public class MainEngineTest {
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o }");
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o . ?x ?z ?y }");
 //      workloads = Arrays.asList("SELECT DISTINCT * { ?s ?p ?o }");
-//      workloads = Arrays.asList("SELECT * { ?s ?p ?o }");
+      workloads = Arrays.asList("SELECT * { ?s a ?o }");
 //      workloads = Arrays.asList("SELECT DISTINCT ?s { ?s ?p ?o }");
 //      workloads = Arrays.asList("PREFIX  swrc: <http://swrc.ontoware.org/ontology#> PREFIX  rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> PREFIX  foaf: <http://xmlns.com/foaf/0.1/>  SELECT DISTINCT  ?authorname ?affiliationname WHERE   { ?person   rdf:type          foaf:Person ;               foaf:name         ?authorname ;               swrc:affiliation  ?affiliation .     ?affiliation  foaf:name     ?affiliationname   }");
 
 
-        init(0, true, datasetFile, workloads);
+        init(4, false, datasetFile, workloads);
     }
 
     public static void init(int mode, boolean validate, String filename, Iterable<String> workloads) throws IOException {
@@ -121,6 +121,11 @@ public class MainEngineTest {
             // watdiv-15 Time until completion of a full run: 108.1 ms - num queries: 45 num bindings: 0  avg qps: 416.1240178294161
             queryExecutor = query -> QueryExecutionFactory.createServiceRequest("http://localhost:8895/sparql", query);
             break;
+        case 4:
+            model[0] = createHyperTrieBackedModel();
+            queryExecutor = query -> QueryExecutionFactory.create(query, model[0]);
+            break;
+
         default:
             throw new RuntimeException("no mode with this id");
         }
@@ -166,6 +171,7 @@ public class MainEngineTest {
                 Stopwatch executionTimeSw = Stopwatch.createStarted();
                 try (QueryExecution qe = queryExecutor.apply(query)) {
                     ResultSet rs = qe.execSelect();
+                    long count = -1;
                     if (validateQueryExecutor != null) {
                         try (QueryExecution qe2 = validateQueryExecutor.apply(query)) {
                             ResultSet rs2 = qe2.execSelect();
@@ -173,6 +179,7 @@ public class MainEngineTest {
                             if (!isEqual) {
                                 throw new RuntimeException("Difference in result sets detected for query: " + queryStr);
                             }
+                            System.out.println("Successfully validated result " + query);
                         }
 
                     } else {
@@ -188,7 +195,7 @@ public class MainEngineTest {
 
                         // ResultSetFormatter.consume materializes all Model objects which
                         // may take significantly more time than just listing the bindings
-                        long count = 0;
+                        count = 0;
                         while (rs.hasNext()) {
                             Binding b = rs.nextBinding();
     //                        System.out.println(b);
@@ -200,7 +207,7 @@ public class MainEngineTest {
                     }
 
                     long elapsed = executionTimeSw.elapsed(TimeUnit.MILLISECONDS);
-//                    System.out.println("Execution time: " + elapsed + " - result set size: " + count);
+                    System.out.println("Execution time: " + elapsed + " - result set size: " + count);
 
                     if (elapsed > 500) {
                         System.out.println("  SLOW: " + queryStr);
