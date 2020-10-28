@@ -32,7 +32,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.analysis.StreamTransform;
  *
  * @author Claus Stadler 11/09/2020
  *
- * @param <V>
+ * @param <V> The type of the store from which to stream items
  * @param <T> The item type to stream
  */
 @FunctionalInterface

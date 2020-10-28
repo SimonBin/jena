@@ -131,22 +131,7 @@ public class DatasetGraphFactoryOrdered {
         return result;
     }
 
-    public static <T> StorageNodeMutable<T, Node, ?> createQuadStorage(
-            boolean strictOrder,
-            TupleAccessor<T, Node> tupleAccessors) {
 
-        StorageNodeMutable<T, Node, ?> result =
-            innerMap(3, LinkedHashMap::new,
-                innerMap(0, LinkedHashMap::new,
-                    innerMap(1, LinkedHashMap::new,
-                        leafMap(2, LinkedHashMap::new, tupleAccessors))));
-
-        if (strictOrder) {
-            result = alt2(result, leafSet(LinkedHashSet::new, tupleAccessors));
-        }
-
-        return result;
-    }
 
 
     public static StorageRDF createOrderAwareStorageRDF(
@@ -156,7 +141,7 @@ public class DatasetGraphFactoryOrdered {
         StorageNodeMutable<Triple, Node, ?> tripleStorage = createTripleStorage(
                 strictOrderOnTriples, TupleAccessorTripleAnyToNull.INSTANCE);
 
-        StorageNodeMutable<Quad, Node, ?> quadStorage = createQuadStorage(
+        StorageNodeMutable<Quad, Node, ?> quadStorage = QuadStorages.createQuadStorage(
                 strictOrderOnQuads, TupleAccessorQuadAnyToNull.INSTANCE);
 
         TripleTableCore tripleTable = TripleTableFromStorageNode.create(tripleStorage);

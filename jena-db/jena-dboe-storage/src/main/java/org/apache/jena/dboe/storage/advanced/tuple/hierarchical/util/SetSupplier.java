@@ -30,9 +30,11 @@ public interface SetSupplier {
   <V> Set<V> get();
 
   /**
-   * null supplier
+   * A supplier that supplies null instead of set instances.
+   * In nested structures such null values may act as placeholders that are replaced in a
+   * post-processing step.
    *
-   * @return
+   * @return 'null' casted to the appropriate type.
    */
   public static SetSupplier none() {
       return new SetSupplier() {
@@ -43,7 +45,15 @@ public interface SetSupplier {
     };
   }
 
-  public static SetSupplier force(Supplier<Set<?>> setSupplier) {
+  /**
+   * Force cast to the requested type. Useful for e.g. TreeSets:
+   * While e.g. HashSet::new can supply set instances for any generic type,
+   * TreeSets are dependent on a comparator which may only work with specific types.
+   *
+   * @param setSupplier
+   * @return
+   */
+  public static SetSupplier forceCast(Supplier<Set<?>> setSupplier) {
       return new SetSupplier() {
         @SuppressWarnings("unchecked")
         @Override

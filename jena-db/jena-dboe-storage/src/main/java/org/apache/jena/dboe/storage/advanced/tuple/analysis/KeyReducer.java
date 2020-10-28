@@ -28,8 +28,9 @@ public interface KeyReducer<K> {
     K reduce(K accumulator, Object contribution);
 
 
-    /** KeyReducer that returns the accumulator directly and thus
-     *  ignore the contribution.
+    /**
+     * KeyReducer that returns the accumulator directly and thus
+     * ignores the contribution.
      */
     static <K> K passThrough(K accumulator, Object contribution) {
         return accumulator;

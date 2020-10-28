@@ -12,14 +12,14 @@ import java.util.LinkedHashSet;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
+import org.apache.jena.dboe.storage.advanced.core.TripleStorages;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromHyperTrie;
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNodeWithCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorArrayOfInts;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorForArrayOfInts;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TripleStorages;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodecDictionary;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
@@ -234,7 +234,7 @@ public class MainEngineTest {
         TripleTableCore tripleTableCore;
 
         if (useInts) {
-            TupleAccessor<int[], Integer> backendAccessor = new TupleAccessorArrayOfInts(3);
+            TupleAccessor<int[], Integer> backendAccessor = new TupleAccessorForArrayOfInts(3);
 
             StorageNodeMutable<int[], Integer, ?> storage =
                 TripleStorages.createHyperTrieStorage(backendAccessor);

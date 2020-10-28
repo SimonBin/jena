@@ -1,11 +1,11 @@
 package org.apache.jena.dboe.storage.advanced.tuple;
 
-public class TupleAccessorArrayOfInts
+public class TupleAccessorForArrayOfInts
     implements TupleAccessor<int[], Integer>
 {
     protected int dimension;
 
-    public TupleAccessorArrayOfInts(int dimension) {
+    public TupleAccessorForArrayOfInts(int dimension) {
         super();
         this.dimension = dimension;
     }

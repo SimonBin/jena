@@ -22,7 +22,7 @@ import org.apache.jena.atlas.lib.tuple.TupleFactory;
 import org.apache.jena.ext.com.google.common.base.Converter;
 
 /**
- * A converter from any domain object type to Tuple<ComponentType> via a TupleAccessor
+ * A converter from any domain object type to Tuple<ComponentType> via a {@link TupleAccessor}
  *
  * @author Claus Stadler 11/09/2020
  *
@@ -33,7 +33,8 @@ public class ConverterTuple<DomainType, ComponentType>
     extends Converter<DomainType, Tuple<ComponentType>>
 {
     /**
-     * Accessor for accessing the components of jena tuples; requires initialization with a rank
+     * Accessor for accessing the components of jena tuples; requires initialization with a
+     * certain fixed length
      */
     protected TupleAccessor<Tuple<ComponentType>, ComponentType> identityAccessor;
 

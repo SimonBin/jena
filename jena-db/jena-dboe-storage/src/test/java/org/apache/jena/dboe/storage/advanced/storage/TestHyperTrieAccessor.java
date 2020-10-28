@@ -2,10 +2,10 @@ package org.apache.jena.dboe.storage.advanced.storage;
 
 import java.util.Set;
 
+import org.apache.jena.dboe.storage.advanced.core.TripleStorages;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
 import org.apache.jena.dboe.storage.advanced.tuple.engine.faster.HyperTrieAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.engine.faster.HyperTrieAccessors;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TripleStorages;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;

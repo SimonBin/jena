@@ -55,13 +55,6 @@ public class TupleAccessorTriple
         }
     }
 
-//    @Override
-//    public Triple restore(Node[] components) {
-//        validateRestoreArg(components);
-//
-//        return new Triple(components[0], components[1], components[2]);
-//    }
-
     @Override
     public <T> Triple restore(T obj, TupleAccessorCore<? super T, ? extends Node> accessor) {
 //        validateRestoreArg(accessor);

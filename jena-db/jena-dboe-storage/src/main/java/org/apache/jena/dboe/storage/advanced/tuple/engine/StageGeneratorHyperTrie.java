@@ -10,11 +10,11 @@ import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.engine.faster.EinsteinSummationFaster;
 import org.apache.jena.dboe.storage.advanced.tuple.engine.faster.HyperTrieAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.HyperTrieBased;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodecBased;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeBased;
+import org.apache.jena.dboe.storage.advanced.tuple.tag.HasHyperTrieAccessor;
 import org.apache.jena.ext.com.google.common.base.Stopwatch;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
@@ -128,8 +128,8 @@ public class StageGeneratorHyperTrie
                 tupleCodec = tmp.getTupleCodec();
             }
 
-            if (ttc instanceof HyperTrieBased) {
-                HyperTrieBased<?> htb = (HyperTrieBased<?>)ttc;
+            if (ttc instanceof HasHyperTrieAccessor) {
+                HasHyperTrieAccessor<?> htb = (HasHyperTrieAccessor<?>)ttc;
 
                 hyperTrieAccessor = htb.getHyperTrieAccessor();
             }

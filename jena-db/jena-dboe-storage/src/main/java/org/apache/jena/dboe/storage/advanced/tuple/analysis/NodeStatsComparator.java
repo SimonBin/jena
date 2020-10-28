@@ -28,7 +28,7 @@ import org.apache.jena.ext.com.google.common.collect.ComparisonChain;
  * <ol>
  * <li>Number of matched components</li>
  * <li>Component weight</li>
- * <li>Depth of the index node</li> (e.g. prefers ([SP] ->[]) over ([S] -> ([P] -> [])</li>
+ * <li>Depth of the index node; e.g. prefer ([SP] ->[]) over ([S] -> ([P] -> [])</li>
  * <li>On tie: node id for determinism</li>
  * </ol>
  *

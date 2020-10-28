@@ -1,4 +1,4 @@
-package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
+package org.apache.jena.dboe.storage.advanced.core;
 
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.alt2;
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.alt3;
@@ -29,28 +29,30 @@ import it.unimi.dsi.fastutil.ints.IntArraySet;
 
 public class TripleStorages {
 
-    /**
-     * Create a conventional storage with SPO, OPS and POS index
-     *
-     * @returns
-     */
     public static StorageNodeMutable<Triple, Node, ?> createConventionalStorage() {
+        return createConventionalStorage(HashMap::new);
+    }
+
+    /**
+     * Create a conventional storage with three indexes - SPO, OPS and POS.
+     */
+    public static StorageNodeMutable<Triple, Node, ?> createConventionalStorage(MapSupplier mapSupplier) {
         StorageNodeMutable<Triple, Node, ?> storage =
                 alt3(
                     // spo
-                    innerMap(0, HashMap::new,
-                        innerMap(1, HashMap::new,
-                            leafMap(2, HashMap::new, TupleAccessorTriple.INSTANCE)))
+                    innerMap(0, mapSupplier,
+                        innerMap(1, mapSupplier,
+                            leafMap(2, mapSupplier, TupleAccessorTriple.INSTANCE)))
                     ,
                     // ops
-                    innerMap(2, HashMap::new,
-                        innerMap(1, HashMap::new,
-                            leafMap(0, HashMap::new, TupleAccessorTriple.INSTANCE)))
+                    innerMap(2, mapSupplier,
+                        innerMap(1, mapSupplier,
+                            leafMap(0, mapSupplier, TupleAccessorTriple.INSTANCE)))
                     ,
                     // pos
-                    innerMap(1, HashMap::new,
-                        innerMap(2, HashMap::new,
-                            leafMap(0, HashMap::new, TupleAccessorTriple.INSTANCE)))
+                    innerMap(1, mapSupplier,
+                        innerMap(2, mapSupplier,
+                            leafMap(0, mapSupplier, TupleAccessorTriple.INSTANCE)))
                 );
 
         return storage;
@@ -77,14 +79,14 @@ public class TripleStorages {
             >
         result = alt3(
             innerMap(0, Int2ObjectOpenHashMap::new, alt2(
-                innerMap(1, Int2ObjectOpenHashMap::new, leafComponentSet(2, SetSupplier.force(IntArraySet::new), accessor)),
-                innerMap(2, Int2ObjectOpenHashMap::new, leafComponentSet(1, SetSupplier.force(IntArraySet::new), accessor)))),
+                innerMap(1, Int2ObjectOpenHashMap::new, leafComponentSet(2, SetSupplier.forceCast(IntArraySet::new), accessor)),
+                innerMap(2, Int2ObjectOpenHashMap::new, leafComponentSet(1, SetSupplier.forceCast(IntArraySet::new), accessor)))),
             innerMap(1, HashMap::new, alt2(
-                innerMap(0, Int2ObjectOpenHashMap::new, leafComponentSet(2, SetSupplier.force(IntArraySet::new), accessor)),
-                innerMap(2, Int2ObjectOpenHashMap::new, leafComponentSet(0, SetSupplier.force(IntArraySet::new), accessor)))),
+                innerMap(0, Int2ObjectOpenHashMap::new, leafComponentSet(2, SetSupplier.forceCast(IntArraySet::new), accessor)),
+                innerMap(2, Int2ObjectOpenHashMap::new, leafComponentSet(0, SetSupplier.forceCast(IntArraySet::new), accessor)))),
             innerMap(2, HashMap::new, alt2(
-                innerMap(0, Int2ObjectOpenHashMap::new, leafComponentSet(1, SetSupplier.force(IntArraySet::new), accessor)),
-                innerMap(1, Int2ObjectOpenHashMap::new, leafComponentSet(0, SetSupplier.force(IntArraySet::new), accessor))))
+                innerMap(0, Int2ObjectOpenHashMap::new, leafComponentSet(1, SetSupplier.forceCast(IntArraySet::new), accessor)),
+                innerMap(1, Int2ObjectOpenHashMap::new, leafComponentSet(0, SetSupplier.forceCast(IntArraySet::new), accessor))))
         );
 
         return result;
@@ -168,25 +170,6 @@ public class TripleStorages {
 
         });
 
-
-
         return result;
-    }
-
-
-    // Let's recap
-    // [3::] [:2:] == [:2:]*[3::]
-
-    /*
-    onInsert(tuple, accessor) {
-
-    }
-
-    Set<C> find(int idx, tuple, accessor)
-
-    */
-
-    public static MapSupplier reuse(int... idxs) {
-        return null;
     }
 }
