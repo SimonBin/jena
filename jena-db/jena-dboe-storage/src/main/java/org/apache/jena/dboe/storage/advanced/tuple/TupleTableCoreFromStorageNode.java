@@ -17,7 +17,7 @@
 
 package org.apache.jena.dboe.storage.advanced.tuple;
 
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeBased;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeBased;
 
 /**
  *

@@ -33,7 +33,8 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleOps;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNode;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Streamer;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinder;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerFromComponent;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerFromDomain;
@@ -64,7 +65,8 @@ public class TupleQueryAnalyzer {
 
         int[] componentWeights;
 
-        // FIXME This check does not belong to this generic analyze method but one for RDF tuples!
+        // FIXME This check does not belong to this generic analyze method but
+        // one specifically for RDF tuples!
         if (RDF.Nodes.type.equals(tupleQuery.getConstraint(1))) {
             // Declare the subject to be more selective than the object
             componentWeights = new int[] {1, 1, 10, 100};
@@ -404,25 +406,24 @@ public class TupleQueryAnalyzer {
 
         List<C> pattern = tupleQuery.getPattern();
         int[] projection = tupleQuery.getProject();
-        boolean isDistinct = tupleQuery.isDistinct();
+        boolean isDistinctRequested = tupleQuery.isDistinct();
+
+
 
         StoreAccessor<D, C> accessor = stats.getAccessor();
+
 
         // Find out for which components we need to recheck the filter condition (if any)
 
         Set<Integer> constrainedComponents = tupleQuery.getConstrainedComponents();
         Set<Integer> indexedComponents = stats.getMatchedConstraintIdxSet();
 
+        // Recheck constrained components that are not indexed
         Set<Integer> recheckComponents = Sets.difference(constrainedComponents, indexedComponents);
         int[] recheckIdxs = recheckComponents.stream().mapToInt(i -> i).toArray();
 //        Set<Integer> constrainedComponents = new LinkedHashSet<>();
 
-
-        // Assumption: Leaf nodes contain domain objects
-        // TODO This code will break if the  assumption is lifted
-
-        // We are returning domain objects so uniqueness is assumeds
-        // if (accessor.getChildren().isEmpty()) {
+        // We are returning domain objects so uniqueness is assumed
         if (accessor.getChildren().isEmpty() && accessor.getStorage().holdsDomainTuples()) {
             Streamer<?, D> contentStreamer = accessor
                     .streamerForContent(tupleQuery.getPattern(), List::get);
@@ -459,6 +460,29 @@ public class TupleQueryAnalyzer {
                 projection = IntStream.range(0, dim).toArray();
             }
 
+            // Find out whether we need to apply distinct
+            List<? extends StoreAccessor<D, C>> ancestors = accessor.ancestors();
+
+            // The components by which the accessor is indexed
+            // If it matches the projection exactly then the result tuples are already
+            // unique
+            Set<Integer> componentIdxSet = ancestors.stream()
+                    .map(StoreAccessor::getStorage)
+                    .map(StorageNode::getKeyTupleIdxs)
+                    .flatMapToInt(IntStream::of)
+                    .distinct()
+                    .boxed()
+                    .collect(Collectors.toSet());
+
+            boolean applyDistinctToStream = isDistinctRequested;
+            if (isDistinctRequested) {
+                Set<Integer> projSet = IntStream.of(projection)
+                        .boxed()
+                        .collect(Collectors.toSet());
+
+                applyDistinctToStream = !componentIdxSet.equals(projSet);
+            }
+
 
             if (projection.length == 1) {
                 // Here we assume that the accessor node is positioned on the one the holds the
@@ -466,7 +490,12 @@ public class TupleQueryAnalyzer {
                 Streamer<?, C> componentStreamer = accessor
                         .streamerForKeys(pattern, List::get, null, KeyReducers.projectOnly(accessor.depth()));
 
-                result = store -> new ResultStreamerFromComponent<D, C>(() -> componentStreamer.streamRaw(store), domainAccessor);
+                StreamTransform<C, C> transform = applyDistinctToStream
+                        ? x -> x.distinct()
+                        : x -> x;
+
+                result = store -> new ResultStreamerFromComponent<D, C>(() ->
+                    transform.apply(componentStreamer.streamRaw(store)), domainAccessor);
 
             } else {
                 // We need to project tuples
@@ -479,9 +508,15 @@ public class TupleQueryAnalyzer {
                         keyToTupleReducer)
                 .streamRaw(store).map(Entry::getKey).map(keyToTupleReducer::makeTuple);
 
+                StreamTransform<Tuple<C>, Tuple<C>> transform = applyDistinctToStream
+                        ? x -> x.distinct()
+                        : x -> x;
+
                 int[] finalProj = projection;
-                result = store -> new ResultStreamerFromTuple<D, C>(finalProj.length, () -> tupleStreamer.streamRaw(store), domainAccessor);
+                result = store -> new ResultStreamerFromTuple<D, C>(finalProj.length, () ->
+                    transform.apply(tupleStreamer.streamRaw(store)), domainAccessor);
             }
+
         }
 
 

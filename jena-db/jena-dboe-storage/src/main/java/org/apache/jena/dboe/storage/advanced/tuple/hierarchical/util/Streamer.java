@@ -15,7 +15,7 @@
  *  information regarding copyright ownership.
  */
 
-package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
+package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util;
 
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -33,13 +33,21 @@ import org.apache.jena.dboe.storage.advanced.tuple.analysis.StreamTransform;
  * @author Claus Stadler 11/09/2020
  *
  * @param <V>
- * @param <T>
+ * @param <T> The item type to stream
  */
 @FunctionalInterface
 public interface Streamer<V, T> {
 
     Stream<T> stream(V store);
 
+    /**
+     * Convenience method that yields a new Streamer that wraps this streamer such
+     * that its streams are transformed by the given streamTransform.
+     *
+     * @param <U>
+     * @param streamTransform
+     * @return
+     */
     default <U> Streamer<V, U> mapStream(StreamTransform<T, U> streamTransform) {
         return store -> streamTransform.apply(stream(store));
     }
@@ -56,6 +64,13 @@ public interface Streamer<V, T> {
         return store -> stream(store).map(itemTransform);
     }
 
+    /**
+     * Delegate to {@link #stream(Object)}.
+     *
+     * @param store
+     * @return A stream from given store. Arguments of incorrect type will cause a {@link ClassCastException}.
+     *
+     */
     @SuppressWarnings("unchecked")
     default Stream<T> streamRaw(Object store) {
         return stream((V)store);

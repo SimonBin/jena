@@ -5,7 +5,7 @@ import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageCo
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.innerMap;
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafComponentSet;
 import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.leafMap;
-import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.wrapInsert;
+import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers.postProcessAdd;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -15,6 +15,11 @@ import java.util.Set;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Alt2;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Alt3;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.MapSupplier;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.SetSupplier;
 import org.apache.jena.ext.com.google.common.collect.Sets;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
@@ -134,7 +139,7 @@ public class TripleStorages {
                 Map<C, Alt2<Map<C, Set<C>>, Map<C, Set<C>>>>,
                 Map<C, Alt2<Map<C, Set<C>>, Map<C, Set<C>>>>>
             >
-        result = wrapInsert(alt3(
+        result = postProcessAdd(alt3(
             innerMap(0, mapSupplier, alt2(
                 innerMap(1, mapSupplier, leafComponentSet(2, spo, accessor)),
                 innerMap(2, mapSupplier, leafComponentSet(1, sop, accessor)))),

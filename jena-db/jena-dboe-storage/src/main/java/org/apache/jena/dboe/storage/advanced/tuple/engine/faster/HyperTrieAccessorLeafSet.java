@@ -2,7 +2,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.engine.faster;
 
 import java.util.Set;
 
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeLeafComponentSet;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeLeafComponentSet;
 
 public class HyperTrieAccessorLeafSet<C>
     implements HyperTrieAccessor<C>

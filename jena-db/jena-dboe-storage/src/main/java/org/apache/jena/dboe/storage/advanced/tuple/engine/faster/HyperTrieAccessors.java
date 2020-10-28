@@ -3,8 +3,8 @@ package org.apache.jena.dboe.storage.advanced.tuple.engine.faster;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeLeafComponentSet;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNode;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeLeafComponentSet;
 import org.apache.jena.ext.com.google.common.graph.Traverser;
 
 public class HyperTrieAccessors {

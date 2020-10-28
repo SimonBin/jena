@@ -23,6 +23,22 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeAlt2;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeAlt3;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeAltN;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeDictionary;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeInnerMap;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeLeafComponentSet;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeLeafDomainSet;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeLeafMap;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutableForwardingBase;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeWrapperCodec;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Alt2;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Alt3;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.MapSupplier;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.SetSupplier;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.TupleValueFunction;
 import org.apache.jena.ext.com.google.common.collect.HashBiMap;
 
 /**
@@ -73,37 +89,6 @@ public class StorageComposers {
                 // Ugly identity mapping of domain tuples to themselves as values - can we do better?
                 TupleValueFunction.newIdentity()
                 );
-    }
-
-
-    /**
-     * TODO Think this through
-     *
-     * Similar to innerMap - however the values are custom intermediary object
-     * that will hold a further index nodes.
-     *
-     * <pre>
-     * forwardingInnerMap(
-     *   mapSupplier for Map<K, TripleTableCore>,
-     *   TupleTableCore::getIndexRoot
-     * )
-     * </pre>
-     *
-     * @param <D>
-     * @param <C>
-     * @param <V>
-     * @param tupleIdx
-     * @param mapSupplier
-     * @param child
-     * @return
-     */
-    public static <D, C, V> StorageNodeMutable<D, C, Map<C, V>> forwardingInnerMap(
-            int tupleIdx,
-            MapSupplier mapSupplier,
-            StorageNodeMutable<D, C, V> child
-            ) {
-
-        return null;
     }
 
 
@@ -160,10 +145,11 @@ public class StorageComposers {
             StorageNodeMutable<D, C, V2> child2
             ) {
 
-        // TODO Validate that all children use the same tuple acessor
+        // TODO Validate that all children use the same tuple accessor
         TupleAccessor<D, C> tupleAccessor = child1.getTupleAccessor();
         return new StorageNodeAlt2<D, C, V1, V2>(tupleAccessor, child1, child2);
     }
+
 
     public static <D, C, V1, V2, V3> StorageNodeMutable<D, C, Alt3<V1, V2, V3>> alt3(
             StorageNodeMutable<D, C, V1> child1,
@@ -171,22 +157,34 @@ public class StorageComposers {
             StorageNodeMutable<D, C, V3> child3
             ) {
 
-        // TODO Validate that all children use the same tuple acessor
+        // TODO Validate that all children use the same tuple accessor
         TupleAccessor<D, C> tupleAccessor = child1.getTupleAccessor();
         return new StorageNodeAlt3<D, C, V1, V2, V3>(tupleAccessor, child1, child2, child3);
     }
 
 
-    public static <D, C, V> StorageNodeMutable<D, C, V> wrapInsert(
+    /**
+     * A wrapper for a {@link StorageNodeMutable#add(Object, Object)} that allows
+     * for running a post processing action <i>after</i> a regular insert.
+     *
+     *
+     * @param <D>
+     * @param <C>
+     * @param <V>
+     * @param delegate
+     * @param postProcessor
+     * @return
+     */
+    public static <D, C, V> StorageNodeMutable<D, C, V> postProcessAdd(
             StorageNodeMutable<D, C, V> delegate,
-            BiConsumer<V, D> postProcess)
+            BiConsumer<V, D> postProcessor)
     {
         return new StorageNodeMutableForwardingBase<D, C, V, StorageNodeMutable<D,C,V>>(delegate) {
             @Override
             public boolean add(V store, D tupleLike) {
                 boolean result = super.add(store, tupleLike);
 
-                postProcess.accept(store, tupleLike);
+                postProcessor.accept(store, tupleLike);
 
                 return result;
             }
@@ -194,6 +192,17 @@ public class StorageComposers {
     }
 
 
+    /**
+     * Canonicalization maps all equivalent tuples and components w.r.t. .equals() to
+     * canonical instances such that '==' becomes sufficient for equality checks.
+     *
+     * @param <D>
+     * @param <C>
+     * @param <V>
+     * @param <X>
+     * @param delegate
+     * @return
+     */
     public static <D, C, V, X extends StorageNodeMutable<D, C, V>>
         StorageNodeWrapperCodec<D, C, V, X> wrapWithCanonicalization(
             X delegate

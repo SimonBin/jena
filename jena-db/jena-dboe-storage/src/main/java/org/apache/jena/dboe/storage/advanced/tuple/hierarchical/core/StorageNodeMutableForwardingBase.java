@@ -1,4 +1,4 @@
-package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
+package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core;
 
 public class StorageNodeMutableForwardingBase<D, C, V, X extends StorageNodeMutable<D,C,V>>
     extends StorageNodeMutableForwarding<D, C, V, X>

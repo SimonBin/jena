@@ -23,9 +23,9 @@ import java.util.stream.Stream;
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeBased;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeBased;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
 
 

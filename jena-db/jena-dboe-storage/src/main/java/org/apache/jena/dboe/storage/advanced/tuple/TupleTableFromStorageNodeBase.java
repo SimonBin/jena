@@ -25,7 +25,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.analysis.NodeStats;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinder;
 
@@ -96,7 +96,7 @@ public abstract class TupleTableFromStorageNodeBase<D, C, V>
     @Override
     public ResultStreamer<D, C, Tuple<C>> find(TupleQuery<C> tupleQuery) {
         NodeStats<D, C> bestMatch = TupleQueryAnalyzer.analyze(tupleQuery, storeAccessor);
-        System.out.println("Obtained " + bestMatch + " as best match for " + tupleQuery);
+//        System.out.println("Obtained " + bestMatch + " as best match for " + tupleQuery);
         ResultStreamerBinder<D, C, Tuple<C>> binder = TupleQueryAnalyzer.createResultStreamer(
                 bestMatch,
                 tupleQuery,

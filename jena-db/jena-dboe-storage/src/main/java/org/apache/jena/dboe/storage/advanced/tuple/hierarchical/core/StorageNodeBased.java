@@ -15,7 +15,7 @@
  *  information regarding copyright ownership.
  */
 
-package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
+package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core;
 
 /**
  * Interface for store-based objects to expose both store and storage.

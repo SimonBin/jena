@@ -1,4 +1,6 @@
-package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
+package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core;
+
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;
 
 public class StorageNodeWrapperCodec<D, C, V, X extends StorageNodeMutable<D,C,V>>
     extends StorageNodeMutableForwardingBase<D, C, V, X>

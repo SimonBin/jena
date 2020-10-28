@@ -15,7 +15,7 @@
  *  information regarding copyright ownership.
  */
 
-package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
+package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Streamer;
 
 /**
  * A StorageNode can express nested storage such as nested maps, lists and sets for tuples.
@@ -90,8 +91,8 @@ public interface StorageNode<D, C, V> {
 
 
     /**
-     * Experimental flag.
-     * Indicates whether this storage node's values are of "domain tuples" i.e. instances of type D
+     * Flag that when true indicates that this storage node's values
+     * are tuples of type D - i.e. "domain tuples".
      *
      * @return
      */

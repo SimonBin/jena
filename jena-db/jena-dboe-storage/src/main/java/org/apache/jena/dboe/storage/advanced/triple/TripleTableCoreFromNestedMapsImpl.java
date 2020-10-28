@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.MapSupplier;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.MapSupplier;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.sparql.util.NodeUtils;

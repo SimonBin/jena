@@ -18,7 +18,7 @@
 package org.apache.jena.dboe.storage.advanced.tuple.resultset;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
 
 /**
  * Helper interface for use as a return type and in lambdas

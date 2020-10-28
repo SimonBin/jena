@@ -21,7 +21,7 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.BiReducer;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexedKeyReducer;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNode;
 import org.apache.jena.ext.com.google.common.collect.Sets;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.BasicPattern;

@@ -1,4 +1,4 @@
-package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
+package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util;
 
 /**
  * This interface is conceptually just a pair just like Map.Entry

@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNode;
 
 /**
  * Conceptually slice of a tensor.

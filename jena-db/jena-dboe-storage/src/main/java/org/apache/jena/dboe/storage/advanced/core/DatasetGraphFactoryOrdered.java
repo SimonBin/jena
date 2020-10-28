@@ -42,7 +42,7 @@ import org.apache.jena.dboe.storage.advanced.triple.TripleTableFromStorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuadAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
 import org.apache.jena.dboe.storage.simple.StoragePrefixesMem;
 import org.apache.jena.dboe.storage.system.DatasetGraphStorage;
 import org.apache.jena.graph.Node;

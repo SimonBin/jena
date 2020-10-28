@@ -3,7 +3,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.engine.faster;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNode;
 
 
 public class HyperTrieAccessorAltOfInnerMaps<C>

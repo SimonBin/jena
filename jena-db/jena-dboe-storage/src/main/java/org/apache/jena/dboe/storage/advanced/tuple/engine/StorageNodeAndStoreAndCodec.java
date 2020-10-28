@@ -1,8 +1,8 @@
 package org.apache.jena.dboe.storage.advanced.tuple.engine;
 
 import org.apache.jena.dboe.storage.advanced.tuple.engine.faster.HyperTrieAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNode;
 
 public class StorageNodeAndStoreAndCodec<D2, C2>
     extends StorageNodeAndStore<D2, C2>

@@ -21,8 +21,8 @@ import java.util.List;
 import java.util.Map.Entry;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNode;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Streamer;
 
 
 /**
@@ -68,7 +68,12 @@ public interface StoreAccessor<D, C> {
 //
 //    }
 
-    // reflexive, starts with the root, last element is this
+    /**
+     * Yields the lest of ancestors of this node. The first item in the list
+     * will be the root and the last one is the node on which this method was invoked.
+     *
+     * @return
+     */
     List<? extends StoreAccessor<D, C>> ancestors();
 
 

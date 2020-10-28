@@ -15,9 +15,10 @@
  *  information regarding copyright ownership.
  */
 
-package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
+package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core;
 
-import java.util.function.BiFunction;
+import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+
 
 /**
  *
@@ -26,31 +27,26 @@ import java.util.function.BiFunction;
  * @param <D>
  * @param <C>
  * @param <V>
- * @param <X>
  */
-public class StorageNodeDomainWrapping<D, C, V, X extends StorageNodeMutable<D, C, V>>
-    extends StorageNodeMutableForwarding<D, C, V, X>
+public abstract class StorageNodeBase<D, C, V>
+    implements StorageNode<D, C, V>
 {
-    protected X target;
-    protected BiFunction<? super StorageNodeMutable<D, C, V>, ? super X, ? extends X> storeWrapper;
+    protected int[] tupleIdxs;
+    protected TupleAccessor<D, C> tupleAccessor;
 
-    public StorageNodeDomainWrapping(X target,
-            BiFunction<? super StorageNodeMutable<D, C, V>, ? super X, ? extends X> storeWrapper) {
+    public StorageNodeBase(int[] tupleIdxs, TupleAccessor<D, C> tupleAccessor) {
         super();
-        this.target = target;
-        this.storeWrapper = storeWrapper;
+        this.tupleIdxs = tupleIdxs;
+        this.tupleAccessor = tupleAccessor;
     }
 
     @Override
-    protected X getDelegate() {
-        return target;
+    public int[] getKeyTupleIdxs() {
+        return tupleIdxs;
     }
 
     @Override
-    public V newStore() {
-//        V store = target.newStore();
-//        V result = storeWrapper.apply(this, store);
-//        return result;
-        return null;
+    public TupleAccessor<D, C> getTupleAccessor() {
+        return tupleAccessor;
     }
 }

@@ -41,7 +41,7 @@ public interface ResultStreamer<D, C, T> {
      * Domain implies tuple and tuple implies component. This is transitive, i.e. domain implies component.
      * Items with lower ordinal() imply capabilities for all items with higher one
      */
-    enum BackingType {
+    public enum BackingType {
         DOMAIN,
         TUPLE,
         COMPONENT

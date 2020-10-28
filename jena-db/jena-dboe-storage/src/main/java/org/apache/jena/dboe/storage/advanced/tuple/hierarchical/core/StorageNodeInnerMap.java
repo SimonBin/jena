@@ -15,7 +15,7 @@
  *  information regarding copyright ownership.
  */
 
-package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
+package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
@@ -28,15 +28,17 @@ import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.MapSupplier;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.TupleValueFunction;
 
 /**
  *
  * @author Claus Stadler 11/09/2020
  *
- * @param <D>
- * @param <C>
- * @param <K>
- * @param <V>
+ * @param <D> The domain type of tuple
+ * @param <C> The component type of the domain tuple
+ * @param <K> The key type of the map; depends on one or more components
+ * @param <V> The value type of the map which is
  */
 public class StorageNodeInnerMap<D, C, K, V>
     extends StorageNodeMapBase<D, C, K, V>

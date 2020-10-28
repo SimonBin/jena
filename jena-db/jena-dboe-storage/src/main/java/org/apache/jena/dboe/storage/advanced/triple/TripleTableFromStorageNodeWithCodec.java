@@ -21,9 +21,9 @@ import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleTableCore;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleTableFromStorageNodeWithCodecBase;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodecBased;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 

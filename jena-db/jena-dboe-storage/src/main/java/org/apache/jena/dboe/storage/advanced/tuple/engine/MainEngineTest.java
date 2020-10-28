@@ -19,11 +19,11 @@ import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorArrayOfInts;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageComposers;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeMutable;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNodeWrapperCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TripleStorages;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodecDictionary;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeWrapperCodec;
 import org.apache.jena.ext.com.google.common.base.Stopwatch;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
@@ -65,12 +65,12 @@ public class MainEngineTest {
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o }");
 //        workloads = Arrays.asList("SELECT DISTINCT ?p { ?s ?p ?o . ?x ?z ?y }");
 //      workloads = Arrays.asList("SELECT DISTINCT * { ?s ?p ?o }");
-      workloads = Arrays.asList("SELECT * { ?s a ?o }");
+//      workloads = Arrays.asList("SELECT * { ?s a ?o }");
 //      workloads = Arrays.asList("SELECT DISTINCT ?s { ?s ?p ?o }");
 //      workloads = Arrays.asList("PREFIX  swrc: <http://swrc.ontoware.org/ontology#> PREFIX  rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> PREFIX  foaf: <http://xmlns.com/foaf/0.1/>  SELECT DISTINCT  ?authorname ?affiliationname WHERE   { ?person   rdf:type          foaf:Person ;               foaf:name         ?authorname ;               swrc:affiliation  ?affiliation .     ?affiliation  foaf:name     ?affiliationname   }");
 
 
-        init(4, false, datasetFile, workloads);
+        init(1, false, datasetFile, workloads);
     }
 
     public static void init(int mode, boolean validate, String filename, Iterable<String> workloads) throws IOException {

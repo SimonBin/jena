@@ -1,4 +1,4 @@
-package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
+package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util;
 
 public class Alt3<V1, V2, V3> {
     protected V1 v1;

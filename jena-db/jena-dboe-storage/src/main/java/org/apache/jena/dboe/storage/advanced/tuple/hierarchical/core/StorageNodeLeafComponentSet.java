@@ -15,7 +15,7 @@
  *  information regarding copyright ownership.
  */
 
-package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
+package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,6 +27,9 @@ import java.util.stream.Stream;
 import org.apache.jena.atlas.lib.tuple.Tuple;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.SetSupplier;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Streamer;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.TupleValueFunction;
 import org.apache.jena.ext.com.google.common.collect.Maps;
 
 /**

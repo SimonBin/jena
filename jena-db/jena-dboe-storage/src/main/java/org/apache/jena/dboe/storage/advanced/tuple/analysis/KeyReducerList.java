@@ -17,7 +17,7 @@
 
 package org.apache.jena.dboe.storage.advanced.tuple.analysis;
 
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNode;
 
 import com.github.andrewoma.dexx.collection.List;
 

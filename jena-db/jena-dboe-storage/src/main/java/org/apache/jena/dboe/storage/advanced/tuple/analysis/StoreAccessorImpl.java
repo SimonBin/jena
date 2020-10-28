@@ -24,8 +24,8 @@ import java.util.Map.Entry;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageNode;
-import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.Streamer;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNode;
+import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Streamer;
 import org.apache.jena.ext.com.google.common.collect.Lists;
 import org.apache.jena.ext.com.google.common.collect.Maps;
 import org.apache.jena.ext.com.google.common.graph.Traverser;
