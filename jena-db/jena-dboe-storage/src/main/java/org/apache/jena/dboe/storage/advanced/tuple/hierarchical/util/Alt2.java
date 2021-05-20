@@ -10,6 +10,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util;
  *
  */
 public class Alt2<V1, V2>
+    implements Alt
 {
     protected V1 v1;
     protected V2 v2;
@@ -28,6 +29,21 @@ public class Alt2<V1, V2>
         return v2;
     }
 
+    @Override
+    public Object get(int index) {
+        Object result;
+        switch (index) {
+        case 0: result = v1; break;
+        case 1: result = v2; break;
+        default: throw new IndexOutOfBoundsException();
+        }
+        return result;
+    }
+
+    @Override
+    public int size() {
+        return 2;
+    }
 
     public static <V1, V2> Alt2<V1, V2> create(V1 v1, V2 v2) {
         return new Alt2<>(v1, v2);

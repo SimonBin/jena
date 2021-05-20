@@ -1,4 +1,4 @@
-package org.apache.jena.dboe.storage.advanced.storage;
+package org.apache.jena.dboe.storage.advanced.hypertrie;
 
 import java.io.IOException;
 import java.util.Arrays;

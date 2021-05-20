@@ -78,7 +78,11 @@ public interface StoreAccessor<D, C> {
 
 
     /**
-     * Return the least nested child (or this) which <b>holds domain tuples</b>.
+     * Return a single least nested child (or this) which <b>holds domain tuples</b>.
+     * If multiple children qualify return any is picked. The choice should be deterministic.
+     * Returns null if no such candidate exists.
+     * 
+     * TODO Better return a set or stream and let the client decide what to pick e.g. using .findFirst()
      *
      * @return
      */

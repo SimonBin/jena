@@ -34,6 +34,9 @@ public interface StorageNodeMutable<D, C, V>
     boolean add(V store, D tupleLike);
     boolean remove(V store, D tupleLike);
 
+    /**
+     * Clear a store's content. Cascades to any sub-stores.
+     */
     void clear(V store);
 
     @SuppressWarnings("unchecked")

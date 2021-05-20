@@ -73,7 +73,9 @@ public interface StorageNode<D, C, V> {
     }
 
     /**
-     * Whether the node represents a sequence of alternative
+     * Whether this storage node stores are a sequences of alternatives
+     *
+     * Experimental method; may be replaced by a generic getStoreType() method that returns e.g Alt.class, Set.class, etc.
      *
      * @return
      */
@@ -81,10 +83,24 @@ public interface StorageNode<D, C, V> {
         return false;
     }
 
+    /**
+     * Whether this storage node stores are sets
+     *
+     * Experimental method; may be replaced by a generic getStoreType() method that returns e.g Alt.class, Set.class, etc.
+     *
+     * @return
+     */
     default boolean isSetNode() {
         return false;
     }
 
+    /**
+     * Whether this storage node stores are a maps
+     *
+     * Experimental method; may be replaced by a generic getStoreType() method that returns e.g Alt.class, Set.class, etc.
+     *
+     * @return
+     */
     default boolean isMapNode() {
         return false;
     }
