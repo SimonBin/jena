@@ -5,8 +5,8 @@ import java.util.Map.Entry;
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Streamer;
 import org.apache.jena.ext.com.google.common.collect.BiMap;
 

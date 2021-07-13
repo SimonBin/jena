@@ -21,9 +21,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuadAnyToNull;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleTableCore;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorQuadAnyToNull;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleTableCore;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.Quad;
 

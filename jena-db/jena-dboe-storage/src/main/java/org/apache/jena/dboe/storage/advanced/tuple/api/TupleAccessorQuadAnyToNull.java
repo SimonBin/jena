@@ -15,25 +15,25 @@
  *  information regarding copyright ownership.
  */
 
-package org.apache.jena.dboe.storage.advanced.tuple;
-
-import org.apache.jena.graph.Node;
-import org.apache.jena.graph.Triple;
+package org.apache.jena.dboe.storage.advanced.tuple.api;
 
 /**
  *
  * @author Claus Stadler 11/09/2020
- *
  */
-public class TupleAccessorTripleAnyToNull
-    extends TupleAccessorTriple
+import org.apache.jena.graph.Node;
+import org.apache.jena.sparql.core.Quad;
+
+public class TupleAccessorQuadAnyToNull
+    extends TupleAccessorQuad
 {
-    public static final TupleAccessorTripleAnyToNull INSTANCE = new TupleAccessorTripleAnyToNull();
+    public static final TupleAccessorQuadAnyToNull INSTANCE = new TupleAccessorQuadAnyToNull();
 
     @Override
-    public Node get(Triple quad, int idx) {
+    public Node get(Quad quad, int idx) {
         return getComponent(quad, idx);
     }
+
 
     /**
      * Surely there is some common util method somewhere?
@@ -41,15 +41,19 @@ public class TupleAccessorTripleAnyToNull
      *
      * @return
      */
-    public static Node getComponent(Triple quad, int idx) {
+    public static Node getComponent(Quad quad, int idx) {
         switch(idx) {
-        case 0: return TupleAccessorQuadAnyToNull.anyToNull(quad.getSubject());
-        case 1: return TupleAccessorQuadAnyToNull.anyToNull(quad.getPredicate());
-        case 2: return TupleAccessorQuadAnyToNull.anyToNull(quad.getObject());
-        default: throw new IndexOutOfBoundsException("Cannot access index " + idx + " of a triple");
+        case 0: return anyToNull(quad.getSubject());
+        case 1: return anyToNull(quad.getPredicate());
+        case 2: return anyToNull(quad.getObject());
+        case 3: return anyToNull(quad.getGraph());
+        default: throw new IndexOutOfBoundsException("Cannot access index " + idx + " of a quad");
         }
     }
 
+    public static Node anyToNull(Node n) {
+        return Node.ANY.equals(n) ? null : n;
+    }
 
 
 }

@@ -1,6 +1,6 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
 import org.apache.jena.ext.com.google.common.collect.BiMap;
 import org.apache.jena.ext.com.google.common.collect.HashBiMap;
 

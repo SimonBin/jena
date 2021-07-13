@@ -8,7 +8,7 @@ import static org.apache.jena.dboe.storage.advanced.tuple.hierarchical.StorageCo
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
 import org.apache.jena.graph.Node;
 

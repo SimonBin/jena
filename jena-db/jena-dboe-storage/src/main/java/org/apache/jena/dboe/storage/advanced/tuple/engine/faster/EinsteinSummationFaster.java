@@ -22,10 +22,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.BiReducer;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.IndexedKeyReducer;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.engine.faster.SliceNode2Accessor.Slicer;
 import org.apache.jena.ext.com.google.common.collect.AbstractIterator;
 import org.apache.jena.ext.com.google.common.collect.Iterators;

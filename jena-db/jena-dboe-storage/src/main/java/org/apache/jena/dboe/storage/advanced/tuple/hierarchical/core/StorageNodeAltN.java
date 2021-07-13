@@ -21,8 +21,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorCore;
 
 
 /**

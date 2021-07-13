@@ -19,7 +19,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core;
 
 import java.util.Set;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.SetSupplier;
 
 /**

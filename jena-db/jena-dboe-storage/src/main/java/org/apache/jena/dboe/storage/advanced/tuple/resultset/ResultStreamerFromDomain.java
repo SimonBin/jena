@@ -22,8 +22,8 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleOps;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleOps;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer.BackingType;
 import org.apache.jena.sparql.core.Quad;
 

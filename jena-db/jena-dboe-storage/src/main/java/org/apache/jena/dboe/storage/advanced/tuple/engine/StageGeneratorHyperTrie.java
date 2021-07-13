@@ -7,7 +7,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorTripleAnyToNull;
 import org.apache.jena.dboe.storage.advanced.tuple.engine.faster.EinsteinSummationFaster;
 import org.apache.jena.dboe.storage.advanced.tuple.engine.faster.HyperTrieAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.TupleCodec;

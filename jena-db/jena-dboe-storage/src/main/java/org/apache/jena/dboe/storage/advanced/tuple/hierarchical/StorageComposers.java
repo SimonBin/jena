@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeAlt2;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeAlt3;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeAltN;

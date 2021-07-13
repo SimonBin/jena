@@ -25,8 +25,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Stream;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.MapSupplier;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.TupleValueFunction;
 

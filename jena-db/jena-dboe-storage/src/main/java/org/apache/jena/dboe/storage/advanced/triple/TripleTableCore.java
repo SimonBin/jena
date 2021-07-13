@@ -20,9 +20,9 @@ package org.apache.jena.dboe.storage.advanced.triple;
 import java.util.List;
 import java.util.stream.Stream;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTripleAnyToNull;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleTableCore;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorTripleAnyToNull;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleTableCore;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 

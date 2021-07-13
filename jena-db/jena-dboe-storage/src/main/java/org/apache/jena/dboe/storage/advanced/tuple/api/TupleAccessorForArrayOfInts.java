@@ -1,4 +1,4 @@
-package org.apache.jena.dboe.storage.advanced.tuple;
+package org.apache.jena.dboe.storage.advanced.tuple.api;
 
 public class TupleAccessorForArrayOfInts
     implements TupleAccessor<int[], Integer>

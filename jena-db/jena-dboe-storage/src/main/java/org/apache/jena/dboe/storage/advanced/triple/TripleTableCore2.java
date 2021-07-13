@@ -19,7 +19,7 @@ package org.apache.jena.dboe.storage.advanced.triple;
 
 import java.util.stream.Stream;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleTableCore2;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleTableCore2;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.sparql.util.NodeUtils;

@@ -19,7 +19,7 @@ package org.apache.jena.dboe.storage.advanced.quad;
 
 import java.util.stream.Stream;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleTableCoreFromSet;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleTableCoreFromSet;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.core.Quad;
 

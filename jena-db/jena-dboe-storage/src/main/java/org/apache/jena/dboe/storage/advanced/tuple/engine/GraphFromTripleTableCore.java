@@ -3,7 +3,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.engine;
 import java.util.stream.Stream;
 
 import org.apache.jena.dboe.storage.advanced.triple.TripleTableCore;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorTriple;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.graph.impl.GraphBase;

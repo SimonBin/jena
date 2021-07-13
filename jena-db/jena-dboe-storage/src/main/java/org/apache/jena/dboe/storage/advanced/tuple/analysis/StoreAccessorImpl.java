@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.stream.Stream;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Streamer;
 import org.apache.jena.ext.com.google.common.collect.Lists;

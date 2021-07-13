@@ -29,10 +29,10 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleOps;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorCore;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleOps;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Streamer;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinder;

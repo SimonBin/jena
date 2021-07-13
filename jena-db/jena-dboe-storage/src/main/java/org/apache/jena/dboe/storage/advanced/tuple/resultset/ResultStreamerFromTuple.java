@@ -21,7 +21,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
 
 /**
  * Implementation backed by a supplier of streams of {@link Tuple}s.

@@ -15,18 +15,24 @@
  *  information regarding copyright ownership.
  */
 
-package org.apache.jena.dboe.storage.advanced.tuple;
+package org.apache.jena.dboe.storage.advanced.tuple.api;
+
+import org.apache.jena.atlas.lib.tuple.Tuple;
+import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
 
 /**
- * Functional interface for accessing components of a tuple
+ * The essential method for running tuple queries
  *
  * @author Claus Stadler 11/09/2020
  *
- * @param <TupleLike>
+ * @param <TupleType>
  * @param <ComponentType>
  */
-@FunctionalInterface
-public interface TupleAccessorCore<TupleLike, ComponentType>
-{
-    ComponentType get(TupleLike tupleLike, int componentIdx);
+public interface TupleQuerySupport<TupleType, ComponentType> {
+
+     /** Method for running tuple queries */
+     ResultStreamer<TupleType, ComponentType, Tuple<ComponentType>> find(TupleQuery<ComponentType> tupleQuery);
+
+     /** Maybe the tuple table should be able to tell if a value is a placeholder? */
+     // boolean isAny(ComponentType value);
 }

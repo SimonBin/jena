@@ -15,27 +15,18 @@
  *  information regarding copyright ownership.
  */
 
-package org.apache.jena.dboe.storage.advanced.tuple;
-
-import java.util.List;
+package org.apache.jena.dboe.storage.advanced.tuple.api;
 
 /**
+ * Functional interface for accessing components of a tuple
  *
  * @author Claus Stadler 11/09/2020
  *
- * @param <ComponentType>
+ * @param <TUPLE>
+ * @param <COMPONENT>
  */
-public class TupleConstraintImpl<ComponentType>
-    implements TupleConstraint<ComponentType>
+@FunctionalInterface
+public interface TupleAccessorCore<TUPLE, COMPONENT>
 {
-    protected List<ComponentType> constraints;
-
-    public TupleConstraintImpl(List<ComponentType> constraints) {
-        super();
-        this.constraints = constraints;
-    }
-
-    public List<ComponentType> getConstraints() {
-        return constraints;
-    }
+    COMPONENT get(TUPLE tupleLike, int componentIdx);
 }

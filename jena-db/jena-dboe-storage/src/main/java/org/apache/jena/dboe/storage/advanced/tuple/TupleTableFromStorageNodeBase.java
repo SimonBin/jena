@@ -25,6 +25,8 @@ import org.apache.jena.dboe.storage.advanced.tuple.analysis.NodeStats;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleFinder;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleQuery;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinder;

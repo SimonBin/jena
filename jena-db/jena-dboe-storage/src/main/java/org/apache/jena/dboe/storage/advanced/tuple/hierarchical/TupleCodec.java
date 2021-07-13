@@ -1,7 +1,19 @@
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
 
+/**
+ * Component-wise tuple codec.
+ * Can be used to map tuples between tuples with different component types,
+ * such RDF term to/from integer. 
+ * 
+ * @author raven
+ *
+ * @param <D1>
+ * @param <C1>
+ * @param <D2>
+ * @param <C2>
+ */
 public interface TupleCodec<D1, C1, D2, C2> {
 
     C2 encodeComponent(C1 c1);

@@ -28,14 +28,14 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuad;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuadAnyToNull;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleQueryImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.NodeStats;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessor;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.StoreAccessorImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.analysis.TupleQueryAnalyzer;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorQuad;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorQuadAnyToNull;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleQuery;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleQueryImpl;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Alt2;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamerBinder;

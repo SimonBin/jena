@@ -13,8 +13,8 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorTriple;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNodeMutable;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Alt2;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Alt3;

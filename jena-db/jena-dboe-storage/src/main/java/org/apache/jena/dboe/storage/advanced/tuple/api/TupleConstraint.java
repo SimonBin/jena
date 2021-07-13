@@ -15,15 +15,16 @@
  *  information regarding copyright ownership.
  */
 
-package org.apache.jena.dboe.storage.advanced.tuple;
+package org.apache.jena.dboe.storage.advanced.tuple.api;
+
+import java.util.List;
 
 /**
- * Getter and setter in one
  *
  * @author Claus Stadler 11/09/2020
  *
+ * @param <ComponentType>
  */
-public interface TupleMutator<DomainType, ComponentType>
-    extends TupleAccessor<DomainType, ComponentType>, TupleSetter<DomainType, ComponentType>
-{
+public interface TupleConstraint<ComponentType> {
+    List<ComponentType> getConstraints();
 }

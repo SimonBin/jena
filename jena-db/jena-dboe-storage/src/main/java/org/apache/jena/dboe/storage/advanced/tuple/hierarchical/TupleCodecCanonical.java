@@ -3,7 +3,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
 
 public abstract class TupleCodecCanonical<D, C>
     implements TupleCodec<D, C, D, C>

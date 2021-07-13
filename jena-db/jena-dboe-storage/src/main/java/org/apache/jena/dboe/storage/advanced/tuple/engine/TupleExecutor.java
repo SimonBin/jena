@@ -5,12 +5,12 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import org.apache.jena.atlas.lib.tuple.Tuple;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessor;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorQuad;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorTriple;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleQuery;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleQueryImpl;
-import org.apache.jena.dboe.storage.advanced.tuple.TupleQuerySupport;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessor;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorQuad;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorTriple;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleQuery;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleQueryImpl;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleQuerySupport;
 import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;

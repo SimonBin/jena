@@ -17,7 +17,7 @@
 
 package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorCore;
 
 /**
  * Map a tuple-like object to a value

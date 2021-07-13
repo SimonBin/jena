@@ -15,7 +15,7 @@
  *  information regarding copyright ownership.
  */
 
-package org.apache.jena.dboe.storage.advanced.tuple;
+package org.apache.jena.dboe.storage.advanced.tuple.api;
 
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;

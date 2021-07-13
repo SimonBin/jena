@@ -20,7 +20,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.analysis;
 import java.util.List;
 import java.util.Map.Entry;
 
-import org.apache.jena.dboe.storage.advanced.tuple.TupleAccessorCore;
+import org.apache.jena.dboe.storage.advanced.tuple.api.TupleAccessorCore;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core.StorageNode;
 import org.apache.jena.dboe.storage.advanced.tuple.hierarchical.util.Streamer;
 

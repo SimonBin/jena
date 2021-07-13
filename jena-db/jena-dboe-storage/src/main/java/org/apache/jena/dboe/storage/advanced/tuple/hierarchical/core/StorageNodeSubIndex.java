@@ -2,7 +2,7 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core;
 
 
 /**
- * A wrapper for a storage node that can indirectly index key tuples.
+ * A decorator for a storage node that can indirectly index key tuples.
  * 
  * Remaps the key components of an input tuple to a different tuple whose components can be indexed
  * using the StorageNode machinery.
@@ -18,18 +18,15 @@ package org.apache.jena.dboe.storage.advanced.tuple.hierarchical.core;
  * @param <V>
  * @param <X>
  */
-public class StorageNodeSubIndex<D, C, V, X extends StorageNodeMutable<D,C,V>>
-	extends StorageNodeMutableForwarding<D, C, V, X>
+public class StorageNodeSubIndex<D1, D2, C1, C2 V, K>
+	//extends StorageNodeMutableForwarding<D, C, V, X>
 {
-	protected 
+	protected StorageNode<D1, C1, V> primary;
+	protected StorageNode<D2, C2, V> secondary;
 
-	@Override
-	protected X getDelegate() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
+	protected Function<D1, D2> inputToSecondary;
 	
+		
 	@Override
 	public boolean add(V store, D tupleLike) {
 		// TODO Auto-generated method stub

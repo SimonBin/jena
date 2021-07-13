@@ -15,24 +15,27 @@
  *  information regarding copyright ownership.
  */
 
-package org.apache.jena.dboe.storage.advanced.tuple;
+package org.apache.jena.dboe.storage.advanced.tuple.api;
 
-import org.apache.jena.atlas.lib.tuple.Tuple;
-import org.apache.jena.dboe.storage.advanced.tuple.resultset.ResultStreamer;
+import java.util.List;
 
 /**
- * The essential method for running tuple queries
  *
  * @author Claus Stadler 11/09/2020
  *
- * @param <TupleType>
  * @param <ComponentType>
  */
-public interface TupleQuerySupport<TupleType, ComponentType> {
+public class TupleConstraintImpl<ComponentType>
+    implements TupleConstraint<ComponentType>
+{
+    protected List<ComponentType> constraints;
 
-     /** Method for running tuple queries */
-     ResultStreamer<TupleType, ComponentType, Tuple<ComponentType>> find(TupleQuery<ComponentType> tupleQuery);
+    public TupleConstraintImpl(List<ComponentType> constraints) {
+        super();
+        this.constraints = constraints;
+    }
 
-     /** Maybe the tuple table should be able to tell if a value is a placeholder? */
-     // boolean isAny(ComponentType value);
+    public List<ComponentType> getConstraints() {
+        return constraints;
+    }
 }

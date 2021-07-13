@@ -15,17 +15,18 @@
  *  information regarding copyright ownership.
  */
 
-package org.apache.jena.dboe.storage.advanced.tuple;
+package org.apache.jena.dboe.storage.advanced.tuple.api;
 
 /**
  * Access components of a domain object such as a Triple or Quad as if it was a Tuple
  *
  * @author Claus Stadler 11/09/2020
  *
- * @param <DomainType>
+ * @param <D> The domain type of the tuple like object
+ * @param <C> The component type
  */
-public interface TupleAccessor<DomainType, ComponentType>
-    extends TupleAccessorCore<DomainType, ComponentType>
+public interface TupleAccessor<D, C>
+    extends TupleAccessorCore<D, C>
 {
     int getDimension();
 
@@ -38,7 +39,7 @@ public interface TupleAccessor<DomainType, ComponentType>
      * @param accessor The accessor of components from the domain object
      * @return
      */
-    <T> DomainType restore(T obj, TupleAccessorCore<? super T, ? extends ComponentType> accessor);
+    <T> D restore(T obj, TupleAccessorCore<? super T, ? extends C> accessor);
 
     default void validateRestoreArg(TupleAccessor<?, ?> accessor) {
         int cl = accessor.getDimension();
@@ -50,10 +51,10 @@ public interface TupleAccessor<DomainType, ComponentType>
 
     }
 
-    default ComponentType[] toComponentArray(DomainType domainObject) {
+    default C[] toComponentArray(D domainObject) {
         int rank = getDimension();
         @SuppressWarnings("unchecked")
-        ComponentType[] result = (ComponentType[])new Object[rank];
+        C[] result = (C[])new Object[rank];
 
         for (int i = 0; i < rank; ++i) {
             result[i] = get(domainObject, i);
