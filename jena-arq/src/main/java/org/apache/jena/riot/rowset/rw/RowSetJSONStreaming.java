@@ -79,43 +79,15 @@ public class RowSetJSONStreaming
     extends IteratorSlotted<Binding>
     implements RowSet
 {
-
-    public static void main(String[] args) throws MalformedURLException, IOException {
-        // TODO Read test data from class path resource
-        byte[] data;
-        try (InputStream in = new URL("http://moin.aksw.org/sparql?query=SELECT%20*%20{%20?s%20?p%20?o%20}").openStream()) {
-            data = IOUtils.toByteArray(in);
-        }
-
-        Context cxt = ARQ.getContext().copy();
-        cxt.setTrue(ARQ.inputGraphBNodeLabels);
-
-        System.out.println("Data retrieved");
-        RowSet actuals = RowSetJSONStreaming.createBuffered(new ByteArrayInputStream(data), cxt);
-        RowSet expecteds = RowSetReaderJSON.factory.create(ResultSetLang.RS_JSON).read(new ByteArrayInputStream(data), cxt);
-
-        boolean isOk = true;
-        while (actuals.hasNext() && expecteds.hasNext()) {
-            Binding a = actuals.next();
-            Binding b = expecteds.next();
-
-            if (!Objects.equals(a, b)) {
-                System.out.println(String.format("Difference at %d/%d: %s != %s",
-                        actuals.getRowNumber(), expecteds.getRowNumber(), a , b));
-
-                isOk = false;
-            }
-        }
-
-        System.out.println("Success is " + isOk);
-
-        // boolean isIsomorphic = ResultSetCompare.isomorphic(actuals, expecteds);
-        // System.out.println("Isomorphic: " + isIsomorphic);
-
-        actuals.close();
-        expecteds.close();
-    }
     public static RowSetBuffered<RowSetJSONStreaming> createBuffered(InputStream in, Context context) {
+        try {
+            byte[] buf = IOUtils.toByteArray(in);
+            System.out.println(new String(buf));
+            in = new ByteArrayInputStream(buf);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
         Context cxt = context == null ? ARQ.getContext() : context;
 
         boolean inputGraphBNodeLabels = cxt.isTrue(ARQ.inputGraphBNodeLabels);
@@ -279,18 +251,19 @@ public class RowSetJSONStreaming
         List<Var> result = null;
 
         reader.beginObject();
-        String n = reader.nextName();
-        switch (n) {
-        case JSONResultsKW.kVars:
-            List<String> varNames = gson.fromJson(reader, new TypeToken<List<String>>() {}.getType());
-            result = Var.varList(varNames);
-            break;
-        default:
-            onUnexpectedJsonElement();
-            break;
+        while (reader.hasNext()) {
+            String n = reader.nextName();
+            switch (n) {
+            case JSONResultsKW.kVars:
+                List<String> varNames = gson.fromJson(reader, new TypeToken<List<String>>() {}.getType());
+                result = Var.varList(varNames);
+                break;
+            default:
+                onUnexpectedJsonElement();
+                break;
+            }
         }
         reader.endObject();
-
         return result;
     }
 
