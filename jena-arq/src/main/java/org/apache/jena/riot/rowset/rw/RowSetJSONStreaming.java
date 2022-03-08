@@ -22,12 +22,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -39,12 +37,9 @@ import org.apache.jena.atlas.data.ThresholdPolicyFactory;
 import org.apache.jena.atlas.iterator.IteratorSlotted;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
-import org.apache.jena.graph.Triple;
 import org.apache.jena.query.ARQ;
 import org.apache.jena.riot.lang.LabelToNode;
-import org.apache.jena.riot.resultset.ResultSetLang;
 import org.apache.jena.riot.system.SyntaxLabels;
-import org.apache.jena.shared.JenaException;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.binding.BindingBuilder;
@@ -55,6 +50,7 @@ import org.apache.jena.sparql.resultset.ResultSetException;
 import org.apache.jena.sparql.system.SerializationFactoryFinder;
 import org.apache.jena.sparql.util.Context;
 import org.apache.jena.sparql.util.NodeFactoryExtra;
+import org.apache.jena.vocabulary.RDF;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -102,17 +98,20 @@ public class RowSetJSONStreaming
             return r;
         };
 
-        return createBuffered(in, labelMap, bufferFactory);
+        return createBuffered(in, labelMap, bufferFactory, true);
     }
 
-    public static RowSetBuffered<RowSetJSONStreaming> createBuffered(InputStream in, LabelToNode labelMap, Supplier<DataBag<Binding>> bufferFactory) {
-        return new RowSetBuffered<>(createUnbuffered(in, labelMap), bufferFactory);
+
+    public static RowSetBuffered<RowSetJSONStreaming> createBuffered(
+            InputStream in, LabelToNode labelMap,
+            Supplier<DataBag<Binding>> bufferFactory, boolean enableValidation) {
+        return new RowSetBuffered<>(createUnbuffered(in, labelMap, enableValidation), bufferFactory);
     }
 
-    public static RowSetJSONStreaming createUnbuffered(InputStream in, LabelToNode labelMap) {
+    public static RowSetJSONStreaming createUnbuffered(InputStream in, LabelToNode labelMap, boolean enableValidation) {
         Gson gson = new Gson();
         JsonReader reader = gson.newJsonReader(new InputStreamReader(in, StandardCharsets.UTF_8));
-        RowSetJSONStreaming result = new RowSetJSONStreaming(gson, reader, LabelToNode.createUseLabelAsGiven());
+        RowSetJSONStreaming result = new RowSetJSONStreaming(gson, reader, LabelToNode.createUseLabelAsGiven(), enableValidation);
         return result;
     }
 
@@ -124,7 +123,6 @@ public class RowSetJSONStreaming
         BINDINGS,
         DONE
     }
-
 
     protected Gson gson;
     protected JsonReader reader;
@@ -142,14 +140,20 @@ public class RowSetJSONStreaming
 
     protected Function<JsonObject, Node> onUnknownRdfTermType = null;
 
+    protected boolean enableValidation;
+
+    protected int kHeadCount = 0;
+    protected int kResultsCount = 0;
+    protected int kBooleanCount = 0;
+
     protected State state;
 
 
-    public RowSetJSONStreaming(Gson gson, JsonReader reader, LabelToNode labelMap) {
-        this(gson, reader, labelMap, null, 0);
+    public RowSetJSONStreaming(Gson gson, JsonReader reader, LabelToNode labelMap, boolean enableValidation) {
+        this(gson, reader, labelMap, null, 0, enableValidation);
     }
 
-    public RowSetJSONStreaming(Gson gson, JsonReader reader, LabelToNode labelMap, List<Var> resultVars, long rowNumber) {
+    public RowSetJSONStreaming(Gson gson, JsonReader reader, LabelToNode labelMap, List<Var> resultVars, long rowNumber, boolean enableValidation) {
         super();
         this.gson = gson;
         this.reader = reader;
@@ -157,6 +161,8 @@ public class RowSetJSONStreaming
 
         this.resultVars = resultVars;
         this.rowNumber = rowNumber;
+
+        this.enableValidation = enableValidation;
 
         this.state = State.INIT;
     }
@@ -172,6 +178,9 @@ public class RowSetJSONStreaming
             return computeNextActual();
         } catch (IOException e) {
             throw new ResultSetException("IO Exception on underlying stream", e);
+        } catch (IllegalStateException e) {
+            // Rewrap GSON exceptions
+            throw new ResultSetException(e.getMessage(), e);
         }
     }
 
@@ -194,13 +203,16 @@ public class RowSetJSONStreaming
                     String topLevelName = reader.nextName();
                     switch (topLevelName) {
                     case JSONResultsKW.kHead:
+                        ++kHeadCount;
                         resultVars = parseHead();
                         break;
                     case JSONResultsKW.kResults:
+                        ++kResultsCount;
                         reader.beginObject();
                         state = State.RESULTS;
                         continue outer;
                     case JSONResultsKW.kBoolean:
+                        ++kBooleanCount;
                         askResult = reader.nextBoolean();
                         continue outer;
                     default:
@@ -241,8 +253,16 @@ public class RowSetJSONStreaming
 
             case DONE:
                 result = null; // endOfData();
+                if (enableValidation) {
+                    validateCompleted(this);
+                }
+
                 break outer;
             }
+        }
+
+        if (enableValidation) {
+            validate(this);
         }
 
         return result;
@@ -277,6 +297,37 @@ public class RowSetJSONStreaming
         return rowNumber;
     }
 
+    public int getKHeadCount() {
+        return kHeadCount;
+    }
+
+    public int getKBooleanCount() {
+        return kBooleanCount;
+    }
+
+    public int getKResultsCount() {
+        return kResultsCount;
+    }
+
+    /** Check the current state of a streaming json row set for inconsistencies */
+    public static void validate(RowSetJSONStreaming rs) {
+        if (rs.getKBooleanCount() > 0 && rs.getKResultsCount() > 0) {
+            throw new ResultSetException("Encountered bindings as well as boolean result");
+        }
+    }
+
+    /** Check a completed streaming json row set for inconsistencies.
+     *  Specifically checks for whether there was a header attribute. */
+    public static void validateCompleted(RowSetJSONStreaming rs) {
+        if (rs.getKHeadCount() == 0) {
+            throw new ResultSetException(String.format("Mandory key '%s' not seen", JSONResultsKW.kHead));
+        }
+
+        if (rs.getKResultsCount() == 0 && rs.getKBooleanCount() == 0) {
+            throw new ResultSetException(String.format("Either '%s' or '%s' is mandatory; neither seen", JSONResultsKW.kResults, JSONResultsKW.kBoolean));
+        }
+    }
+
     @Override
     public void closeIterator() {
         try {
@@ -292,11 +343,17 @@ public class RowSetJSONStreaming
     }
 
 
-    public static Node parseOneTerm(JsonObject json, LabelToNode labelMap, Function<JsonObject, Node> onUnknownRdfTermType) {
-        Node result;
+    public static Node parseOneTerm(JsonElement jsonElt, LabelToNode labelMap, Function<JsonObject, Node> onUnknownRdfTermType) {
 
-        String type = json.get(JSONResultsKW.kType).getAsString();
-        JsonElement valueJson = json.get(JSONResultsKW.kValue);
+        if (jsonElt == null) {
+            throw new ResultSetException("Expected a json object for an RDF term but got null");
+        }
+
+        JsonObject term = jsonElt.getAsJsonObject();
+
+        Node result;
+        String type = expectNonNull(term, JSONResultsKW.kType).getAsString();
+        JsonElement valueJson = expectNonNull(term, JSONResultsKW.kValue);
         String valueStr;
         switch (type) {
         case JSONResultsKW.kUri:
@@ -306,12 +363,26 @@ public class RowSetJSONStreaming
         case JSONResultsKW.kTypedLiteral: /* Legacy */
         case JSONResultsKW.kLiteral:
             valueStr = valueJson.getAsString();
-            JsonElement langJson = json.get(JSONResultsKW.kXmlLang);
-            JsonElement dtJson = json.get(JSONResultsKW.kDatatype);
-            result = NodeFactoryExtra.createLiteralNode(
-                    valueStr,
-                    langJson == null ? null : langJson.getAsString(),
-                    dtJson == null ? null : dtJson.getAsString());
+            JsonElement langJson = term.get(JSONResultsKW.kXmlLang);
+            JsonElement dtJson = term.get(JSONResultsKW.kDatatype);
+
+            String lang = langJson == null ? null : langJson.getAsString();
+            String dtStr = dtJson == null ? null : dtJson.getAsString();
+
+            if ( lang != null ) {
+                // Strictly, xml:lang=... and datatype=rdf:langString is wrong
+                // (the datatype should be absent)
+                // The RDF specs recommend omitting the datatype. They did
+                // however come after the SPARQL 1.1 docs
+                // it's more of a "SHOULD" than a "MUST".
+                // datatype=xsd:string is also unnecessary.
+                if ( dtStr != null && !dtStr.equals(RDF.dtLangString.getURI()) ) {
+                    // Must agree.
+                    throw new ResultSetException("Both language and datatype defined, datatype is not rdf:langString:\n" + term);
+                }
+            }
+
+            result = NodeFactoryExtra.createLiteralNode(valueStr, lang, dtStr);
             break;
         case JSONResultsKW.kBnode:
             valueStr = valueJson.getAsString();
@@ -320,21 +391,58 @@ public class RowSetJSONStreaming
         case JSONResultsKW.kStatement:
         case JSONResultsKW.kTriple:
             JsonObject tripleJson = valueJson.getAsJsonObject();
-            Node s = parseOneTerm(tripleJson.get(JSONResultsKW.kSubject).getAsJsonObject(), labelMap, onUnknownRdfTermType);
-            Node p = parseOneTerm(tripleJson.get(JSONResultsKW.kPredicate).getAsJsonObject(), labelMap, onUnknownRdfTermType);
-            Node o = parseOneTerm(tripleJson.get(JSONResultsKW.kObject).getAsJsonObject(), labelMap, onUnknownRdfTermType);
-            result = NodeFactory.createTripleNode(new Triple(s, p, o));
+
+            JsonElement js = expectOneKey(tripleJson, JSONResultsKW.kSubject, JSONResultsKW.kSubjectAlt);
+            JsonElement jp = expectOneKey(tripleJson, JSONResultsKW.kPredicate, JSONResultsKW.kProperty, JSONResultsKW.kPredicateAlt);
+            JsonElement jo = expectOneKey(tripleJson, JSONResultsKW.kObject, JSONResultsKW.kObjectAlt);
+
+            Node s = parseOneTerm(js, labelMap, onUnknownRdfTermType);
+            Node p = parseOneTerm(jp, labelMap, onUnknownRdfTermType);
+            Node o = parseOneTerm(jo, labelMap, onUnknownRdfTermType);
+
+            result = NodeFactory.createTripleNode(s, p, o);
             break;
         default:
             if (onUnknownRdfTermType != null) {
-                result = onUnknownRdfTermType.apply(json);
+                result = onUnknownRdfTermType.apply(term);
                 if (result == null) {
                     throw new ResultSetException("Custom handler returned null for unknown rdf term type '" + type + "'");
                 }
             } else {
-                throw new ResultSetException("Unknown rdf term type: " + type);
+                throw new ResultSetException("Object key not recognized as valid for an RDF term: " + term);
             }
             break;
+        }
+
+        return result;
+    }
+
+    public static JsonElement expectNonNull(JsonObject json, String key) {
+        JsonElement v = json.get(key);
+        if ( v == null )
+            throw new ResultSetException("Unexpected null value for key: " + key);
+
+        return v;
+    }
+
+
+    public static JsonElement expectOneKey(JsonObject json, String ...keys) {
+        JsonElement result = null;
+
+        for (String key : keys) {
+            JsonElement tmp = json.get(key);
+
+            if (tmp != null) {
+                if (result != null) {
+                    throw new ResultSetException("More than one key out of " + Arrays.asList(keys));
+                }
+
+                result = tmp;
+            }
+        }
+
+        if (result == null) {
+            throw new ResultSetException("One or more of the required keys " + Arrays.asList(keys) + " was not found");
         }
 
         return result;
@@ -349,9 +457,9 @@ public class RowSetJSONStreaming
 
         for (Entry<String, JsonElement> e : obj.entrySet()) {
             Var v = Var.alloc(e.getKey());
-            JsonObject nodeObj = e.getValue().getAsJsonObject();
+            JsonElement nodeElt = e.getValue();
 
-            Node node = parseOneTerm(nodeObj, labelMap, onUnknownRdfTermType);
+            Node node = parseOneTerm(nodeElt, labelMap, onUnknownRdfTermType);
             bb.add(v, node);
         }
 
