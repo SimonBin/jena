@@ -96,15 +96,14 @@ public class RowSetReaderJSON implements RowSetReader {
         return process(in, context);
     }
 
-    static private QueryExecResult process(InputStream in, Context context) {
+    static public QueryExecResult process(InputStream in, Context context) {
         QueryExecResult result = null;
-        RowSet rs = RowSetJSONStreaming.createBuffered(in, context);
+        RowSetBuffered<RowSetJSONStreaming> rs = RowSetJSONStreaming.createBuffered(in, context);
 
-        // If there are no bindings we need to check for an ask result
+        // If there are no bindings we check for an ask result
         if (!rs.hasNext()) {
             // Unwrapping in order to access the ask result
-            RowSetBuffered outer = (RowSetBuffered)rs;
-            RowSetJSONStreaming inner = (RowSetJSONStreaming)outer.getDelegate();
+            RowSetJSONStreaming inner = rs.getDelegate();
             Boolean askResult = inner.getAskResult();
 
             if (askResult != null) {

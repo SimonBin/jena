@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import org.apache.jena.atlas.data.DataBag;
+import org.apache.jena.atlas.iterator.Iter;
+import org.apache.jena.atlas.iterator.IteratorSlotted;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.Binding;
 
@@ -37,11 +39,11 @@ import org.apache.jena.sparql.engine.binding.Binding;
  * order.
  *
  */
-public class RowSetBuffered
-    extends AbstractIterator<Binding>
+public class RowSetBuffered<T extends RowSet>
+    extends IteratorSlotted<Binding>
     implements RowSet
 {
-    protected RowSet delegate;
+    protected T delegate;
 
     // The buffer may be filled upon calling getResultVars()
     // Data will be served from the buffer first until it is exhausted, then
@@ -53,18 +55,18 @@ public class RowSetBuffered
 
     protected long rowNumber;
 
-    public RowSetBuffered(RowSet delegate, Supplier<DataBag<Binding>> bufferFactory) {
+    public RowSetBuffered(T delegate, Supplier<DataBag<Binding>> bufferFactory) {
         this(delegate, bufferFactory, 0);
     }
 
-    public RowSetBuffered(RowSet delegate, Supplier<DataBag<Binding>> bufferFactory, long rowNumber) {
+    public RowSetBuffered(T delegate, Supplier<DataBag<Binding>> bufferFactory, long rowNumber) {
         super();
         this.delegate = delegate;
         this.bufferFactory = bufferFactory;
         this.rowNumber = rowNumber;
     }
 
-    public RowSet getDelegate() {
+    public T getDelegate() {
         return delegate;
     }
 
@@ -74,15 +76,25 @@ public class RowSetBuffered
         List<Var> result = getDelegate().getResultVars();
 
         if (result == null && getDelegate().hasNext()) {
-            if (buffer == null) {
-                buffer = bufferFactory.get();
-            }
 
-            while (((result = getDelegate().getResultVars()) == null) && getDelegate().hasNext()) {
-                Binding b = getDelegate().next();
-                buffer.add(b);
+            // Having invoked .hasNext() may have triggered reading the header
+            // in that case we don't have to buffer
+            result = getDelegate().getResultVars();
 
-                // Log a warning if we read a lot of data here?
+            if (result == null) {
+
+                // No luck, buffering needed
+
+                if (buffer == null) {
+                    buffer = bufferFactory.get();
+                }
+
+                while (((result = getDelegate().getResultVars()) == null) && getDelegate().hasNext()) {
+                    Binding b = getDelegate().next();
+                    buffer.add(b);
+
+                    // Log a warning if we read a lot of data here?
+                }
             }
         }
 
@@ -94,28 +106,38 @@ public class RowSetBuffered
         return rowNumber;
     }
 
-    @Override
-    public void close() {
+    protected void closeBuffer() {
         try {
+            if (bufferIterator != null) {
+                Iter.close(bufferIterator);
+            }
+        } finally {
             if (buffer != null) {
                 buffer.close();
             }
+        }
+        bufferIterator = null;
+        buffer = null;
+    }
+
+    @Override
+    public void closeIterator() {
+        try {
+            closeBuffer();
         } finally {
             getDelegate().close();
         }
     }
 
     @Override
-    protected Binding computeNext() {
+    protected Binding moveToNext() {
         Binding result;
 
         if (bufferIterator != null) {
             if (bufferIterator.hasNext()) {
                 result = bufferIterator.next();
             } else {
-                buffer.close();
-                buffer = null;
-                bufferIterator = null;
+                closeBuffer();
                 result = nextFromDelegate();
             }
         } else {
@@ -126,10 +148,15 @@ public class RowSetBuffered
         return result;
     }
 
+    @Override
+    protected boolean hasMore() {
+        return true;
+    }
+
     protected Binding nextFromDelegate() {
         Binding result = getDelegate().hasNext()
             ? getDelegate().next()
-            : endOfData();
+            : null; // endOfData();
         return result;
     }
 
