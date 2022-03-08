@@ -18,10 +18,38 @@
 
 package org.apache.jena.riot.rowset.rw;
 
-import static org.apache.jena.riot.rowset.rw.JSONResultsKW.*;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kBindings;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kBnode;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kBoolean;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kDatatype;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kHead;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kLink;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kLiteral;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kObject;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kObjectAlt;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kPredicate;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kPredicateAlt;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kProperty;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kResults;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kStatement;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kSubject;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kSubjectAlt;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kTriple;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kType;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kTypedLiteral;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kUri;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kValue;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kVars;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kXmlLang;
 
 import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 import org.apache.jena.atlas.json.JSON;
 import org.apache.jena.atlas.json.JsonArray;
@@ -43,6 +71,7 @@ import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.binding.BindingBuilder;
 import org.apache.jena.sparql.exec.QueryExecResult;
 import org.apache.jena.sparql.exec.RowSet;
+import org.apache.jena.sparql.exec.RowSetBuffered;
 import org.apache.jena.sparql.exec.RowSetStream;
 import org.apache.jena.sparql.resultset.ResultSetException;
 import org.apache.jena.sparql.util.Context;
@@ -68,6 +97,29 @@ public class RowSetReaderJSON implements RowSetReader {
     }
 
     static private QueryExecResult process(InputStream in, Context context) {
+        QueryExecResult result = null;
+        RowSet rs = RowSetJSONStreaming.createBuffered(in, context);
+
+        // If there are no bindings we need to check for an ask result
+        if (!rs.hasNext()) {
+            // Unwrapping in order to access the ask result
+            RowSetBuffered outer = (RowSetBuffered)rs;
+            RowSetJSONStreaming inner = (RowSetJSONStreaming)outer.getDelegate();
+            Boolean askResult = inner.getAskResult();
+
+            if (askResult != null) {
+                result = new QueryExecResult(askResult);
+            }
+        }
+
+        if (result == null) {
+            result = new QueryExecResult(rs);
+        }
+
+        return result;
+    }
+
+    static private QueryExecResult processOld(InputStream in, Context context) {
         if ( context == null )
             context = ARQ.getContext();
         RowSetJSON exec = new RowSetJSON(context);
