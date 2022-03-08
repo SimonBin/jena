@@ -77,14 +77,14 @@ public class RowSetJSONStreaming
     implements RowSet
 {
     public static RowSetBuffered<RowSetJSONStreaming> createBuffered(InputStream in, Context context) {
-        try {
-            byte[] buf = IOUtils.toByteArray(in);
-            System.out.println(new String(buf));
-            in = new ByteArrayInputStream(buf);
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+//        try {
+//            byte[] buf = IOUtils.toByteArray(in);
+//            System.out.println(new String(buf));
+//            in = new ByteArrayInputStream(buf);
+//        } catch (IOException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//        }
         Context cxt = context == null ? ARQ.getContext() : context;
 
         boolean inputGraphBNodeLabels = cxt.isTrue(ARQ.inputGraphBNodeLabels);
