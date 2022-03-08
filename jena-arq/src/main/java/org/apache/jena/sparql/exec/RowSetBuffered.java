@@ -55,6 +55,9 @@ public class RowSetBuffered<T extends RowSet>
 
     protected long rowNumber;
 
+    // Cached result vars
+    protected List<Var> resultVars = null;
+
     public RowSetBuffered(T delegate, Supplier<DataBag<Binding>> bufferFactory) {
         this(delegate, bufferFactory, 0);
     }
@@ -73,32 +76,34 @@ public class RowSetBuffered<T extends RowSet>
     /** Reads and buffers bindings until the delegate's header no longer returns null */
     @Override
     public List<Var> getResultVars() {
-        List<Var> result = getDelegate().getResultVars();
+        // Check the local cache for resultVars first; then try to get the
+        // value from the delegate. Consume the delegate until a header is found
+        // or the delegate is exhausted.
+        if (resultVars == null) {
+            resultVars = getDelegate().getResultVars();
 
-        if (result == null && getDelegate().hasNext()) {
+            // Calling hasNext may have caused the header to be read
+            // In that case we don't need to create a buffer
+            getDelegate().hasNext();
+            resultVars = getDelegate().getResultVars();
 
-            // Having invoked .hasNext() may have triggered reading the header
-            // in that case we don't have to buffer
-            result = getDelegate().getResultVars();
-
-            if (result == null) {
-
-                // No luck, buffering needed
-
-                if (buffer == null) {
-                    buffer = bufferFactory.get();
-                }
-
-                while (((result = getDelegate().getResultVars()) == null) && getDelegate().hasNext()) {
+            if (resultVars == null && getDelegate().hasNext()) {
+                // Buffering needed
+                // The buffer can only be null here because when the loop below
+                // finishes then ether resultVars are non-null or the stream
+                // is exhausted - in any case we will never come here again
+                buffer = bufferFactory.get();
+                while (((resultVars = getDelegate().getResultVars()) == null) && getDelegate().hasNext()) {
                     Binding b = getDelegate().next();
                     buffer.add(b);
 
                     // Log a warning if we read a lot of data here?
                 }
+                bufferIterator = buffer.iterator();
             }
         }
 
-        return result;
+        return resultVars;
     }
 
     @Override

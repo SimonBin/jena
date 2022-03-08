@@ -18,7 +18,8 @@
 
 package org.apache.jena.riot.rowset.rw;
 
-import java.io.ByteArrayInputStream;
+import static org.apache.jena.riot.rowset.rw.JSONResultsKW.*;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -29,7 +30,6 @@ import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.jena.atlas.data.BagFactory;
 import org.apache.jena.atlas.data.DataBag;
 import org.apache.jena.atlas.data.ThresholdPolicy;
@@ -39,6 +39,7 @@ import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.query.ARQ;
 import org.apache.jena.riot.lang.LabelToNode;
+import org.apache.jena.riot.system.ErrorHandler;
 import org.apache.jena.riot.system.SyntaxLabels;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.Binding;
@@ -57,6 +58,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.MalformedJsonException;
 
 
 /**
@@ -139,6 +141,7 @@ public class RowSetJSONStreaming
     // protected Context context;
 
     protected Function<JsonObject, Node> onUnknownRdfTermType = null;
+    protected ErrorHandler errorHandler;
 
     protected boolean enableValidation;
 
@@ -176,15 +179,15 @@ public class RowSetJSONStreaming
     protected Binding moveToNext() {
         try {
             return computeNextActual();
-        } catch (IOException e) {
-            throw new ResultSetException("IO Exception on underlying stream", e);
-        } catch (IllegalStateException e) {
-            // Rewrap GSON exceptions
+        } catch (Exception | IOException e) {
             throw new ResultSetException(e.getMessage(), e);
         }
     }
 
     protected void onUnexpectedJsonElement() throws IOException {
+        if (errorHandler != null) {
+            errorHandler.warning("Encountered unexpected json element at path " + reader.getPath(), -1, -1);
+        }
         reader.skipValue();
     }
 
@@ -202,16 +205,16 @@ public class RowSetJSONStreaming
                 while (reader.hasNext()) {
                     String topLevelName = reader.nextName();
                     switch (topLevelName) {
-                    case JSONResultsKW.kHead:
+                    case kHead:
                         ++kHeadCount;
                         resultVars = parseHead();
                         break;
-                    case JSONResultsKW.kResults:
+                    case kResults:
                         ++kResultsCount;
                         reader.beginObject();
                         state = State.RESULTS;
                         continue outer;
-                    case JSONResultsKW.kBoolean:
+                    case kBoolean:
                         ++kBooleanCount;
                         askResult = reader.nextBoolean();
                         continue outer;
@@ -228,7 +231,7 @@ public class RowSetJSONStreaming
                 while (reader.hasNext()) {
                     String elt = reader.nextName();
                     switch (elt) {
-                    case JSONResultsKW.kBindings:
+                    case kBindings:
                         reader.beginArray();
                         state = State.BINDINGS;
                         continue outer;
@@ -275,7 +278,7 @@ public class RowSetJSONStreaming
         while (reader.hasNext()) {
             String n = reader.nextName();
             switch (n) {
-            case JSONResultsKW.kVars:
+            case kVars:
                 List<String> varNames = gson.fromJson(reader, new TypeToken<List<String>>() {}.getType());
                 result = Var.varList(varNames);
                 break;
@@ -320,11 +323,11 @@ public class RowSetJSONStreaming
      *  Specifically checks for whether there was a header attribute. */
     public static void validateCompleted(RowSetJSONStreaming rs) {
         if (rs.getKHeadCount() == 0) {
-            throw new ResultSetException(String.format("Mandory key '%s' not seen", JSONResultsKW.kHead));
+            throw new ResultSetException(String.format("Mandory key '%s' not seen", kHead));
         }
 
         if (rs.getKResultsCount() == 0 && rs.getKBooleanCount() == 0) {
-            throw new ResultSetException(String.format("Either '%s' or '%s' is mandatory; neither seen", JSONResultsKW.kResults, JSONResultsKW.kBoolean));
+            throw new ResultSetException(String.format("Either '%s' or '%s' is mandatory; neither seen", kResults, kBoolean));
         }
     }
 
@@ -352,19 +355,19 @@ public class RowSetJSONStreaming
         JsonObject term = jsonElt.getAsJsonObject();
 
         Node result;
-        String type = expectNonNull(term, JSONResultsKW.kType).getAsString();
-        JsonElement valueJson = expectNonNull(term, JSONResultsKW.kValue);
+        String type = expectNonNull(term, kType).getAsString();
+        JsonElement valueJson = expectNonNull(term, kValue);
         String valueStr;
         switch (type) {
-        case JSONResultsKW.kUri:
+        case kUri:
             valueStr = valueJson.getAsString();
             result = NodeFactory.createURI(valueStr);
             break;
-        case JSONResultsKW.kTypedLiteral: /* Legacy */
-        case JSONResultsKW.kLiteral:
+        case kTypedLiteral: /* Legacy */
+        case kLiteral:
             valueStr = valueJson.getAsString();
-            JsonElement langJson = term.get(JSONResultsKW.kXmlLang);
-            JsonElement dtJson = term.get(JSONResultsKW.kDatatype);
+            JsonElement langJson = term.get(kXmlLang);
+            JsonElement dtJson = term.get(kDatatype);
 
             String lang = langJson == null ? null : langJson.getAsString();
             String dtStr = dtJson == null ? null : dtJson.getAsString();
@@ -384,17 +387,17 @@ public class RowSetJSONStreaming
 
             result = NodeFactoryExtra.createLiteralNode(valueStr, lang, dtStr);
             break;
-        case JSONResultsKW.kBnode:
+        case kBnode:
             valueStr = valueJson.getAsString();
             result = labelMap.get(null, valueStr);
             break;
-        case JSONResultsKW.kStatement:
-        case JSONResultsKW.kTriple:
+        case kStatement:
+        case kTriple:
             JsonObject tripleJson = valueJson.getAsJsonObject();
 
-            JsonElement js = expectOneKey(tripleJson, JSONResultsKW.kSubject, JSONResultsKW.kSubjectAlt);
-            JsonElement jp = expectOneKey(tripleJson, JSONResultsKW.kPredicate, JSONResultsKW.kProperty, JSONResultsKW.kPredicateAlt);
-            JsonElement jo = expectOneKey(tripleJson, JSONResultsKW.kObject, JSONResultsKW.kObjectAlt);
+            JsonElement js = expectOneKey(tripleJson, kSubject, kSubjectAlt);
+            JsonElement jp = expectOneKey(tripleJson, kPredicate, kProperty, kPredicateAlt);
+            JsonElement jo = expectOneKey(tripleJson, kObject, kObjectAlt);
 
             Node s = parseOneTerm(js, labelMap, onUnknownRdfTermType);
             Node p = parseOneTerm(jp, labelMap, onUnknownRdfTermType);
