@@ -51,6 +51,7 @@ import org.apache.jena.sparql.engine.binding.BindingBuilder;
 import org.apache.jena.sparql.engine.binding.BindingFactory;
 import org.apache.jena.sparql.exec.RowSet;
 import org.apache.jena.sparql.exec.RowSetBuffered;
+import org.apache.jena.sparql.resultset.ResultSetException;
 import org.apache.jena.sparql.system.SerializationFactoryFinder;
 import org.apache.jena.sparql.util.Context;
 import org.apache.jena.sparql.util.NodeFactoryExtra;
@@ -170,7 +171,7 @@ public class RowSetJSONStreaming
         try {
             return computeNextActual();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new ResultSetException("IO Exception on underlying stream", e);
         }
     }
 
@@ -281,7 +282,7 @@ public class RowSetJSONStreaming
         try {
             reader.close();
         } catch (IOException e) {
-            throw new JenaException(e);
+            throw new ResultSetException("IOException on closing the underlying stream", e);
         }
     }
 
@@ -316,6 +317,7 @@ public class RowSetJSONStreaming
             valueStr = valueJson.getAsString();
             result = labelMap.get(null, valueStr);
             break;
+        case JSONResultsKW.kStatement:
         case JSONResultsKW.kTriple:
             JsonObject tripleJson = valueJson.getAsJsonObject();
             Node s = parseOneTerm(tripleJson.get(JSONResultsKW.kSubject).getAsJsonObject(), labelMap, onUnknownRdfTermType);
@@ -326,9 +328,11 @@ public class RowSetJSONStreaming
         default:
             if (onUnknownRdfTermType != null) {
                 result = onUnknownRdfTermType.apply(json);
-                Objects.requireNonNull(result, "Custom handler returned null for unknown rdf term type '" + type + "'");
+                if (result == null) {
+                    throw new ResultSetException("Custom handler returned null for unknown rdf term type '" + type + "'");
+                }
             } else {
-                throw new IllegalStateException("Unknown rdf term type: " + type);
+                throw new ResultSetException("Unknown rdf term type: " + type);
             }
             break;
         }
