@@ -74,29 +74,7 @@ public class RowSetReaderJSON implements RowSetReader {
         return process(in, context);
     }
 
-    static public QueryExecResult process(InputStream in, Context context) {
-        QueryExecResult result = null;
-        RowSetBuffered<RowSetJSONStreaming> rs = RowSetJSONStreaming.createBuffered(in, context);
-
-        // If there are no bindings we check for an ask result
-        if (!rs.hasNext()) {
-            // Unwrapping in order to access the ask result
-            RowSetJSONStreaming inner = rs.getDelegate();
-            Boolean askResult = inner.getAskResult();
-
-            if (askResult != null) {
-                result = new QueryExecResult(askResult);
-            }
-        }
-
-        if (result == null) {
-            result = new QueryExecResult(rs);
-        }
-
-        return result;
-    }
-
-    static private QueryExecResult processOld(InputStream in, Context context) {
+    static private QueryExecResult process(InputStream in, Context context) {
         if ( context == null )
             context = ARQ.getContext();
         RowSetJSON exec = new RowSetJSON(context);
