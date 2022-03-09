@@ -67,44 +67,59 @@ public class RowSetJSONStreamingBenchmark {
             new URL("http://moin.aksw.org/sparql?query=SELECT%20*%20{%20?s%20?p%20?o%20}").openStream());
 
         for (int i = 0; i < 30; ++i) {
-            runOnce(dataFile);
+            runOnce("iteration" + i, dataFile);
         }
 
     }
 
 
-    public static void runOnce(Path dataFile) throws Exception {
+    public static void runOnce(String label, Path dataFile) throws Exception {
 
         // TODO Read test data from class path resource
         Context cxt = ARQ.getContext().copy();
         cxt.setTrue(ARQ.inputGraphBNodeLabels);
 
 
-        RowSet expectedsInit = benchmark("expected:setup", () ->
+        RowSet expectedsInit = benchmark(label + ":expected:setup", () ->
             RowSetReaderJSON.factory.create(ResultSetLang.RS_JSON).read(Files.newInputStream(dataFile), cxt));
 
-        RowSet expecteds = benchmark("expected:consumption", () -> RowSetMem.create(expectedsInit));
+        RowSet expecteds = benchmark(label + ":expected:consumption", () -> RowSetMem.create(expectedsInit));
 
-        RowSet actualsInit = benchmark("actual:setup", () ->
+        RowSet actualsInit = benchmark(label + ":actual:setup", () ->
             RowSetReaderJSONStreaming.factory.create(ResultSetLang.RS_JSON).read(Files.newInputStream(dataFile), cxt));
 
-        RowSet actuals = benchmark("actual:consumption", () -> RowSetMem.create(expectedsInit));
+        RowSet actuals = benchmark(label + ":actual:consumption", () -> RowSetMem.create(actualsInit));
 
 
+        long seenItems = 0;
         boolean isOk = true;
-        while (actuals.hasNext() && expecteds.hasNext()) {
-            Binding a = actuals.next();
-            Binding b = expecteds.next();
+        while (true) {
+            boolean ahn = actuals.hasNext();
+            boolean ehn = expecteds.hasNext();
 
-            if (!Objects.equals(a, b)) {
-                System.out.println(String.format("Difference at %d/%d: %s != %s",
-                        actuals.getRowNumber(), expecteds.getRowNumber(), a , b));
+            if (ahn == ehn) {
+                if (ahn) {
+                    Binding a = actuals.next();
+                    Binding e = expecteds.next();
 
+                    if (!Objects.equals(a, e)) {
+                        System.out.println(String.format("Difference at %d/%d: %s != %s",
+                                actuals.getRowNumber(), expecteds.getRowNumber(), a , e));
+
+                        isOk = false;
+                    }
+                } else {
+                    break;
+                }
+            } else {
+                System.out.println("Result set lengths differ");
                 isOk = false;
+                break;
             }
+            ++seenItems;
         }
 
-        System.out.println("Result sets are " + (isOk ? "" : " NOT ") + "equal");
+        System.out.println("Result sets are " + (isOk ? "" : "NOT ") + "equal - items seen: " + seenItems);
 
         // boolean isIsomorphic = ResultSetCompare.isomorphic(actuals, expecteds);
         // System.out.println("Isomorphic: " + isIsomorphic);
