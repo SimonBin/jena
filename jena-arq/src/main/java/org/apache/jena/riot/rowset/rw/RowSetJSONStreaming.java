@@ -274,8 +274,8 @@ public class RowSetJSONStreaming
                         parserState = ParserState.RESULTS;
                         continue outer;
                     case kBoolean:
-                        askResult.makeFinal();
                         ++kBooleanCount;
+                        askResult.makeFinal();
                         Boolean b = reader.nextBoolean();
                         updateAccepted = askResult.updateValue(b);
                         if (!updateAccepted) {
@@ -302,6 +302,10 @@ public class RowSetJSONStreaming
                         reader.beginArray();
                         parserState = ParserState.BINDINGS;
                         continue outer;
+
+                    // Legacy distinct / ordered keys could be caught here too
+                    // in order to assess use of legacy features in validation
+
                     default:
                         onUnexpectedJsonElement();
                         break;
@@ -313,8 +317,8 @@ public class RowSetJSONStreaming
 
             case BINDINGS:
                 while (reader.hasNext()) {
-                    result = parseBinding(gson, reader, labelMap, unknownRdfTermTypeHandler);
                     ++rowNumber;
+                    result = parseBinding(gson, reader, labelMap, unknownRdfTermTypeHandler);
                     break outer;
                 }
                 reader.endArray();
