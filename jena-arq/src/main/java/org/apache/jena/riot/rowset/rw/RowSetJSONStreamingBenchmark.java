@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.IOUtils;
 import org.apache.jena.ext.com.google.common.base.StandardSystemProperty;
 import org.apache.jena.ext.com.google.common.base.Stopwatch;
+import org.apache.jena.ext.com.google.common.collect.Iterators;
 import org.apache.jena.query.ARQ;
 import org.apache.jena.riot.resultset.ResultSetLang;
 import org.apache.jena.sparql.engine.binding.Binding;
@@ -75,34 +76,41 @@ public class RowSetJSONStreamingBenchmark {
     }
 
     public static void main(String[] args) throws Exception {
+        Context cxt = ARQ.getContext().copy();
+        cxt.setTrue(ARQ.inputGraphBNodeLabels);
 
         Path dataFile = Path.of(StandardSystemProperty.JAVA_IO_TMPDIR.value()).resolve("jena-rs.json");
         Path dataFileTmp = dataFile.resolveSibling(dataFile.getFileName() + ".tmp");
+
+        Callable<RowSet> conventionalRowSetFactory = () -> RowSetReaderJSON.factory.create(ResultSetLang.RS_JSON).read(Files.newInputStream(dataFile), cxt);
+        Callable<RowSet> streamingRowSetFactory = () -> RowSetReaderJSONStreaming.factory.create(ResultSetLang.RS_JSON).read(Files.newInputStream(dataFile), cxt);
+
 
         download(dataFile, dataFileTmp, () ->
             new URL("http://moin.aksw.org/sparql?query=SELECT%20*%20{%20?s%20?p%20?o%20}").openStream());
 
         for (int i = 0; i < 30; ++i) {
-            runOnce("iteration" + i, dataFile);
+            benchmarkComparison("iteration" + i, conventionalRowSetFactory, streamingRowSetFactory);
+            // benchmarkConsumption("conventional:iteration" + i, conventionalRowSetFactory);
+            // benchmarkConsumption("streaming:iteration" + i, streamingRowSetFactory);
         }
 
     }
 
-    public static void runOnce(String label, Path dataFile) throws Exception {
+    public static void benchmarkConsumption(String label, Callable<RowSet> rowSetSupp) throws Exception {
+        RowSet actualsInit = benchmark(label + ":setup", rowSetSupp::call);
+        int size = benchmark(label + ":consumption", () -> Iterators.size(actualsInit));
+        System.out.println("Size: " + size);
+        actualsInit.close();
+    }
 
-        // TODO Read test data from class path resource
-        Context cxt = ARQ.getContext().copy();
-        cxt.setTrue(ARQ.inputGraphBNodeLabels);
+    public static void benchmarkComparison(String label,
+    		Callable<RowSet> expectedFactory, Callable<RowSet> actualFactory) throws Exception {
 
-
-        RowSet expectedsInit = benchmark(label + ":expected:setup", () ->
-            RowSetReaderJSON.factory.create(ResultSetLang.RS_JSON).read(Files.newInputStream(dataFile), cxt));
-
+        RowSet expectedsInit = benchmark(label + ":expected:setup", expectedFactory::call);
         RowSet expecteds = benchmark(label + ":expected:consumption", () -> RowSetMem.create(expectedsInit));
 
-        RowSet actualsInit = benchmark(label + ":actual:setup", () ->
-            RowSetReaderJSONStreaming.factory.create(ResultSetLang.RS_JSON).read(Files.newInputStream(dataFile), cxt));
-
+        RowSet actualsInit = benchmark(label + ":actual:setup", actualFactory::call);
         RowSet actuals = benchmark(label + ":actual:consumption", () -> RowSetMem.create(actualsInit));
 
 

@@ -18,7 +18,6 @@
 
 package org.apache.jena.riot.rowset.rw;
 
-import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kBindings;
 import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kBnode;
 import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kBoolean;
 import static org.apache.jena.riot.rowset.rw.JSONResultsKW.kDatatype;
@@ -45,6 +44,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Serializable;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
@@ -58,8 +58,9 @@ import org.apache.jena.atlas.iterator.IteratorSlotted;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.riot.lang.LabelToNode;
+import org.apache.jena.riot.rowset.rw.IteratorRsJSON.RsJsonEltFactory;
+import org.apache.jena.riot.system.ErrorEvent;
 import org.apache.jena.riot.system.ErrorHandler;
-import org.apache.jena.riot.system.ErrorHandlerEvent;
 import org.apache.jena.riot.system.ErrorHandlers;
 import org.apache.jena.riot.system.Severity;
 import org.apache.jena.sparql.core.Var;
@@ -78,7 +79,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 
-
 /**
  * Streaming RowSet implementation for application/sparql-results+json
  * The {@link #getResultVars()} will return null as long as the header has not
@@ -92,7 +92,9 @@ public class RowSetJSONStreaming
     extends IteratorSlotted<Binding>
     implements RowSet
 {
-    public static RowSetBuffered<RowSetJSONStreaming> createBuffered(
+	/* Construction -------------------------------------------------------- */
+
+	public static RowSetBuffered<RowSetJSONStreaming> createBuffered(
             InputStream in, LabelToNode labelMap,
             Supplier<DataBag<Binding>> bufferFactory, ValidationSettings validationSettings,
             ErrorHandler errorHandler) {
@@ -116,109 +118,109 @@ public class RowSetJSONStreaming
         return result;
     }
 
-    /** Parsing state; i.e. where we are in the json document */
-    public enum ParserState {
-        INIT,
-        ROOT,
-        RESULTS,
-        BINDINGS,
-        DONE
+	/* Domain adapter / bridge for IteratorRsJson  ------------------------- */
+
+    public enum RsJsonEltType {
+    	UNKNOWN,
+    	HEAD,
+    	BOOLEAN,
+    	RESULTS, // The 'results' event exists as a marker for validation
+    	BINDING
     }
 
-    /**
-     * Internal helper class that can hold tentative values and make them final.
-     * Once a value is final then further updates are rejected.
-     * This is used to iterate over sequences of repeated json keys ('head', 'boolean')
-     * and only have the last value take effect.
-     *
-     * We don't want to validate for oddities in the json document - we just want to catch
-     * the cases when our optimistic reports turned out to be wrong.
-     * So even if there are e.g. repeated boolean fields then as long as we are sure that
-     * we report the last of those we are fine.
-     */
-    protected static class TentativeValue<T> {
-        T value;
-        boolean isValueFinal = false;
-        boolean isTentative = false;
+    public static class RsJsonEltDft {
+    	protected RsJsonEltType type;
+    	protected List<Var> head;
+    	protected Boolean askResult;
+    	protected Binding binding;
+    	protected JsonElement unknownJsonElement;
 
-        // Return true if update is valid
-        // As long as makeFinal is not called the value can be updated
-        boolean updateValue(T arg) {
-            boolean result;
-            if (!isValueFinal) {
-                value = arg;
-                isTentative = true;
-                result = true;
-            } else {
-                result = Objects.equals(value, arg);
-            }
-            return result;
-        }
+		public RsJsonEltDft(RsJsonEltType type) {
+			this.type = type;
+		}
 
-        // Finalize a tentative value - otherwise do nothing
-        void makeFinal() {
-            if (isTentative) {
-                isValueFinal = true;
-            }
-        }
+		public RsJsonEltDft(List<Var> head) {
+			this.type = RsJsonEltType.HEAD;
+			this.head = head;
+		}
 
-        T getValue() {
-            return value;
-        }
+		public RsJsonEltDft(Boolean askResult) {
+			this.type = RsJsonEltType.BOOLEAN;
+			this.askResult = askResult;
+		}
 
-        /** Whether updateValue was called at all */
-        boolean hasValue() {
-            return isTentative;
-        }
+		public RsJsonEltDft(Binding binding) {
+			this.type = RsJsonEltType.BINDING;
+			this.binding = binding;
+		}
 
-        /** Whether the value has been finalized */
-        boolean isValueFinal() {
-            return isValueFinal;
-        }
+		public RsJsonEltDft(JsonElement jsonElement) {
+			this.type = RsJsonEltType.UNKNOWN;
+			this.unknownJsonElement = jsonElement;
+		}
 
-        @Override
-        public String toString() {
-            return "Holder [value=" + value + ", isValueSet=" + isValueFinal + "]";
-        }
+		public RsJsonEltType getType() {
+			return type;
+		}
+
+		public List<Var> getHead() {
+			return head;
+		}
+
+		public Boolean getAskResult() {
+			return askResult;
+		}
+
+		public Binding getBinding() {
+			return binding;
+		}
+
+		public JsonElement getUnknownJsonElement() {
+			return unknownJsonElement;
+		}
+
+		@Override
+		public String toString() {
+			return "RsJsonEltDft [type=" + type + ", head=" + head + ", askResult=" + askResult + ", binding=" + binding
+					+ ", unknownJsonElement=" + unknownJsonElement + "]";
+		}
     }
 
-    protected Gson gson;
-    protected JsonReader reader;
+	/* Core implementation ------------------------------------------------- */
+
+    protected IteratorRsJSON<? extends RsJsonEltDft> rsJsonIterator;
+    protected Function<JsonObject, Node> unknownRdfTermTypeHandler;
 
     protected long rowNumber;
+
+    protected int kHeadCount = 0;
+    protected int kResultsCount = 0;
+    protected int kBooleanCount = 0;
+    protected long unexpectedItemCount = 0;
+
     protected TentativeValue<List<Var>> resultVars = null;
     protected TentativeValue<Boolean> askResult = null;
 
     protected LabelToNode labelMap;
 
     protected ValidationSettings validationSettings;
-    protected Function<JsonObject, Node> unknownRdfTermTypeHandler;
     protected ErrorHandler errorHandler;
-
-    /* Informative statistics */
-    protected int kHeadCount = 0;
-    protected int kResultsCount = 0;
-    protected int kBooleanCount = 0;
-    protected long unexpectedItemCount = 0;
-
-    protected ParserState parserState;
 
     public RowSetJSONStreaming(Gson gson, JsonReader reader, long rowNumber, LabelToNode labelMap,
     		Function<JsonObject, Node> unknownRdfTermTypeHandler,
             ValidationSettings validationSettings, ErrorHandler errorHandler) {
         super();
-        this.gson = gson;
-        this.reader = reader;
+
+        this.rowNumber = rowNumber;
+        this.rsJsonIterator = new IteratorRsJSON<>(gson, reader, new RsJsonEltFactoryDft());
+
         this.labelMap = labelMap;
 
         this.resultVars = new TentativeValue<>();
         this.askResult = new TentativeValue<>();
-        this.rowNumber = rowNumber;
 
         this.validationSettings = validationSettings;
         this.errorHandler = errorHandler;
-
-        this.parserState = ParserState.INIT;
     }
 
     @Override
@@ -232,129 +234,85 @@ public class RowSetJSONStreaming
         }
     }
 
-    protected void onUnexpectedJsonElement() throws IOException {
+    protected Binding computeNextActual() throws IOException {
+        boolean updateAccepted;
+        Binding result = null;
+
+        outer: while (rsJsonIterator.hasNext()) {
+        	RsJsonEltDft elt = rsJsonIterator.next();
+        	RsJsonEltType type = elt.getType();
+
+        	switch (type) {
+        	case HEAD:
+	            ++kHeadCount;
+	            resultVars.makeFinal(); // Finalize a prior tentative value if it exists
+	            List<Var> rsv = elt.getHead();
+	            updateAccepted = resultVars.updateValue(rsv);
+	            if (!updateAccepted) {
+	                ErrorHandlers.relay(errorHandler, validationSettings.getInvalidatedHeadSeverity(),
+	                        new ErrorEvent(String.format(
+	                            ". Expected %s but got %s", resultVars.getValue(), rsv)));
+	            }
+	            validate(this, errorHandler, validationSettings);
+	            continue;
+
+        	case BOOLEAN:
+                ++kBooleanCount;
+                askResult.makeFinal();
+                Boolean b = elt.getAskResult();
+                updateAccepted = askResult.updateValue(b);
+                if (!updateAccepted) {
+                    ErrorHandlers.relay(errorHandler, validationSettings.getInvalidatedHeadSeverity(),
+                            new ErrorEvent(String.format(
+                                ". Expected %s but got %s", askResult.getValue(), b)));
+                }
+                validate(this, errorHandler, validationSettings);
+                continue;
+
+        	case RESULTS:
+                ++kResultsCount;
+                validate(this, errorHandler, validationSettings);
+                continue;
+
+        	case BINDING:
+        		++rowNumber;
+                result = elt.getBinding();
+                break outer;
+
+        	case UNKNOWN:
+        		// onUnexpectedElement is called by RsJsonEltFactoryDft
+        		// which may raise an error but otherwise just skips the json element
+        		continue;
+        	}
+        }
+
+        if (result == null && !rsJsonIterator.hasNext()) {
+            validateCompleted(this, errorHandler, validationSettings);
+        }
+
+        return result;
+    }
+
+    @Override
+    protected boolean hasMore() {
+        return true;
+    }
+
+    @Override
+    protected void closeIterator() {
+    	rsJsonIterator.close();
+    }
+
+    protected void onUnexpectedElement(JsonReader reader) throws IOException {
         ++unexpectedItemCount;
 
         ErrorHandlers.relay(errorHandler, validationSettings.unexpectedJsonElementSeverity, () ->
-                new ErrorHandlerEvent("Encountered unexpected json element at path " + reader.getPath(), -1, -1));
+                new ErrorEvent("Encountered unexpected json element at path " + reader.getPath()));
 
         reader.skipValue();
     }
 
-    protected Binding computeNextActual() throws IOException {
-        boolean updateAccepted;
-        Binding result;
-        outer: while (true) {
-            switch (parserState) {
-            case INIT:
-                reader.beginObject();
-                parserState = ParserState.ROOT;
-                continue outer;
-
-            case ROOT:
-                while (reader.hasNext()) {
-                    String topLevelName = reader.nextName();
-                    switch (topLevelName) {
-                    case kHead:
-                        ++kHeadCount;
-                        resultVars.makeFinal(); // Finalize a prior tentative value if it exists
-                        List<Var> rsv = parseHead();
-                        updateAccepted = resultVars.updateValue(rsv);
-                        if (!updateAccepted) {
-                            ErrorHandlers.relay(errorHandler, validationSettings.getInvalidatedHeadSeverity(),
-                                    new ErrorHandlerEvent(String.format(
-                                        ". Expected %s but got %s", resultVars.getValue(), rsv)));
-                        }
-                        validate(this, errorHandler, validationSettings);
-                        break;
-                    case kResults:
-                        ++kResultsCount;
-                        validate(this, errorHandler, validationSettings);
-                        reader.beginObject();
-                        parserState = ParserState.RESULTS;
-                        continue outer;
-                    case kBoolean:
-                        ++kBooleanCount;
-                        askResult.makeFinal();
-                        Boolean b = reader.nextBoolean();
-                        updateAccepted = askResult.updateValue(b);
-                        if (!updateAccepted) {
-                            ErrorHandlers.relay(errorHandler, validationSettings.getInvalidatedHeadSeverity(),
-                                    new ErrorHandlerEvent(String.format(
-                                        ". Expected %s but got %s", askResult.getValue(), b)));
-                        }
-                        validate(this, errorHandler, validationSettings);
-                        continue outer;
-                    default:
-                        onUnexpectedJsonElement();
-                        break;
-                    }
-                }
-                reader.endObject();
-                parserState = ParserState.DONE;
-                continue outer;
-
-            case RESULTS:
-                while (reader.hasNext()) {
-                    String elt = reader.nextName();
-                    switch (elt) {
-                    case kBindings:
-                        reader.beginArray();
-                        parserState = ParserState.BINDINGS;
-                        continue outer;
-
-                    // Legacy distinct / ordered keys could be caught here too
-                    // in order to assess use of legacy features in validation
-
-                    default:
-                        onUnexpectedJsonElement();
-                        break;
-                    }
-                }
-                reader.endObject();
-                parserState = ParserState.ROOT;
-                break;
-
-            case BINDINGS:
-                while (reader.hasNext()) {
-                    ++rowNumber;
-                    result = parseBinding(gson, reader, labelMap, unknownRdfTermTypeHandler);
-                    break outer;
-                }
-                reader.endArray();
-                parserState = ParserState.RESULTS;
-                break;
-
-            case DONE:
-                result = null; // endOfData();
-                validateCompleted(this, errorHandler, validationSettings);
-
-                break outer;
-            }
-        }
-
-        return result;
-    }
-
-    protected List<Var> parseHead() throws IOException {
-        List<Var> result = null;
-
-        reader.beginObject();
-        while (reader.hasNext()) {
-            String n = reader.nextName();
-            switch (n) {
-            case kVars:
-                List<String> varNames = gson.fromJson(reader, new TypeToken<List<String>>() {}.getType());
-                result = Var.varList(varNames);
-                break;
-            default:
-                onUnexpectedJsonElement();
-                break;
-            }
-        }
-        reader.endObject();
-        return result;
-    }
+    /* Statistics ---------------------------------------------------------- */
 
     @Override
     public long getRowNumber() {
@@ -394,47 +352,37 @@ public class RowSetJSONStreaming
         return unexpectedItemCount;
     }
 
-    /** Runtime validation of the current state of a streaming json row set */
-    public static void validate(RowSetJSONStreaming rs, ErrorHandler errorHandler, ValidationSettings settings) {
-        if (rs.hasAskResult() && rs.getKResultsCount() > 0) {
-            ErrorHandlers.relay(errorHandler, settings.getMixedResultsSeverity(), () ->
-                new ErrorHandlerEvent("Encountered bindings as well as boolean result"));
-        }
+    /* Parsing ------------------------------------------------------------- */
 
-        if (rs.getKResultsCount() > 1) {
-            ErrorHandlers.relay(errorHandler, settings.getInvalidatedResultsSeverity(), () ->
-                new ErrorHandlerEvent("Multiple 'results' keys encountered"));
+    /** Parse the vars element from head - may return null */
+    public static List<Var> parseHeadVars(Gson gson, JsonReader reader) throws IOException {
+    	List<Var> result = null;
+    	Type stringListType = new TypeToken<List<String>>() {}.getType();
+        JsonObject headJson = gson.fromJson(reader, JsonObject.class);
+        JsonElement varsJson = headJson.get(kVars);
+        if (varsJson != null) {
+        	List<String> varNames = gson.fromJson(varsJson, stringListType);
+        	result = Var.varList(varNames);
         }
+        return result;
     }
 
-    /** Check a completed streaming json row set for inconsistencies.
-     *  Specifically checks for missing result value and missing head */
-    public static void validateCompleted(RowSetJSONStreaming rs, ErrorHandler errorHandler, ValidationSettings settings) {
-        // Missing result (neither 'results' nor 'boolean' seen)
-    	if (rs.getKResultsCount() == 0 && rs.getKBooleanCount() == 0) {
-            ErrorHandlers.relay(errorHandler, settings.getEmptyJsonSeverity(),
-                new ErrorHandlerEvent(String.format("Either '%s' or '%s' is mandatory; neither seen", kResults, kBoolean)));
+    public static Binding parseBinding(
+            Gson gson, JsonReader reader, LabelToNode labelMap,
+            Function<JsonObject, Node> onUnknownRdfTermType) throws IOException {
+        JsonObject obj = gson.fromJson(reader, JsonObject.class);
+
+        BindingBuilder bb = BindingFactory.builder();
+
+        for (Entry<String, JsonElement> e : obj.entrySet()) {
+            Var v = Var.alloc(e.getKey());
+            JsonElement nodeElt = e.getValue();
+
+            Node node = parseOneTerm(nodeElt, labelMap, onUnknownRdfTermType);
+            bb.add(v, node);
         }
 
-        // Missing head
-        if (rs.getKHeadCount() == 0) {
-            ErrorHandlers.relay(errorHandler, settings.getMissingHeadSeverity(),
-                new ErrorHandlerEvent(String.format("Mandory key '%s' not seen", kHead)));
-        }
-    }
-
-    @Override
-    public void closeIterator() {
-        try {
-            reader.close();
-        } catch (IOException e) {
-            throw new ResultSetException("IOException on closing the underlying stream", e);
-        }
-    }
-
-    @Override
-    protected boolean hasMore() {
-        return true;
+        return bb.build();
     }
 
     public static Node parseOneTerm(JsonElement jsonElt, LabelToNode labelMap, Function<JsonObject, Node> onUnknownRdfTermType) {
@@ -541,25 +489,38 @@ public class RowSetJSONStreaming
         return result;
     }
 
-    public static Binding parseBinding(
-            Gson gson, JsonReader reader, LabelToNode labelMap,
-            Function<JsonObject, Node> onUnknownRdfTermType) throws IOException {
-        JsonObject obj = gson.fromJson(reader, JsonObject.class);
+    /* Validation ---------------------------------------------------------- */
 
-        BindingBuilder bb = BindingFactory.builder();
-
-        for (Entry<String, JsonElement> e : obj.entrySet()) {
-            Var v = Var.alloc(e.getKey());
-            JsonElement nodeElt = e.getValue();
-
-            Node node = parseOneTerm(nodeElt, labelMap, onUnknownRdfTermType);
-            bb.add(v, node);
+    /** Runtime validation of the current state of a streaming json row set */
+    public static void validate(RowSetJSONStreaming rs, ErrorHandler errorHandler, ValidationSettings settings) {
+        if (rs.hasAskResult() && rs.getKResultsCount() > 0) {
+            ErrorHandlers.relay(errorHandler, settings.getMixedResultsSeverity(), () ->
+                new ErrorEvent("Encountered bindings as well as boolean result"));
         }
 
-        return bb.build();
+        if (rs.getKResultsCount() > 1) {
+            ErrorHandlers.relay(errorHandler, settings.getInvalidatedResultsSeverity(), () ->
+                new ErrorEvent("Multiple 'results' keys encountered"));
+        }
     }
 
-    /** Validation settings */
+    /** Check a completed streaming json row set for inconsistencies.
+     *  Specifically checks for missing result value and missing head */
+    public static void validateCompleted(RowSetJSONStreaming rs, ErrorHandler errorHandler, ValidationSettings settings) {
+        // Missing result (neither 'results' nor 'boolean' seen)
+    	if (rs.getKResultsCount() == 0 && rs.getKBooleanCount() == 0) {
+            ErrorHandlers.relay(errorHandler, settings.getEmptyJsonSeverity(),
+                new ErrorEvent(String.format("Either '%s' or '%s' is mandatory; neither seen", kResults, kBoolean)));
+        }
+
+        // Missing head
+        if (rs.getKHeadCount() == 0) {
+            ErrorHandlers.relay(errorHandler, settings.getMissingHeadSeverity(),
+                new ErrorEvent(String.format("Mandory key '%s' not seen", kHead)));
+        }
+    }
+
+    /** Validation settings class */
     public static class ValidationSettings implements Serializable {
         private static final long serialVersionUID = 1L;
 
@@ -646,6 +607,103 @@ public class RowSetJSONStreaming
 
         public void setUnexpectedJsonElementSeverity(Severity severity) {
             this.unexpectedJsonElementSeverity = severity;
+        }
+    }
+
+    /* Internal / Utility -------------------------------------------------- */
+
+    /**
+     * Inner class which shares state with the {@link RowSetJSONStreaming}
+     * such that statistics about unknown elements can be updated easily.
+     */
+    protected class RsJsonEltFactoryDft
+    	implements RsJsonEltFactory<RsJsonEltDft> {
+
+		@Override
+		public RsJsonEltDft newHeadElt(Gson gson, JsonReader reader) throws IOException {
+	        List<Var> vars = parseHeadVars(gson, reader);
+	        return new RsJsonEltDft(vars);
+	    }
+
+		@Override
+		public RsJsonEltDft newBooleanElt(Gson gson, JsonReader reader) throws IOException {
+            Boolean b = reader.nextBoolean();
+			return new RsJsonEltDft(b);
+		}
+
+		@Override
+		public RsJsonEltDft newBindingElt(Gson gson, JsonReader reader) throws IOException {
+			Binding binding = parseBinding(gson, reader, labelMap, unknownRdfTermTypeHandler);
+			return new RsJsonEltDft(binding);
+		}
+
+		@Override
+		public RsJsonEltDft newResultsElt(Gson gson, JsonReader reader) throws IOException {
+			return new RsJsonEltDft(RsJsonEltType.RESULTS);
+		}
+
+		@Override
+		public RsJsonEltDft newUnknownElt(Gson gson, JsonReader reader) throws IOException {
+			onUnexpectedElement(reader);
+	        return new RsJsonEltDft(RsJsonEltType.UNKNOWN);
+		}
+    }
+
+    /**
+     * Internal helper class used for valiaditon.
+     * It can hold tentative values and make them final.
+     * Once a value is final then further updates are rejected.
+     * This is used to iterate over sequences of repeated json keys ('head', 'boolean')
+     * and only have the last value take effect.
+     *
+     * We don't want to validate for oddities in the json document - we just want to catch
+     * the cases when our optimistic reports turned out to be wrong.
+     * So even if there are e.g. repeated boolean fields then as long as we are sure that
+     * we report the last of those we are fine.
+     */
+    protected static class TentativeValue<T> {
+        T value;
+        boolean isValueFinal = false;
+        boolean isTentative = false;
+
+        // Return true if update is valid
+        // As long as makeFinal is not called the value can be updated
+        boolean updateValue(T arg) {
+            boolean result;
+            if (!isValueFinal) {
+                value = arg;
+                isTentative = true;
+                result = true;
+            } else {
+                result = Objects.equals(value, arg);
+            }
+            return result;
+        }
+
+        // Finalize a tentative value - otherwise do nothing
+        void makeFinal() {
+            if (isTentative) {
+                isValueFinal = true;
+            }
+        }
+
+        T getValue() {
+            return value;
+        }
+
+        /** Whether updateValue was called at all */
+        boolean hasValue() {
+            return isTentative;
+        }
+
+        /** Whether the value has been finalized */
+        boolean isValueFinal() {
+            return isValueFinal;
+        }
+
+        @Override
+        public String toString() {
+            return "Holder [value=" + value + ", isValueSet=" + isValueFinal + "]";
         }
     }
 

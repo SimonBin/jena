@@ -46,6 +46,10 @@ import org.apache.jena.sparql.util.Symbol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** Stream JSON format SPARQL Results.
+ * <p>
+ * <a href="https://www.w3.org/TR/sparql11-results-json/">SPARQL 1.1 Query Results JSON Format</a>
+ */
 public class RowSetReaderJSONStreaming
     implements RowSetReader
 {
@@ -78,12 +82,12 @@ public class RowSetReaderJSONStreaming
     }
 
     public static QueryExecResult process(InputStream in, Context context) {
-        Context cxt = context == null ? ARQ.getContext() : context;
+        context = context == null ? ARQ.getContext() : context;
 
         QueryExecResult result = null;
-        RowSetBuffered<RowSetJSONStreaming> rs = createRowSet(in, cxt);
+        RowSetBuffered<RowSetJSONStreaming> rs = createRowSet(in, context);
 
-        Boolean searchHeaderEagerly = cxt.get(rsJsonSearchHeadEagerly, false);
+        Boolean searchHeaderEagerly = context.get(rsJsonSearchHeadEagerly, false);
         if (Boolean.TRUE.equals(searchHeaderEagerly)) {
             // This triggers searching for the first header
             rs.getResultVars();
@@ -108,7 +112,8 @@ public class RowSetReaderJSONStreaming
     }
 
     public static RowSetBuffered<RowSetJSONStreaming> createRowSet(InputStream in, Context context) {
-        Context cxt = context == null ? ARQ.getContext() : context;
+        // Extra cxt variable needed because of lambda below
+    	Context cxt = context == null ? ARQ.getContext() : context;
 
         boolean inputGraphBNodeLabels = cxt.isTrue(ARQ.inputGraphBNodeLabels);
         LabelToNode labelMap = inputGraphBNodeLabels
