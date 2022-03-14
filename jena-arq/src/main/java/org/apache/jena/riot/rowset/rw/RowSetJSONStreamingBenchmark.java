@@ -90,12 +90,12 @@ public class RowSetJSONStreamingBenchmark {
             new URL("http://moin.aksw.org/sparql?query=SELECT%20*%20{%20?s%20?p%20?o%20}").openStream());
 
         benchmark("total", () -> {
-	        for (int i = 0; i < 20; ++i) {
-	            // benchmarkComparison("iteration" + i, conventionalRowSetFactory, streamingRowSetFactory);
-	            // benchmarkConsumption("conventional:iteration" + i, conventionalRowSetFactory);
-	            benchmarkConsumption("streaming:iteration" + i, streamingRowSetFactory);
-	        }
-	        return null;
+            for (int i = 0; i < 20; ++i) {
+                // benchmarkComparison("iteration" + i, conventionalRowSetFactory, streamingRowSetFactory);
+                // benchmarkConsumption("conventional:iteration" + i, conventionalRowSetFactory);
+                benchmarkConsumption("streaming:iteration" + i, streamingRowSetFactory);
+            }
+            return null;
         });
 
     }
@@ -108,7 +108,7 @@ public class RowSetJSONStreamingBenchmark {
     }
 
     public static void benchmarkComparison(String label,
-    		Callable<RowSet> expectedFactory, Callable<RowSet> actualFactory) throws Exception {
+            Callable<RowSet> expectedFactory, Callable<RowSet> actualFactory) throws Exception {
 
         RowSet expectedsInit = benchmark(label + ":expected:setup", expectedFactory::call);
         RowSet expecteds = benchmark(label + ":expected:consumption", () -> RowSetMem.create(expectedsInit));

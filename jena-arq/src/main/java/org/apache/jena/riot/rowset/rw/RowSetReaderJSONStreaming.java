@@ -113,7 +113,7 @@ public class RowSetReaderJSONStreaming
 
     public static RowSetBuffered<RowSetJSONStreaming<?>> createRowSet(InputStream in, Context context) {
         // Extra cxt variable needed because of lambda below
-    	Context cxt = context == null ? ARQ.getContext() : context;
+        Context cxt = context == null ? ARQ.getContext() : context;
 
         boolean inputGraphBNodeLabels = cxt.isTrue(ARQ.inputGraphBNodeLabels);
         LabelToNode labelMap = inputGraphBNodeLabels

@@ -44,7 +44,7 @@ import com.google.gson.stream.JsonReader;
  * @param <E> The type of elements to yield by this iterator
  */
 public class IteratorRsJSON<E>
-	extends IteratorSlotted<E>
+    extends IteratorSlotted<E>
 {
     /**
      * Bridge between gson json elements and domain element objects
@@ -57,13 +57,13 @@ public class IteratorRsJSON<E>
      * @param <E> The uniform element type to create from the raw events
      */
     public interface RsJsonEltEncoder<E> {
-    	E newHeadElt(Gson gson, JsonReader reader) throws IOException;
-    	E newBooleanElt(Gson gson, JsonReader reader) throws IOException;
-    	E newResultsElt(Gson gson, JsonReader reader) throws IOException;
-    	E newBindingElt(Gson gson, JsonReader reader) throws IOException;
+        E newHeadElt   (Gson gson, JsonReader reader) throws IOException;
+        E newBooleanElt(Gson gson, JsonReader reader) throws IOException;
+        E newResultsElt(Gson gson, JsonReader reader) throws IOException;
+        E newBindingElt(Gson gson, JsonReader reader) throws IOException;
 
-    	// May just invoke reader.skipValue() and return null
-    	E newUnknownElt(Gson gson, JsonReader reader)  throws IOException;
+        // May just invoke reader.skipValue() and return null
+        E newUnknownElt(Gson gson, JsonReader reader)  throws IOException;
     }
 
     /** Parsing state; i.e. where we are in the json document */
@@ -82,7 +82,7 @@ public class IteratorRsJSON<E>
     protected JsonReader reader;
 
     public IteratorRsJSON(Gson gson, JsonReader jsonReader, RsJsonEltEncoder<E> eltEncoder) {
-    	this(gson, jsonReader, eltEncoder, ParserState.INIT);
+        this(gson, jsonReader, eltEncoder, ParserState.INIT);
     }
 
     /**
@@ -98,11 +98,11 @@ public class IteratorRsJSON<E>
 
     @Override
     protected E moveToNext() {
-    	E result;
+        E result;
         try {
-        	result = computeNextActual();
+            result = computeNextActual();
         } catch (Throwable e) {
-        	// Re-wrap any exception
+            // Re-wrap any exception
             throw new ResultSetException(e.getMessage(), e);
         }
         return result;
@@ -182,7 +182,7 @@ public class IteratorRsJSON<E>
 
     @Override
     protected boolean hasMore() {
-    	return true;
+        return true;
     }
 
     @Override
