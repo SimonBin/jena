@@ -206,20 +206,18 @@ public class RowSetJSONStreaming
 	/* Core implementation ------------------------------------------------- */
 
     protected IteratorCloseable<? extends RsJsonEltDft> rsJsonIterator;
-    protected Function<JsonObject, Node> unknownRdfTermTypeHandler;
-
     protected long rowNumber;
+
+    protected ValidationSettings validationSettings;
+    protected ErrorHandler errorHandler;
+
+    protected TentativeValue<List<Var>> resultVars = null;
+    protected TentativeValue<Boolean> askResult = null;
 
     protected int kHeadCount = 0;
     protected int kResultsCount = 0;
     protected int kBooleanCount = 0;
     protected int unknownJsonCount = 0;
-
-    protected TentativeValue<List<Var>> resultVars = null;
-    protected TentativeValue<Boolean> askResult = null;
-
-    protected ValidationSettings validationSettings;
-    protected ErrorHandler errorHandler;
 
     public RowSetJSONStreaming(
     		IteratorCloseable<? extends RsJsonEltDft> rsJsonIterator,
