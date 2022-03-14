@@ -89,20 +89,20 @@ import com.google.gson.stream.JsonReader;
  * immediately consumes the underlying stream until the header is read,
  * thereby buffering any encountered bindings for replay.
  */
-public class RowSetJSONStreaming
+public class RowSetJSONStreaming<E>
     extends IteratorSlotted<Binding>
     implements RowSet
 {
 	/* Construction -------------------------------------------------------- */
 
-	public static RowSetBuffered<RowSetJSONStreaming> createBuffered(
+	public static RowSetBuffered<RowSetJSONStreaming<?>> createBuffered(
             InputStream in, LabelToNode labelMap,
             Supplier<DataBag<Binding>> bufferFactory, ValidationSettings validationSettings,
             ErrorHandler errorHandler) {
         return new RowSetBuffered<>(createUnbuffered(in, labelMap, validationSettings, errorHandler), bufferFactory);
     }
 
-    public static RowSetJSONStreaming createUnbuffered(InputStream in, LabelToNode labelMap, ValidationSettings validationSettings,
+    public static RowSetJSONStreaming<?> createUnbuffered(InputStream in, LabelToNode labelMap, ValidationSettings validationSettings,
             ErrorHandler errorHandler) {
 //        try {
 //            byte[] buf = IOUtils.toByteArray(in);
@@ -124,14 +124,22 @@ public class RowSetJSONStreaming
 	        return null;
         };
 
-        // Set up how to create events with jena domain objects (Bindings, List<Var>) from the json
-        RsJsonEltFactory<RsJsonEltDft> eltFactory = new RsJsonEltFactoryDft(labelMap, null, unexpectedJsonHandler);
+        // Set up the iterator over the json and the mapping to domain objects
 
-        // Set up the iterator over those domain objects
-        IteratorCloseable<RsJsonEltDft> it = new IteratorRsJSON<RsJsonEltDft>(gson, reader, eltFactory);
+        RsJsonEltFactory<Object> eltFactory = new RsJsonEltFactoryObject(labelMap, null, unexpectedJsonHandler);
+        RsJsonEltAccessor<Object> eltAccessor = new RsJsonEltAccessorObject();
+        IteratorRsJSON<Object> it = new IteratorRsJSON<>(gson, reader, eltFactory);
+
+        // The commented lines below use the RsJsonEltDft type
+        // However benchmarking shows that removing the overhead of creating
+        // a wrapper item for each object improves performance
+
+//        RsJsonEltFactory<RsJsonEltDft> eltFactory = new RsJsonEltFactoryDft(labelMap, null, unexpectedJsonHandler);
+//        RsJsonEltAccessor<RsJsonEltDft> eltAccessor = new RsJsonEltAccessorDft();
+//        IteratorRsJSON<RsJsonEltDft> it = new IteratorRsJSON<>(gson, reader, eltFactory);
 
         // Wrap this up as a validating RowSet
-        RowSetJSONStreaming result = new RowSetJSONStreaming(it, 0l, validationSettings, errorHandler);
+        RowSetJSONStreaming<?> result = new RowSetJSONStreaming<>(it, eltAccessor, 0l, validationSettings, errorHandler);
         return result;
     }
 
@@ -205,7 +213,8 @@ public class RowSetJSONStreaming
 
 	/* Core implementation ------------------------------------------------- */
 
-    protected IteratorCloseable<? extends RsJsonEltDft> rsJsonIterator;
+    protected IteratorCloseable<E> rsJsonIterator;
+    protected RsJsonEltAccessor<? super E> rsJsonEltAccessor;
     protected long rowNumber;
 
     protected ValidationSettings validationSettings;
@@ -220,12 +229,14 @@ public class RowSetJSONStreaming
     protected int unknownJsonCount = 0;
 
     public RowSetJSONStreaming(
-    		IteratorCloseable<? extends RsJsonEltDft> rsJsonIterator,
+    		IteratorCloseable<E> rsJsonIterator,
+    		RsJsonEltAccessor<? super E> rsJsonEltAccessor,
     		long rowNumber,
             ValidationSettings validationSettings, ErrorHandler errorHandler) {
         super();
 
         this.rsJsonIterator = rsJsonIterator;
+        this.rsJsonEltAccessor = rsJsonEltAccessor;
         this.rowNumber = rowNumber;
 
         this.validationSettings = validationSettings;
@@ -251,19 +262,19 @@ public class RowSetJSONStreaming
         Binding result = null;
 
         outer: while (rsJsonIterator.hasNext()) {
-        	RsJsonEltDft elt = rsJsonIterator.next();
-        	RsJsonEltType type = elt.getType();
+        	E elt = rsJsonIterator.next();
+        	RsJsonEltType type = rsJsonEltAccessor.getType(elt);
 
         	switch (type) {
         	case HEAD:
 	            ++kHeadCount;
 	            resultVars.makeFinal(); // Finalize a prior tentative value if it exists
-	            List<Var> rsv = elt.getHead();
+	            List<Var> rsv = rsJsonEltAccessor.getAsHead(elt);
 	            updateAccepted = resultVars.updateValue(rsv);
 	            if (!updateAccepted) {
 	                ErrorHandlers.relay(errorHandler, validationSettings.getInvalidatedHeadSeverity(),
 	                        new ErrorEvent(String.format(
-	                            ". Expected %s but got %s", resultVars.getValue(), rsv)));
+	                            ". Prior value for headVars was %s but got superseded with %s", resultVars.getValue(), rsv)));
 	            }
 	            validate(this, errorHandler, validationSettings);
 	            continue;
@@ -271,12 +282,12 @@ public class RowSetJSONStreaming
         	case BOOLEAN:
                 ++kBooleanCount;
                 askResult.makeFinal();
-                Boolean b = elt.getAskResult();
+                Boolean b = rsJsonEltAccessor.getAsBoolean(elt);
                 updateAccepted = askResult.updateValue(b);
                 if (!updateAccepted) {
                     ErrorHandlers.relay(errorHandler, validationSettings.getInvalidatedHeadSeverity(),
                             new ErrorEvent(String.format(
-                                ". Expected %s but got %s", askResult.getValue(), b)));
+                                ". Prior value for boolean result was %s but got supersesed %s", askResult.getValue(), b)));
                 }
                 validate(this, errorHandler, validationSettings);
                 continue;
@@ -288,7 +299,7 @@ public class RowSetJSONStreaming
 
         	case BINDING:
         		++rowNumber;
-                result = elt.getBinding();
+                result = rsJsonEltAccessor.getAsBinding(elt);
                 break outer;
 
         	case UNKNOWN:
@@ -495,7 +506,7 @@ public class RowSetJSONStreaming
     /* Validation ---------------------------------------------------------- */
 
     /** Runtime validation of the current state of a streaming json row set */
-    public static void validate(RowSetJSONStreaming rs, ErrorHandler errorHandler, ValidationSettings settings) {
+    public static void validate(RowSetJSONStreaming<?> rs, ErrorHandler errorHandler, ValidationSettings settings) {
         if (rs.hasAskResult() && rs.getKResultsCount() > 0) {
             ErrorHandlers.relay(errorHandler, settings.getMixedResultsSeverity(), () ->
                 new ErrorEvent("Encountered bindings as well as boolean result"));
@@ -509,7 +520,7 @@ public class RowSetJSONStreaming
 
     /** Check a completed streaming json row set for inconsistencies.
      *  Specifically checks for missing result value and missing head */
-    public static void validateCompleted(RowSetJSONStreaming rs, ErrorHandler errorHandler, ValidationSettings settings) {
+    public static void validateCompleted(RowSetJSONStreaming<?> rs, ErrorHandler errorHandler, ValidationSettings settings) {
         // Missing result (neither 'results' nor 'boolean' seen)
     	if (rs.getKResultsCount() == 0 && rs.getKBooleanCount() == 0) {
             ErrorHandlers.relay(errorHandler, settings.getEmptyJsonSeverity(),
@@ -623,6 +634,51 @@ public class RowSetJSONStreaming
     	JsonElement apply(Gson gson, JsonReader reader) throws IOException;
     }
 
+    public static interface RsJsonEltAccessor<E> {
+    	RsJsonEltType getType(E elt);
+    	Binding getAsBinding(E elt);
+    	List<Var> getAsHead(E elt);
+    	Boolean getAsBoolean(E elt);
+    }
+
+    public static class RsJsonEltAccessorDft
+		implements RsJsonEltAccessor<RsJsonEltDft> {
+
+		@Override
+		public RsJsonEltType getType(RsJsonEltDft elt) {
+			return elt.getType();
+		}
+
+		@Override public Binding getAsBinding(RsJsonEltDft elt) { return elt.getBinding(); }
+		@Override public List<Var> getAsHead(RsJsonEltDft elt)  { return  elt.getHead(); }
+		@Override public Boolean getAsBoolean(RsJsonEltDft elt) { return elt.getAskResult(); }
+	}
+
+    public static class RsJsonEltAccessorObject
+    	implements RsJsonEltAccessor<Object> {
+
+		@Override
+		public RsJsonEltType getType(Object elt) {
+			RsJsonEltType result;
+			if (Binding.class.isAssignableFrom(elt.getClass())) {
+				result = RsJsonEltType.BINDING;
+			} else if (elt instanceof List) {
+				result = RsJsonEltType.HEAD;
+			} else if (RsJsonEltType.RESULTS.equals(elt)) {
+				result = RsJsonEltType.RESULTS;
+			} else {
+				result = RsJsonEltType.UNKNOWN;
+			}
+			return result;
+		}
+
+		@Override public Binding getAsBinding(Object elt) { return (Binding)elt; }
+		@SuppressWarnings("unchecked")
+		@Override public List<Var> getAsHead(Object elt) { return (List<Var>)elt; }
+		@Override public Boolean getAsBoolean(Object elt) { return (Boolean)elt; }
+    }
+
+
     /**
      * Inner class which shares state with the {@link RowSetJSONStreaming}
      * such that statistics about unknown elements can be updated easily.
@@ -674,6 +730,54 @@ public class RowSetJSONStreaming
 	        return new RsJsonEltDft(jsonElement);
 		}
     }
+
+    public static class RsJsonEltFactoryObject
+		implements RsJsonEltFactory<Object> {
+
+	    protected LabelToNode labelMap;
+	    protected Function<JsonObject, Node> unknownRdfTermTypeHandler;
+	    protected UnexpectedJsonEltHandler unexpectedJsonHandler;
+
+		public RsJsonEltFactoryObject(LabelToNode labelMap,
+				Function<JsonObject, Node> unknownRdfTermTypeHandler,
+				UnexpectedJsonEltHandler unexpectedJsonHandler) {
+			super();
+			this.labelMap = labelMap;
+			this.unknownRdfTermTypeHandler = unknownRdfTermTypeHandler;
+			this.unexpectedJsonHandler = unexpectedJsonHandler;
+		}
+
+		@Override
+		public Object newHeadElt(Gson gson, JsonReader reader) throws IOException {
+	        List<Var> vars = parseHeadVars(gson, reader);
+	        return vars;
+	    }
+
+		@Override
+		public Object newBooleanElt(Gson gson, JsonReader reader) throws IOException {
+	        Boolean b = reader.nextBoolean();
+	        return b;
+		}
+
+		@Override
+		public Object newBindingElt(Gson gson, JsonReader reader) throws IOException {
+			Binding binding = parseBinding(gson, reader, labelMap, unknownRdfTermTypeHandler);
+			return binding;
+		}
+
+		@Override
+		public Object newResultsElt(Gson gson, JsonReader reader) throws IOException {
+			return RsJsonEltType.RESULTS;
+		}
+
+		@Override
+		public Object newUnknownElt(Gson gson, JsonReader reader) throws IOException {
+			JsonElement jsonElement = unexpectedJsonHandler == null
+					? null
+					: unexpectedJsonHandler.apply(gson, reader);
+	        return new RsJsonEltDft(jsonElement);
+		}
+	}
 
     /**
      * Internal helper class used for valiaditon.

@@ -85,7 +85,7 @@ public class RowSetReaderJSONStreaming
         context = context == null ? ARQ.getContext() : context;
 
         QueryExecResult result = null;
-        RowSetBuffered<RowSetJSONStreaming> rs = createRowSet(in, context);
+        RowSetBuffered<RowSetJSONStreaming<?>> rs = createRowSet(in, context);
 
         Boolean searchHeaderEagerly = context.get(rsJsonSearchHeadEagerly, false);
         if (Boolean.TRUE.equals(searchHeaderEagerly)) {
@@ -96,7 +96,7 @@ public class RowSetReaderJSONStreaming
         // If there are no bindings we check for an ask result
         if (!rs.hasNext()) {
             // Unwrapping in order to access the ask result
-            RowSetJSONStreaming inner = rs.getDelegate();
+            RowSetJSONStreaming<?> inner = rs.getDelegate();
             Boolean askResult = inner.getAskResult();
 
             if (askResult != null) {
@@ -111,7 +111,7 @@ public class RowSetReaderJSONStreaming
         return result;
     }
 
-    public static RowSetBuffered<RowSetJSONStreaming> createRowSet(InputStream in, Context context) {
+    public static RowSetBuffered<RowSetJSONStreaming<?>> createRowSet(InputStream in, Context context) {
         // Extra cxt variable needed because of lambda below
     	Context cxt = context == null ? ARQ.getContext() : context;
 
