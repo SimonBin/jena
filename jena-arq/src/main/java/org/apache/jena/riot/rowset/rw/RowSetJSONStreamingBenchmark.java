@@ -89,11 +89,14 @@ public class RowSetJSONStreamingBenchmark {
         download(dataFile, dataFileTmp, () ->
             new URL("http://moin.aksw.org/sparql?query=SELECT%20*%20{%20?s%20?p%20?o%20}").openStream());
 
-        for (int i = 0; i < 30; ++i) {
-            // benchmarkComparison("iteration" + i, conventionalRowSetFactory, streamingRowSetFactory);
-            // benchmarkConsumption("conventional:iteration" + i, conventionalRowSetFactory);
-            benchmarkConsumption("streaming:iteration" + i, streamingRowSetFactory);
-        }
+        benchmark("total", () -> {
+	        for (int i = 0; i < 20; ++i) {
+	            // benchmarkComparison("iteration" + i, conventionalRowSetFactory, streamingRowSetFactory);
+	            // benchmarkConsumption("conventional:iteration" + i, conventionalRowSetFactory);
+	            benchmarkConsumption("streaming:iteration" + i, streamingRowSetFactory);
+	        }
+	        return null;
+        });
 
     }
 

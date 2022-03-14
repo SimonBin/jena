@@ -37,7 +37,7 @@ import com.google.gson.stream.JsonReader;
  *
  * This iterator is 'dumb': it neither validates nor keeps statistics.
  *
- * For this purpose the iterator delegates to {@link RsJsonEltFactory} which
+ * For this purpose the iterator delegates to {@link RsJsonEltEncoder} which
  * is responsible for creating instances of type E from the state of the
  * json stream.
  *
@@ -56,7 +56,7 @@ public class IteratorRsJSON<E>
      *
      * @param <E> The uniform element type to create from the raw events
      */
-    public interface RsJsonEltFactory<E> {
+    public interface RsJsonEltEncoder<E> {
     	E newHeadElt(Gson gson, JsonReader reader) throws IOException;
     	E newBooleanElt(Gson gson, JsonReader reader) throws IOException;
     	E newResultsElt(Gson gson, JsonReader reader) throws IOException;
@@ -76,23 +76,23 @@ public class IteratorRsJSON<E>
     }
 
     protected ParserState parserState;
-    protected RsJsonEltFactory<E> eltFactory;
+    protected RsJsonEltEncoder<E> eltEncoder;
 
     protected Gson gson;
     protected JsonReader reader;
 
-    public IteratorRsJSON(Gson gson, JsonReader jsonReader, RsJsonEltFactory<E> eltFactory) {
-    	this(gson, jsonReader, eltFactory, ParserState.INIT);
+    public IteratorRsJSON(Gson gson, JsonReader jsonReader, RsJsonEltEncoder<E> eltEncoder) {
+    	this(gson, jsonReader, eltEncoder, ParserState.INIT);
     }
 
     /**
      * Constructor that allows setting the initial parser state such as
      * when starting to parse in a hadoop input split.
      */
-    public IteratorRsJSON(Gson gson, JsonReader jsonReader, RsJsonEltFactory<E> eltFactory, ParserState parserState) {
+    public IteratorRsJSON(Gson gson, JsonReader jsonReader, RsJsonEltEncoder<E> eltEncoder, ParserState parserState) {
         this.gson = gson;
         this.reader = jsonReader;
-        this.eltFactory = eltFactory;
+        this.eltEncoder = eltEncoder;
         this.parserState = parserState;
     }
 
@@ -122,18 +122,18 @@ public class IteratorRsJSON<E>
                     String topLevelName = reader.nextName();
                     switch (topLevelName) {
                     case kHead:
-                        result = eltFactory.newHeadElt(gson, reader);
+                        result = eltEncoder.newHeadElt(gson, reader);
                         break outer;
                     case kResults:
                         reader.beginObject();
                         parserState = ParserState.RESULTS;
-                        result = eltFactory.newResultsElt(gson, reader);
+                        result = eltEncoder.newResultsElt(gson, reader);
                         break outer;
                     case kBoolean:
-                        result = eltFactory.newBooleanElt(gson, reader);
+                        result = eltEncoder.newBooleanElt(gson, reader);
                         break outer;
                     default:
-                        result = eltFactory.newUnknownElt(gson, reader);
+                        result = eltEncoder.newUnknownElt(gson, reader);
                         break outer;
                     }
                 }
@@ -154,7 +154,7 @@ public class IteratorRsJSON<E>
                     // in order to assess use of legacy features in validation
 
                     default:
-                        result = eltFactory.newUnknownElt(gson, reader);
+                        result = eltEncoder.newUnknownElt(gson, reader);
                         break;
                     }
                 }
@@ -164,7 +164,7 @@ public class IteratorRsJSON<E>
 
             case BINDINGS:
                 while (reader.hasNext()) {
-                    result = eltFactory.newBindingElt(gson, reader);
+                    result = eltEncoder.newBindingElt(gson, reader);
                     break outer;
                 }
                 reader.endArray();
