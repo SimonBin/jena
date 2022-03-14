@@ -31,7 +31,6 @@ import org.apache.jena.sparql.resultset.ResultSetException;
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 
-
 /**
  * An iterator that reads sparql result set domain elements from a
  * underlying gson JsonReader.
@@ -83,10 +82,18 @@ public class IteratorRsJSON<E>
     protected JsonReader reader;
 
     public IteratorRsJSON(Gson gson, JsonReader jsonReader, RsJsonEltFactory<E> eltFactory) {
+    	this(gson, jsonReader, eltFactory, ParserState.INIT);
+    }
+
+    /**
+     * Constructor that allows setting the initial parser state such as
+     * when starting to parse in a hadoop input split.
+     */
+    public IteratorRsJSON(Gson gson, JsonReader jsonReader, RsJsonEltFactory<E> eltFactory, ParserState parserState) {
         this.gson = gson;
         this.reader = jsonReader;
         this.eltFactory = eltFactory;
-        this.parserState = ParserState.INIT;
+        this.parserState = parserState;
     }
 
     @Override
@@ -95,7 +102,7 @@ public class IteratorRsJSON<E>
         try {
         	result = computeNextActual();
         } catch (Throwable e) {
-        	// Rewrap any exception
+        	// Re-wrap any exception
             throw new ResultSetException(e.getMessage(), e);
         }
         return result;

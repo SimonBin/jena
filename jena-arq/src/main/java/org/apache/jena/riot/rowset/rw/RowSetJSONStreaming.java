@@ -54,6 +54,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.apache.jena.atlas.data.DataBag;
+import org.apache.jena.atlas.iterator.IteratorCloseable;
 import org.apache.jena.atlas.iterator.IteratorSlotted;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
@@ -114,7 +115,23 @@ public class RowSetJSONStreaming
 
         Gson gson = new Gson();
         JsonReader reader = gson.newJsonReader(new InputStreamReader(in, StandardCharsets.UTF_8));
-        RowSetJSONStreaming result = new RowSetJSONStreaming(gson, reader, 0l, labelMap, null, validationSettings, errorHandler);
+
+        // Set up handling of unexpected json elements
+        UnexpectedJsonEltHandler unexpectedJsonHandler = (_gson, _reader) -> {
+	        ErrorHandlers.relay(errorHandler, validationSettings.unexpectedJsonElementSeverity, () ->
+	                new ErrorEvent("Encountered unexpected json element at path " + reader.getPath()));
+	        reader.skipValue();
+	        return null;
+        };
+
+        // Set up how to create events with jena domain objects (Bindings, List<Var>) from the json
+        RsJsonEltFactory<RsJsonEltDft> eltFactory = new RsJsonEltFactoryDft(labelMap, null, unexpectedJsonHandler);
+
+        // Set up the iterator over those domain objects
+        IteratorCloseable<RsJsonEltDft> it = new IteratorRsJSON<RsJsonEltDft>(gson, reader, eltFactory);
+
+        // Wrap this up as a validating RowSet
+        RowSetJSONStreaming result = new RowSetJSONStreaming(it, 0l, validationSettings, errorHandler);
         return result;
     }
 
@@ -188,7 +205,7 @@ public class RowSetJSONStreaming
 
 	/* Core implementation ------------------------------------------------- */
 
-    protected IteratorRsJSON<? extends RsJsonEltDft> rsJsonIterator;
+    protected IteratorCloseable<? extends RsJsonEltDft> rsJsonIterator;
     protected Function<JsonObject, Node> unknownRdfTermTypeHandler;
 
     protected long rowNumber;
@@ -196,31 +213,28 @@ public class RowSetJSONStreaming
     protected int kHeadCount = 0;
     protected int kResultsCount = 0;
     protected int kBooleanCount = 0;
-    protected long unexpectedItemCount = 0;
+    protected int unknownJsonCount = 0;
 
     protected TentativeValue<List<Var>> resultVars = null;
     protected TentativeValue<Boolean> askResult = null;
 
-    protected LabelToNode labelMap;
-
     protected ValidationSettings validationSettings;
     protected ErrorHandler errorHandler;
 
-    public RowSetJSONStreaming(Gson gson, JsonReader reader, long rowNumber, LabelToNode labelMap,
-    		Function<JsonObject, Node> unknownRdfTermTypeHandler,
+    public RowSetJSONStreaming(
+    		IteratorCloseable<? extends RsJsonEltDft> rsJsonIterator,
+    		long rowNumber,
             ValidationSettings validationSettings, ErrorHandler errorHandler) {
         super();
 
+        this.rsJsonIterator = rsJsonIterator;
         this.rowNumber = rowNumber;
-        this.rsJsonIterator = new IteratorRsJSON<>(gson, reader, new RsJsonEltFactoryDft());
-
-        this.labelMap = labelMap;
-
-        this.resultVars = new TentativeValue<>();
-        this.askResult = new TentativeValue<>();
 
         this.validationSettings = validationSettings;
         this.errorHandler = errorHandler;
+
+        this.resultVars = new TentativeValue<>();
+        this.askResult = new TentativeValue<>();
     }
 
     @Override
@@ -229,7 +243,7 @@ public class RowSetJSONStreaming
             Binding result = computeNextActual();
             return result;
         } catch (Throwable e) {
-        	// Rewrap any exception
+        	// Re-wrap any exception
             throw new ResultSetException(e.getMessage(), e);
         }
     }
@@ -280,8 +294,7 @@ public class RowSetJSONStreaming
                 break outer;
 
         	case UNKNOWN:
-        		// onUnexpectedElement is called by RsJsonEltFactoryDft
-        		// which may raise an error but otherwise just skips the json element
+    	        ++unknownJsonCount;
         		continue;
         	}
         }
@@ -303,14 +316,6 @@ public class RowSetJSONStreaming
     	rsJsonIterator.close();
     }
 
-    protected void onUnexpectedElement(JsonReader reader) throws IOException {
-        ++unexpectedItemCount;
-
-        ErrorHandlers.relay(errorHandler, validationSettings.unexpectedJsonElementSeverity, () ->
-                new ErrorEvent("Encountered unexpected json element at path " + reader.getPath()));
-
-        reader.skipValue();
-    }
 
     /* Statistics ---------------------------------------------------------- */
 
@@ -348,9 +353,9 @@ public class RowSetJSONStreaming
         return kResultsCount;
     }
 
-    public long getUnexpectedItemCount() {
-        return unexpectedItemCount;
-    }
+    public int getUnknownJsonCount() {
+		return unknownJsonCount;
+	}
 
     /* Parsing ------------------------------------------------------------- */
 
@@ -612,12 +617,33 @@ public class RowSetJSONStreaming
 
     /* Internal / Utility -------------------------------------------------- */
 
+    /** Interface for optionally emitting the json elements
+     * Typically this only calls jsonReader.skipValue() as to not spend
+     * efforts on parsing */
+    @FunctionalInterface
+    public interface UnexpectedJsonEltHandler {
+    	JsonElement apply(Gson gson, JsonReader reader) throws IOException;
+    }
+
     /**
      * Inner class which shares state with the {@link RowSetJSONStreaming}
      * such that statistics about unknown elements can be updated easily.
      */
-    protected class RsJsonEltFactoryDft
+    public static class RsJsonEltFactoryDft
     	implements RsJsonEltFactory<RsJsonEltDft> {
+
+        protected LabelToNode labelMap;
+        protected Function<JsonObject, Node> unknownRdfTermTypeHandler;
+        protected UnexpectedJsonEltHandler unexpectedJsonHandler;
+
+		public RsJsonEltFactoryDft(LabelToNode labelMap,
+				Function<JsonObject, Node> unknownRdfTermTypeHandler,
+				UnexpectedJsonEltHandler unexpectedJsonHandler) {
+			super();
+			this.labelMap = labelMap;
+			this.unknownRdfTermTypeHandler = unknownRdfTermTypeHandler;
+			this.unexpectedJsonHandler = unexpectedJsonHandler;
+		}
 
 		@Override
 		public RsJsonEltDft newHeadElt(Gson gson, JsonReader reader) throws IOException {
@@ -644,8 +670,10 @@ public class RowSetJSONStreaming
 
 		@Override
 		public RsJsonEltDft newUnknownElt(Gson gson, JsonReader reader) throws IOException {
-			onUnexpectedElement(reader);
-	        return new RsJsonEltDft(RsJsonEltType.UNKNOWN);
+			JsonElement jsonElement = unexpectedJsonHandler == null
+					? null
+					: unexpectedJsonHandler.apply(gson, reader);
+	        return new RsJsonEltDft(jsonElement);
 		}
     }
 
