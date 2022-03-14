@@ -67,7 +67,7 @@ public class IteratorRsJSON<E>
     }
 
     /** Parsing state; i.e. where we are in the json document */
-    protected enum ParserState {
+    public enum ParserState {
         INIT,
         ROOT,
         RESULTS,
