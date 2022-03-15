@@ -428,7 +428,7 @@ public class TestResultSetFormat2 {
                                           "   }",
                                           "}");
         //@formatter:on
-        return resultSetFromJSON(input, null);
+        return resultSetFromJSON(input, cxt);
     }
 
     @Test(expected = ResultSetException.class)
@@ -437,7 +437,7 @@ public class TestResultSetFormat2 {
         Assert.assertEquals(Arrays.asList("b"), rs.getResultVars());
     }
 
-    @Test(expected = ResultSetException.class)
+    @Test
     public void resultset_json_07b_repeated_results() {
         Context cxt = new Context();
         cxt.set(RowSetReaderJSONStreaming.rsJsonSeverityInvalidatedResults, Severity.IGNORE);
@@ -450,13 +450,6 @@ public class TestResultSetFormat2 {
     public static ResultSet resultset_json_08_data(Context cxt) {
         //@formatter:off
         String input = StrUtils.strjoinNL("{",
-                                          "  \"results\": {",
-                                          "    \"bindings\":[",
-                                          "      {\"s\":{\"type\":\"uri\",\"value\":\"http://rdf.myexperiment.org/ontologies/snarm/Foo\"}},",
-                                          "      {\"s\":{\"type\":\"uri\",\"value\":\"http://rdf.myexperiment.org/ontologies/snarm/Bar\"}},",
-                                          "      {\"s\":{\"type\":\"uri\",\"value\":\"http://rdf.myexperiment.org/ontologies/snarm/Policy\"}}",
-                                          "    ]",
-                                          "   },",
                                           "  \"head\":{\"vars\":[\"a\"]},",
                                           "  \"head\":{\"vars\":[\"b\"]},",
                                           "  \"results\": {",
@@ -465,11 +458,11 @@ public class TestResultSetFormat2 {
                                           "      {\"s\":{\"type\":\"uri\",\"value\":\"http://rdf.myexperiment.org/ontologies/snarm/Policy\"}},",
                                           "      {\"s\":{\"type\":\"uri\",\"value\":\"http://rdf.myexperiment.org/ontologies/snarm/Policy\"}}",
                                           "    ]",
-                                          "   }",
-                                          "  \"head\":{\"vars\":[\"c\"]},",
+                                          "   },",
+                                          "  \"head\":{\"vars\":[\"c\"]}",
                                           "}");
         //@formatter:on
-        return resultSetFromJSON(input, null);
+        return resultSetFromJSON(input, cxt);
     }
 
     @Test(expected = ResultSetException.class)
@@ -481,14 +474,14 @@ public class TestResultSetFormat2 {
         ResultSetFormatter.consume(rs);
     }
 
-    @Test(expected = ResultSetException.class)
+    @Test
     public void resultset_json_08b_repeated_results() {
         Context cxt = new Context();
         cxt.set(RowSetReaderJSONStreaming.rsJsonSeverityInvalidatedHead, Severity.IGNORE);
         ResultSet rs = resultset_json_08_data(cxt);
         Assert.assertEquals(Arrays.asList("b"), rs.getResultVars());
-        // Ignoring the error should give 6 bindings and not log a warning during testing
-        Assert.assertEquals(6, ResultSetFormatter.consume(rs));
+        // Ignoring the error should give 3 bindings and not log a warning during testing
+        Assert.assertEquals(3, ResultSetFormatter.consume(rs));
     }
 
     private void parseTSV(String x) {
