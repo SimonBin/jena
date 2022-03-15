@@ -434,7 +434,13 @@ public class TestResultSetFormat2 {
     @Test(expected = ResultSetException.class)
     public void resultset_json_07a_repeated_results() {
         ResultSet rs = resultset_json_07_data(null);
-        Assert.assertEquals(Arrays.asList("b"), rs.getResultVars());
+
+        // Fail upon trying to access the 'head' which encounters the repeated
+        // 'results' key.
+        // The following line is there for documentation/robustness.
+        // Actually the involved ResultSet.adapt() already invokes
+        // RowSet.getResultVars() eagerly
+        rs.getResultVars();
     }
 
     @Test
@@ -442,6 +448,7 @@ public class TestResultSetFormat2 {
         Context cxt = new Context();
         cxt.set(RowSetReaderJSONStreaming.rsJsonSeverityInvalidatedResults, Severity.IGNORE);
         ResultSet rs = resultset_json_07_data(cxt);
+        // In contrast to 07a retrieving the header should work
         Assert.assertEquals(Arrays.asList("b"), rs.getResultVars());
         // Ignoring the error should give 5 bindings and not log a warning during testing
         Assert.assertEquals(5, ResultSetFormatter.consume(rs));
