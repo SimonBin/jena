@@ -258,7 +258,6 @@ public class RowSetJSONStreaming<E>
             switch (type) {
             case HEAD:
                 ++kHeadCount;
-                resultVars.makeFinal(); // Finalize a prior tentative value if it exists
                 List<Var> rsv = eltDecoder.getAsHead(elt);
                 updateAccepted = resultVars.updateValue(rsv);
                 if (!updateAccepted) {
@@ -271,7 +270,6 @@ public class RowSetJSONStreaming<E>
 
             case BOOLEAN:
                 ++kBooleanCount;
-                askResult.makeFinal();
                 Boolean b = eltDecoder.getAsBoolean(elt);
                 updateAccepted = askResult.updateValue(b);
                 if (!updateAccepted) {
@@ -297,6 +295,10 @@ public class RowSetJSONStreaming<E>
                 continue;
             }
         }
+
+        // Once we return any tentative value becomes final
+        resultVars.makeFinal();
+        askResult.makeFinal();
 
         if (result == null && !eltIterator.hasNext()) {
             validateCompleted(this, errorHandler, validationSettings);
@@ -635,25 +637,20 @@ public class RowSetJSONStreaming<E>
         Boolean getAsBoolean(E elt);
     }
 
-    /** 'Pretty' decoder which wraps every domain object as a {@link RsJsonEltDft} */
+    /** Decoder for extraction of rs-json domain objects from {@link RsJsonEltDft} */
     public static class RsJsonEltDecoderDft
         implements RsJsonEltDecoder<RsJsonEltDft> {
 
         public static final RsJsonEltDecoderDft INSTANCE = new RsJsonEltDecoderDft();
 
-        @Override
-        public RsJsonEltType getType(RsJsonEltDft elt) {
-            return elt.getType();
-        }
-
-        @Override public Binding getAsBinding(RsJsonEltDft elt) { return elt.getBinding(); }
-        @Override public List<Var> getAsHead(RsJsonEltDft elt)  { return  elt.getHead(); }
-        @Override public Boolean getAsBoolean(RsJsonEltDft elt) { return elt.getAskResult(); }
+        @Override public RsJsonEltType getType(RsJsonEltDft elt) { return elt.getType(); }
+        @Override public Binding getAsBinding(RsJsonEltDft elt)  { return elt.getBinding(); }
+        @Override public List<Var> getAsHead(RsJsonEltDft elt)   { return  elt.getHead(); }
+        @Override public Boolean getAsBoolean(RsJsonEltDft elt)  { return elt.getAskResult(); }
     }
 
     /**
-     * 'Pretty' json encoder that wraps each message uniformly as a
-     * {@link RsJsonEltDft}.
+     * Json encoder that wraps each message uniformly as a {@link RsJsonEltDft}.
      */
     public static class RsJsonEltEncoderDft
         implements RsJsonEltEncoder<RsJsonEltDft> {
