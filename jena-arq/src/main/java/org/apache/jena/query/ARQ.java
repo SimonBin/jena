@@ -249,6 +249,13 @@ public class ARQ
      */
     public static final Symbol serviceParams = SystemARQ.allocSymbol("serviceParams") ;
 
+    /** Maximum number of bindings to group into a single bulk request */
+    public static final Symbol serviceBulkRequestMaxItemCount = SystemARQ.allocSymbol("serviceBulkRequestMaxBindingCount") ;
+
+    /** Limit bulk SERVICE requests to this byte size.
+     *  The limit is ignored for the first binding added to such a request */
+    public static final Symbol serviceBulkRequestMaxByteSize = SystemARQ.allocSymbol("serviceBulkRequestMaxByteSize") ;
+
     // Jena HTTP related.
 
     /**
