@@ -88,6 +88,7 @@ import org.apache.jena.util.iterator.ClosableIterator;
 public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 {
 	public static final int DEFAULT_BULK_SIZE = 30;
+	public static final int DEFAULT_MAX_BYTE_SIZE = 5000;
 
     protected OpService opService ;
     protected Set<Var> serviceVars;
@@ -122,6 +123,13 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
         ServiceExecution svcExec = null;
 
     	int bulkSize = cxt.getInt(ARQ.serviceBulkRequestMaxItemCount, DEFAULT_BULK_SIZE);
+    	int maxByteSize = cxt.getInt(ARQ.serviceBulkRequestMaxByteSize, DEFAULT_MAX_BYTE_SIZE);
+
+        Op subOp = opService.getSubOp();
+        subOp = Rename.reverseVarRename(subOp, true);
+        Query rawQuery = OpAsQuery.asQuery(subOp);
+
+        int requestSize = rawQuery.toString().length();
 
     	Node serviceNode = opService.getService();
 
@@ -135,8 +143,9 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     	}
 
     	// Retrieve bindings as long as the service node remains the same
-    	for (; i < bulkSize && input.hasNext(); ++i) {
+    	while (i < bulkSize && input.hasNext()) {
     		Binding b = input.next();
+
     		b.vars().forEachRemaining(seenVars::add);
 
     		if (serviceVar != null) {
@@ -152,7 +161,14 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     			}
     		}
 
-    		bulk[i] = b;
+    		bulk[i++] = b;
+
+			int contribSize = b.toString().length();
+			requestSize += contribSize;
+
+			if (requestSize > maxByteSize) {
+				break;
+			}
     	}
 
     	int n = i; // Set n to the number of available bindings
@@ -160,7 +176,6 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
         // Table table = TableFactory.create(new ArrayList<>(joinVars));
         // bulkList.forEach(table::addBinding);
 
-        Op subOp = opService.getSubOp();
         // Convert to query so we can more easily set up the sort order condition
 
 
@@ -170,7 +185,7 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 
 
     	Var idxVar = Var.alloc("__idx__");
-        Rewrite rewrite = rewrite(subOp, idxVar, serviceVars, seenVars, bulk, n);
+        Rewrite rewrite = rewrite(rawQuery, idxVar, serviceVars, seenVars, bulk, n);
         Op newSubOp = rewrite.op;
         Map<Var, Var> renames = rewrite.renames;
 
@@ -537,17 +552,16 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     }
 
     public static Rewrite rewrite(
-    		Op subOp,
+    		// Op subOp,
+    		Query rawQuery,
     		Var idxVar,
     		Set<Var> serviceVars,
     		Set<Var> seenVars,
     		Binding[] bulk,
     		int bulkLen) {
-        subOp = Rename.reverseVarRename(subOp, true);
+        Query q;
 
         Map<Var, Var> renames = new HashMap<>();
-        Query rawQuery = OpAsQuery.asQuery(subOp);
-        Query q;
 
         VarExprList vel = rawQuery.getProject();
         VarExprList newVel = new VarExprList();
@@ -645,10 +659,11 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     	}
 
     	try (QueryExecution qe = QueryExecutionFactory.create(
-        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person>  SERVICE <https://dbpedia.org/sparql> { { SELECT ?s (COUNT(*) AS ?c) { ?s ?p ?o } GROUP BY ?s } } }",
-//        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person>  SERVICE <https://dbpedia.org/sparql> { { SELECT ?s ?p { ?s ?p ?o } ORDER BY ?p } } }",
+        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT ?s (COUNT(*) AS ?c) { ?s ?p ?o } GROUP BY ?s } } }",
+//        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT ?s ?p { ?s ?p ?o } ORDER BY ?p } } }",
     			model)) {
     		qe.getContext().set(ARQ.serviceBulkRequestMaxItemCount, 15);
+    		qe.getContext().set(ARQ.serviceBulkRequestMaxByteSize, 1500);
     		ResultSetMgr.write(System.out, qe.execSelect(), ResultSetLang.RS_JSON);
         }
 
