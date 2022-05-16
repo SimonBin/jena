@@ -18,6 +18,7 @@
 
 package org.apache.jena.sparql.engine.main.iterator;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -51,7 +52,10 @@ import org.apache.jena.sparql.algebra.Algebra;
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.algebra.OpAsQuery;
 import org.apache.jena.sparql.algebra.OpVars;
+import org.apache.jena.sparql.algebra.op.OpDisjunction;
+import org.apache.jena.sparql.algebra.op.OpExtend;
 import org.apache.jena.sparql.algebra.op.OpService ;
+import org.apache.jena.sparql.algebra.op.OpUnion;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.core.VarExprList;
 import org.apache.jena.sparql.engine.ExecutionContext ;
@@ -127,9 +131,28 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 
         Op subOp = opService.getSubOp();
         subOp = Rename.reverseVarRename(subOp, true);
-        Query rawQuery = OpAsQuery.asQuery(subOp);
 
-        int requestSize = rawQuery.toString().length();
+        Query rawQuery = OpAsQuery.asQuery(subOp);
+        Map<Var, Var> renames = new HashMap<>();
+
+        VarExprList vel = rawQuery.getProject();
+        VarExprList newVel = new VarExprList();
+
+        int allocId = 0;
+        for (Var var : vel.getVars()) {
+        	Expr expr = vel.getExpr(var);
+        	if (Var.isAllocVar(var)) {
+        		Var tmp = Var.alloc("__v" + (++allocId) + "__");
+        		renames.put(tmp, var);
+        		var = tmp;
+        	}
+        	newVel.add(var, expr);
+        }
+        vel.clear();
+        vel.addAll(newVel);
+
+
+        int approxRequestSize = rawQuery.toString().getBytes(StandardCharsets.UTF_8).length;
 
     	Node serviceNode = opService.getService();
 
@@ -143,6 +166,7 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     	}
 
     	// Retrieve bindings as long as the service node remains the same
+    	// If there is a change then the binding is carries over to the next 'nextStage()' call
     	while (i < bulkSize && input.hasNext()) {
     		Binding b = input.next();
 
@@ -163,10 +187,10 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 
     		bulk[i++] = b;
 
-			int contribSize = b.toString().length();
-			requestSize += contribSize;
+			int contribSize = b.toString().getBytes(StandardCharsets.UTF_8).length;
+			approxRequestSize += contribSize;
 
-			if (requestSize > maxByteSize) {
+			if (approxRequestSize > maxByteSize) {
 				break;
 			}
     	}
@@ -185,9 +209,10 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 
 
     	Var idxVar = Var.alloc("__idx__");
-        Rewrite rewrite = rewrite(rawQuery, idxVar, serviceVars, seenVars, bulk, n);
+        Rewrite rewrite = new Rewriter(rawQuery, subOp, renames, idxVar, serviceVars)
+        		.rewrite(bulk, n, seenVars);
         Op newSubOp = rewrite.op;
-        Map<Var, Var> renames = rewrite.renames;
+        // Map<Var, Var> renames = rewrite.renames;
 
         OpService substitutedOp = new OpService(serviceNode, newSubOp, silent);
         // OpService substitutedOp = (OpService)QC.substitute(opService, outerBinding);
@@ -461,15 +486,20 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 				}
 
 
-				Node idxNode = rawChild.get(idxVar);
-				Object obj = idxNode.getLiteralValue();
-				if (!(obj instanceof Number)) {
-					throw new ExprEvalException("Index was not returned as a number");
-				}
-				int idx = ((Number)obj).intValue();
+				int idx;
+				if (bulkSize > 1) {
+					Node idxNode = rawChild.get(idxVar);
+					Object obj = idxNode.getLiteralValue();
+					if (!(obj instanceof Number)) {
+						throw new ExprEvalException("Index was not returned as a number");
+					}
+					idx = ((Number)obj).intValue();
 
-				if (idx < 0 || idx > bulkSize) {
-					throw new QueryExecException("Returned index out of range");
+					if (idx < 0 || idx > bulkSize) {
+						throw new QueryExecException("Returned index out of range");
+					}
+				} else {
+					idx = 0;
 				}
 
 				Binding parent = bulk[idx];
@@ -551,101 +581,143 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 		}
     }
 
-    public static Rewrite rewrite(
-    		// Op subOp,
-    		Query rawQuery,
-    		Var idxVar,
-    		Set<Var> serviceVars,
-    		Set<Var> seenVars,
-    		Binding[] bulk,
-    		int bulkLen) {
-        Query q;
 
-        Map<Var, Var> renames = new HashMap<>();
+    public static class Rewriter {
+		// Op subOp,
+		Query rawQuery;
+		Op rawOp;
+		Map<Var, Var> renames;
 
-        VarExprList vel = rawQuery.getProject();
-        VarExprList newVel = new VarExprList();
+		Var idxVar;
+		Set<Var> serviceVars;
 
-        int allocId = 0;
-        for (Var var : vel.getVars()) {
-        	Expr expr = vel.getExpr(var);
-        	if (Var.isAllocVar(var)) {
-        		Var tmp = Var.alloc("__v" + (++allocId) + "__");
-        		renames.put(tmp, var);
-        		var = tmp;
-        	}
-        	newVel.add(var, expr);
-        }
-        vel.clear();
-        vel.addAll(newVel);
+		public Rewriter(Query rawQuery, Op rawOp, Map<Var, Var> renames, Var idxVar, Set<Var> serviceVars) {
+			super();
+			this.rawQuery = rawQuery;
+			this.rawOp = rawOp;
+			this.renames = renames;
+			this.idxVar = idxVar;
+			this.serviceVars = serviceVars;
+		}
+
+		public Rewrite rewrite(
+	    		Binding[] bulk,
+	    		int bulkLen,
+	    		Set<Var> seenVars) {
+
+			Rewrite result = rawQuery.hasLimit() || rawQuery.hasOffset()
+				? rewriteAsUnion(bulk, bulkLen, seenVars)
+				: rewriteAsJoin(bulk, bulkLen, seenVars);
+
+			return result;
+		}
+
+	    public Rewrite rewriteAsUnion(
+	    		Binding[] bulk,
+	    		int bulkLen,
+	    		Set<Var> seenVars) {
+
+	    	Op newOp = null;
+	    	for (int i = bulkLen - 1; i >= 0; --i) {
+	    		Binding b = bulk[i];
+
+	    		Op op = QC.substitute(rawOp, b);
+	    		if (bulkLen > 1) {
+	    			op = OpExtend.create(op, idxVar, NodeValue.makeInteger(i));
+	    		}
+
+	    		newOp = newOp == null ? op : OpUnion.create(op, newOp);
+	    	}
 
 
-    	Set<Var> joinVars = new LinkedHashSet<>(serviceVars);
-    	joinVars.retainAll(seenVars);
+	    	Query q = OpAsQuery.asQuery(newOp);
+	        System.err.println(q);
 
 
-    	// Project the bindings to those variables that are also visible
-    	// in the service cause
-    	for (int i = 0; i < bulkLen; ++i) {
-    		bulk[i] = BindingFactory.binding(
-    				new BindingProject(joinVars, bulk[i]),
-    				idxVar, NodeValue.makeInteger(i).asNode());
-    	}
-        List<Binding> bulkList = Arrays.asList(bulk).subList(0, bulkLen);
+	        // Op newSubOp = Algebra.compile(q);
+	        // Op newSubOp = OpJoin.create(OpTable.create(table), subOp);
 
-        boolean wrapAsSubQuery = needsWrappingByFeatures(rawQuery);
-        if (wrapAsSubQuery) {
-        	q = new Query();
-        	q.setQuerySelectType();
-        	q.setQueryPattern(new ElementSubQuery(rawQuery));
-        	q.getProjectVars().addAll(rawQuery.getProjectVars());
-        	if (rawQuery.hasOrderBy()) {
-        		q.getOrderBy().addAll(rawQuery.getOrderBy());
-            	rawQuery.getOrderBy().clear();
-        	}
-        } else {
-        	q = rawQuery;
-        }
+	        return new Rewrite(newOp, renames);
 
-        boolean injectIdx = true;
+	    }
 
-        if (injectIdx) {
-        	SortCondition sc = new SortCondition(new ExprVar(idxVar), Query.ORDER_ASCENDING);
-        	if (q.hasOrderBy()) {
-        		q.getOrderBy().add(0, sc);
-        	} else {
-        		q.addOrderBy(sc);
-        	}
-        }
 
-        q.resetResultVars();
-        q.setQueryResultStar(false);
-        q.getProjectVars().removeAll(joinVars);
-        q.getProjectVars().add(0, idxVar);
-        q.resetResultVars();
+	    public Rewrite rewriteAsJoin(
+	    		Binding[] bulk,
+	    		int bulkLen,
+	    		Set<Var> seenVars) {
+	        Query q;
 
-        List<Var> remoteVars = new ArrayList<>(1 + joinVars.size());
-        remoteVars.add(idxVar);
-        remoteVars.addAll(joinVars);
-        ElementData dataBlock = new ElementData(remoteVars, bulkList);
-        Element before = q.getQueryPattern();
-        ElementGroup after = new ElementGroup();
-    	after.addElement(dataBlock);
-        if (before instanceof ElementGroup) {
-        	((ElementGroup)before).getElements().forEach(after::addElement);
-        } else {
-        	after.addElement(before);
-        }
-        q.setQueryPattern(after);
 
-        // LOG.
-        System.err.println(q);
+	    	Set<Var> joinVars = new LinkedHashSet<>(serviceVars);
+	    	joinVars.retainAll(seenVars);
 
-        Op newSubOp = Algebra.compile(q);
-        // Op newSubOp = OpJoin.create(OpTable.create(table), subOp);
 
-        return new Rewrite(newSubOp, renames);
-    }
+	    	// Project the bindings to those variables that are also visible
+	    	// in the service cause
+	    	for (int i = 0; i < bulkLen; ++i) {
+	    		bulk[i] = BindingFactory.binding(
+	    				new BindingProject(joinVars, bulk[i]),
+	    				idxVar, NodeValue.makeInteger(i).asNode());
+	    	}
+	        List<Binding> bulkList = Arrays.asList(bulk).subList(0, bulkLen);
+
+	        boolean wrapAsSubQuery = needsWrappingByFeatures(rawQuery);
+	        if (wrapAsSubQuery) {
+	        	q = new Query();
+	        	q.setQuerySelectType();
+	        	q.setQueryPattern(new ElementSubQuery(rawQuery));
+	        	q.getProjectVars().addAll(rawQuery.getProjectVars());
+	        	if (rawQuery.hasOrderBy()) {
+	        		q.getOrderBy().addAll(rawQuery.getOrderBy());
+	            	rawQuery.getOrderBy().clear();
+	        	}
+	        } else {
+	        	q = rawQuery;
+	        }
+
+	        boolean injectIdx = true;
+
+	        if (injectIdx) {
+	        	SortCondition sc = new SortCondition(new ExprVar(idxVar), Query.ORDER_ASCENDING);
+	        	if (q.hasOrderBy()) {
+	        		q.getOrderBy().add(0, sc);
+	        	} else {
+	        		q.addOrderBy(sc);
+	        	}
+	        }
+
+	        q.resetResultVars();
+	        q.setQueryResultStar(false);
+	        q.getProjectVars().removeAll(joinVars);
+	        q.getProjectVars().add(0, idxVar);
+	        q.resetResultVars();
+
+	        List<Var> remoteVars = new ArrayList<>(1 + joinVars.size());
+	        remoteVars.add(idxVar);
+	        remoteVars.addAll(joinVars);
+	        ElementData dataBlock = new ElementData(remoteVars, bulkList);
+	        Element before = q.getQueryPattern();
+	        ElementGroup after = new ElementGroup();
+	    	after.addElement(dataBlock);
+	        if (before instanceof ElementGroup) {
+	        	((ElementGroup)before).getElements().forEach(after::addElement);
+	        } else {
+	        	after.addElement(before);
+	        }
+	        q.setQueryPattern(after);
+
+	        // LOG.
+	        System.err.println(q);
+
+	        Op newSubOp = Algebra.compile(q);
+	        // Op newSubOp = OpJoin.create(OpTable.create(table), subOp);
+
+	        return new Rewrite(newSubOp, renames);
+	    }
+
+
+	}
 
 
     public static void main(String[] args) {
@@ -653,16 +725,17 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 
     	try (QueryExecution qe = QueryExecutionHTTP.newBuilder()
     		.endpoint("https://dbpedia.org/sparql")
-    		.query("CONSTRUCT WHERE { ?s a <http://dbpedia.org/ontology/Person> } LIMIT 100")
+    		.query("CONSTRUCT WHERE { ?s a <http://dbpedia.org/ontology/Person> } LIMIT 10")
     		.build()) {
     		model = qe.execConstruct();
     	}
 
     	try (QueryExecution qe = QueryExecutionFactory.create(
-        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT ?s (COUNT(*) AS ?c) { ?s ?p ?o } GROUP BY ?s } } }",
+//        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT ?s (COUNT(*) AS ?c) { ?s ?p ?o } GROUP BY ?s } } }",
 //        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT ?s ?p { ?s ?p ?o } ORDER BY ?p } } }",
+        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT * { ?s ?p ?o } LIMIT 3 OFFSET 5 } } }",
     			model)) {
-    		qe.getContext().set(ARQ.serviceBulkRequestMaxItemCount, 15);
+    		qe.getContext().set(ARQ.serviceBulkRequestMaxItemCount, 1);
     		qe.getContext().set(ARQ.serviceBulkRequestMaxByteSize, 1500);
     		ResultSetMgr.write(System.out, qe.execSelect(), ResultSetLang.RS_JSON);
         }
