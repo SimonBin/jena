@@ -305,7 +305,8 @@ public class OpExecutor
     }
 
     protected QueryIterator execute(OpService opService, QueryIterator input) {
-        return new QueryIterService(input, opService, execCxt) ;
+        // return new QueryIterService(input, opService, execCxt) ;
+        return new QueryIterServiceBulk(input, opService, execCxt) ;
     }
 
     // Quad form, "GRAPH ?g {}" Flip back to OpGraph.
