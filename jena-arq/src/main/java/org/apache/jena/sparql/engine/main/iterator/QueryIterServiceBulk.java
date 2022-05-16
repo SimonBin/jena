@@ -52,7 +52,6 @@ import org.apache.jena.sparql.algebra.Algebra;
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.algebra.OpAsQuery;
 import org.apache.jena.sparql.algebra.OpVars;
-import org.apache.jena.sparql.algebra.op.OpDisjunction;
 import org.apache.jena.sparql.algebra.op.OpExtend;
 import org.apache.jena.sparql.algebra.op.OpService ;
 import org.apache.jena.sparql.algebra.op.OpUnion;
@@ -730,12 +729,20 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     		model = qe.execConstruct();
     	}
 
+    	//		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT ?s (COUNT(*) AS ?c) { ?s ?p ?o } GROUP BY ?s } } }",
+
     	try (QueryExecution qe = QueryExecutionFactory.create(
-//        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT ?s (COUNT(*) AS ?c) { ?s ?p ?o } GROUP BY ?s } } }",
-//        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT ?s ?p { ?s ?p ?o } ORDER BY ?p } } }",
+        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT ?s ?p { ?s ?p ?o } ORDER BY ?p } } }",
+    			model)) {
+    		// qe.getContext().set(ARQ.serviceBulkRequestMaxItemCount, 1);
+    		qe.getContext().set(ARQ.serviceBulkRequestMaxByteSize, 1500);
+    		ResultSetMgr.write(System.out, qe.execSelect(), ResultSetLang.RS_JSON);
+        }
+
+    	try (QueryExecution qe = QueryExecutionFactory.create(
         		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT * { ?s ?p ?o } LIMIT 3 OFFSET 5 } } }",
     			model)) {
-    		qe.getContext().set(ARQ.serviceBulkRequestMaxItemCount, 1);
+    		// qe.getContext().set(ARQ.serviceBulkRequestMaxItemCount, 1);
     		qe.getContext().set(ARQ.serviceBulkRequestMaxByteSize, 1500);
     		ResultSetMgr.write(System.out, qe.execSelect(), ResultSetLang.RS_JSON);
         }
