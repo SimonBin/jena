@@ -21,9 +21,12 @@ package org.apache.jena.sparql.engine.main.iterator;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -44,10 +47,14 @@ import org.apache.jena.sparql.algebra.OpAsQuery;
 import org.apache.jena.sparql.algebra.OpVars;
 import org.apache.jena.sparql.algebra.op.OpService ;
 import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.core.VarExprList;
 import org.apache.jena.sparql.engine.ExecutionContext ;
 import org.apache.jena.sparql.engine.QueryIterator ;
+import org.apache.jena.sparql.engine.Rename;
 import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.binding.BindingBuilder;
 import org.apache.jena.sparql.engine.binding.BindingFactory;
+import org.apache.jena.sparql.engine.binding.BindingLib;
 import org.apache.jena.sparql.engine.binding.BindingProject;
 import org.apache.jena.sparql.engine.iterator.QueryIter;
 import org.apache.jena.sparql.engine.iterator.QueryIterRepeatApplyBulk;
@@ -55,9 +62,11 @@ import org.apache.jena.sparql.engine.iterator.QueryIterSingleton;
 import org.apache.jena.sparql.engine.iterator.QueryIteratorWrapper;
 import org.apache.jena.sparql.exec.http.QueryExecutionHTTP;
 import org.apache.jena.sparql.exec.http.Service;
+import org.apache.jena.sparql.expr.Expr;
 import org.apache.jena.sparql.expr.ExprEvalException;
 import org.apache.jena.sparql.expr.ExprVar;
 import org.apache.jena.sparql.expr.NodeValue;
+import org.apache.jena.sparql.graph.NodeTransformLib;
 import org.apache.jena.sparql.service.ServiceExecution;
 import org.apache.jena.sparql.service.ServiceExecutorFactory;
 import org.apache.jena.sparql.service.ServiceExecutorRegistry;
@@ -96,12 +105,12 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     @Override
     protected QueryIterator nextStage(QueryIterator input) {
 
-    	int n = 30;
+    	int bulkSize = 30;
 
     	Node serviceNode = opService.getService();
 
     	Var serviceVar = serviceNode.isVariable() ? (Var)serviceNode: null;
-    	Binding[] bulk = new Binding[n];
+    	Binding[] bulk = new Binding[bulkSize];
     	Set<Var> seenVars = new HashSet<>();
 
     	int i = 0;
@@ -110,7 +119,7 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     	}
 
     	// Retrieve bindings as long as the service node remains the same
-    	for (; i < n && input.hasNext(); ++i) {
+    	for (; i < bulkSize && input.hasNext(); ++i) {
     		Binding b = input.next();
     		b.vars().forEachRemaining(seenVars::add);
 
@@ -130,7 +139,34 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     		bulk[i] = b;
     	}
 
-    	n = i; // Set n to the number of available bindings
+    	int n = i; // Set n to the number of available bindings
+
+        // Table table = TableFactory.create(new ArrayList<>(joinVars));
+        // bulkList.forEach(table::addBinding);
+
+        Op subOp = opService.getSubOp();
+        // Convert to query so we can more easily set up the sort order condition
+        subOp = Rename.reverseVarRename(subOp, true);
+
+        Map<Var, Var> renames = new HashMap<>();
+        Query rawQuery = OpAsQuery.asQuery(subOp);
+        Query q;
+
+        VarExprList vel = rawQuery.getProject();
+        VarExprList newVel = new VarExprList();
+
+        int allocId = 0;
+        for (Var var : vel.getVars()) {
+        	Expr expr = vel.getExpr(var);
+        	if (Var.isAllocVar(var)) {
+        		Var tmp = Var.alloc("__v" + (++allocId) + "__");
+        		renames.put(tmp, var);
+        		var = tmp;
+        	}
+        	newVel.add(var, expr);
+        }
+        vel.clear();
+        vel.addAll(newVel);
 
 
     	Set<Var> joinVars = new LinkedHashSet<>(serviceVars);
@@ -148,23 +184,16 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     	}
         List<Binding> bulkList = Arrays.asList(bulk).subList(0, n);
 
-        // Table table = TableFactory.create(new ArrayList<>(joinVars));
-        // bulkList.forEach(table::addBinding);
-
-        Op subOp = opService.getSubOp();
-        // Convert to query so we can more easily set up the sort order condition
-        Query rawQuery = OpAsQuery.asQuery(subOp);
-        Query q;
-
         boolean wrapAsSubQuery = needsWrappingByFeatures(rawQuery);
         if (wrapAsSubQuery) {
         	q = new Query();
         	q.setQuerySelectType();
         	q.setQueryPattern(new ElementSubQuery(rawQuery));
+        	q.getProjectVars().addAll(rawQuery.getProjectVars());
         	if (rawQuery.hasOrderBy()) {
         		q.getOrderBy().addAll(rawQuery.getOrderBy());
+            	rawQuery.getOrderBy().clear();
         	}
-        	rawQuery.getOrderBy().clear();
         } else {
         	q = rawQuery;
         }
@@ -200,7 +229,8 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
         }
         q.setQueryPattern(after);
 
-System.out.println(q);
+        // LOG.
+        System.err.println(q);
 
         Op newSubOp = Algebra.compile(q);
         // Op newSubOp = OpJoin.create(OpTable.create(table), subOp);
@@ -250,17 +280,32 @@ System.out.println(q);
             QueryIterator result = new QueryIteratorWrapper(qIter) {
     			@Override
     			protected Binding moveToNextBinding() {
-    				Binding child = super.moveToNextBinding();
+    				Binding rawChild = super.moveToNextBinding();
 
-    				Node idxNode = child.get(idxVar);
+    				Node idxNode = rawChild.get(idxVar);
     				Object obj = idxNode.getLiteralValue();
     				if (!(obj instanceof Number)) {
     					throw new ExprEvalException("Index was not returned as a number");
     				}
     				int idx = ((Number)obj).intValue();
+
+    				if (idx < 0 || idx > n) {
+    					throw new QueryExecException("Returned index out of range");
+    				}
+
     				Binding parent = bulk[idx];
 
-    				Binding result = BindingFactory.builder(parent).addAll(child).build();
+    				BindingBuilder bb = BindingFactory.builder(parent);
+
+					Iterator<Var> it = rawChild.vars();
+					while (it.hasNext()) {
+						Var before = it.next();
+						Node node = rawChild.get(before);
+
+						Var after = renames.getOrDefault(before, before);
+						bb.add(after, node);
+					}
+					Binding result = bb.build();
 
     				return result;
     			}
@@ -330,7 +375,7 @@ System.out.println(q);
     	}
 
     	try (QueryExecution qe = QueryExecutionFactory.create(
-        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person>  SERVICE <http://dbpedia.org/sparql> { ?s ?p ?o } }",
+        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person>  SERVICE <http://dbpedia.org/sparql> { { SELECT ?s (COUNT(*) AS ?c) { ?s ?p ?o } GROUP BY ?s } } }",
     			model)) {
     		ResultSetMgr.write(System.out, qe.execSelect(), ResultSetLang.RS_JSON);
         }
