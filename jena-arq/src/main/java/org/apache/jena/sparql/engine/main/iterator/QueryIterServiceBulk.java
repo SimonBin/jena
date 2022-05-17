@@ -56,20 +56,21 @@ import org.apache.jena.sparql.exec.http.QueryExecutionHTTP;
 import org.apache.jena.sparql.exec.http.Service;
 import org.apache.jena.sparql.expr.Expr;
 import org.apache.jena.sparql.service.BatchQueryRewriter;
-import org.apache.jena.sparql.service.Finisher;
-import org.apache.jena.sparql.service.QueryIterOverPartitionIter;
-import org.apache.jena.sparql.service.PartitionIterator;
 import org.apache.jena.sparql.service.BatchQueryRewriter.BatchQueryRewriteResult;
+import org.apache.jena.sparql.service.Finisher;
+import org.apache.jena.sparql.service.PartitionIterator;
+import org.apache.jena.sparql.service.QueryIterOverPartitionIter;
 import org.apache.jena.sparql.service.ServiceExecution;
 import org.apache.jena.sparql.service.ServiceExecutorFactory;
 import org.apache.jena.sparql.service.ServiceExecutorRegistry;
 import org.apache.jena.sparql.util.Context;
 
-
 public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 {
 	public static final int DEFAULT_BULK_SIZE = 30;
 	public static final int DEFAULT_MAX_BYTE_SIZE = 5000;
+	public static final Finisher DEFAULT_FINISHER =
+			(partIt, execCxt) -> new QueryIterOverPartitionIter(partIt);
 
     protected OpService opService ;
     protected Set<Var> serviceVars;
@@ -77,6 +78,8 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     // The binding the needs to go to the next request
     protected Binding carryBinding = null;
     protected Node carryNode = null;
+    protected Finisher finisher;
+
 
     public QueryIterServiceBulk(QueryIterator input, OpService opService, ExecutionContext context)
     {
@@ -92,6 +95,8 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
         Op subOp = opService.getSubOp();
         // Handling of a null supOp - can that happen?
         this.serviceVars = subOp == null ? Collections.emptySet() : new LinkedHashSet<>(OpVars.visibleVars(subOp));
+
+        this.finisher = context.getContext().get(ARQ.serviceBulkRequestFinisher, DEFAULT_FINISHER);
     }
 
     @Override
@@ -223,8 +228,8 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 
             PartitionIterator partIt = new PartitionIterator(opService, serviceVars, qIter, idxVar, bulk, bulkSize, renames);
 
-            Finisher finisher = QueryIterOverPartitionIter::new;
-            QueryIterator result = finisher.finish(partIt);
+
+            QueryIterator result = finisher.finish(partIt, execCxt);
 
 
     		return result;
@@ -239,7 +244,6 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
             throw ex;
         }
     }
-
 
     public static void main(String[] args) {
     	Model model;

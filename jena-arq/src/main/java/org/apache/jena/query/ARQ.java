@@ -261,6 +261,13 @@ public class ARQ
      */
     public static final Symbol serviceBulkRequestMaxByteSize = SystemARQ.allocSymbol("serviceBulkRequestMaxByteSize") ;
 
+    /**
+     * Strategy for how to "finish" an iterator over partitions of a bulk request results
+     * into a conventional QueryIterator
+     */
+    public static final Symbol serviceBulkRequestFinisher = SystemARQ.allocSymbol("serviceBulkRequestFinisher") ;
+
+
     // Jena HTTP related.
 
     /**

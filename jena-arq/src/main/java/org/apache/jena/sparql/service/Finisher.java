@@ -1,5 +1,6 @@
 package org.apache.jena.sparql.service;
 
+import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 
 /**
@@ -8,5 +9,5 @@ import org.apache.jena.sparql.engine.QueryIterator;
  * on the level of the individual input (parent) bindings.
  */
 public interface Finisher {
-	public QueryIterator finish(PartitionIterator partIt);
+	public QueryIterator finish(PartitionIterator partIt, ExecutionContext execCxt);
 }
