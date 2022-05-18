@@ -60,6 +60,7 @@ import org.apache.jena.sparql.service.BatchQueryRewriter.BatchQueryRewriteResult
 import org.apache.jena.sparql.service.Finisher;
 import org.apache.jena.sparql.service.PartitionIterator;
 import org.apache.jena.sparql.service.QueryIterOverPartitionIter;
+import org.apache.jena.sparql.service.ServiceCacheKey;
 import org.apache.jena.sparql.service.ServiceExecution;
 import org.apache.jena.sparql.service.ServiceExecutorFactory;
 import org.apache.jena.sparql.service.ServiceExecutorRegistry;
@@ -113,6 +114,7 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 
         Op subOp = opService.getSubOp();
         subOp = Rename.reverseVarRename(subOp, true);
+
 
         Query rawQuery = OpAsQuery.asQuery(subOp);
         Map<Var, Var> renames = new HashMap<>();
@@ -179,6 +181,8 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 
     	int n = i; // Set n to the number of available bindings
 
+
+
         // Table table = TableFactory.create(new ArrayList<>(joinVars));
         // bulkList.forEach(table::addBinding);
 
@@ -193,6 +197,9 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     	Var idxVar = Var.alloc("__idx__");
         BatchQueryRewriteResult rewrite = new BatchQueryRewriter(rawQuery, subOp, renames, idxVar, serviceVars)
         		.rewrite(bulk, n, seenVars);
+
+        // ServiceCacheKey cacheKey = new ServiceCacheKey(serviceNode, subOp, rewrite.getJoinVars());
+
         Op newSubOp = rewrite.getOp();
         // Map<Var, Var> renames = rewrite.renames;
 

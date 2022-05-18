@@ -2,7 +2,6 @@ package org.apache.jena.sparql.service;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,6 +24,8 @@ import org.apache.jena.sparql.syntax.Element;
 import org.apache.jena.sparql.syntax.ElementData;
 import org.apache.jena.sparql.syntax.ElementGroup;
 import org.apache.jena.sparql.syntax.ElementSubQuery;
+
+import com.github.jsonldjava.shaded.com.google.common.collect.Sets;
 
 /**
  * Rewriter for instantiating a query such that a list of initial bindings are injected.
@@ -99,6 +100,12 @@ public class BatchQueryRewriter {
 
     }
 
+    protected Set<Var> getJoinVars(Set<Var> seenVars) {
+//    	Set<Var> joinVars = new LinkedHashSet<>(serviceVars);
+//    	joinVars.retainAll(seenVars);
+    	Set<Var> joinVars = Sets.intersection(serviceVars, seenVars);
+    	return joinVars;
+    }
 
     public BatchQueryRewriteResult rewriteAsJoin(
     		Binding[] bulk,
@@ -107,8 +114,7 @@ public class BatchQueryRewriter {
         Query q;
 
 
-    	Set<Var> joinVars = new LinkedHashSet<>(serviceVars);
-    	joinVars.retainAll(seenVars);
+    	Set<Var> joinVars = getJoinVars(seenVars);
 
 
     	// Project the bindings to those variables that are also visible
@@ -219,10 +225,13 @@ public class BatchQueryRewriter {
     	protected Op op;
     	protected Map<Var, Var> renames;
 
-    	public BatchQueryRewriteResult(Op op, Map<Var, Var> renames) {
+//    	protected Set<Var> joinVars;
+
+    	public BatchQueryRewriteResult(Op op, Map<Var, Var> renames) { //  Set<Var> joinVars
 			super();
 			this.op = op;
 			this.renames = renames;
+//			this.joinVars = joinVars;
 		}
 
     	public Op getOp() {
@@ -232,6 +241,10 @@ public class BatchQueryRewriter {
     	public Map<Var, Var> getRenames() {
 			return renames;
 		}
+
+//    	public Set<Var> getJoinVars() {
+//			return joinVars;
+//		}
     }
 
 
