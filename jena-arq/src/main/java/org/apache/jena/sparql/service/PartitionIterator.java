@@ -19,17 +19,19 @@ import org.apache.jena.sparql.expr.ExprEvalException;
 public class PartitionIterator
 	extends IteratorSlotted<PartitionElt>
 {
+	// protected ServiceInfo serviceInfo;
+
 	protected QueryIterator qIter;
 	protected Var idxVar;
 	protected Binding[] bulk;
 	protected int bulkSize;
-	protected Map<Var, Var> renames;
+	 protected Map<Var, Var> renames;
 
 	protected PartitionElt pendingEvt = null;
 	protected int currentIdx = -1;
 
-	protected Op originalOp;
-	protected Set<Var> originalOpVars;
+	 protected Op originalOp;
+	 protected Set<Var> originalOpVars;
 
     public PartitionIterator(
     		Op originalOp,
@@ -50,6 +52,9 @@ public class PartitionIterator
 		this.renames = renames;
 	}
 
+    public long getNextOutputId() {
+    	return currentIdx;
+    }
 
 	@Override
 	protected PartitionElt moveToNext() {
@@ -106,7 +111,7 @@ public class PartitionIterator
 			if (currentIdx != idx) {
 				Op substitutedOp = QC.substitute(originalOp, parent);
 
-				result = new PartitionStart(originalOp, substitutedOp, originalOpVars, parent);
+				result = new PartitionStart(null, originalOp, substitutedOp, originalOpVars, parent);
 				pendingEvt = item;
 			} else {
 				result = item;

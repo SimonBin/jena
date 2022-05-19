@@ -2,6 +2,8 @@ package org.apache.jena.sparql.service;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,12 +14,14 @@ import org.apache.jena.sparql.algebra.Algebra;
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.algebra.OpAsQuery;
 import org.apache.jena.sparql.algebra.op.OpExtend;
+import org.apache.jena.sparql.algebra.op.OpSlice;
 import org.apache.jena.sparql.algebra.op.OpUnion;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.binding.BindingFactory;
 import org.apache.jena.sparql.engine.binding.BindingProject;
 import org.apache.jena.sparql.engine.main.QC;
+import org.apache.jena.sparql.engine.main.iterator.BindingVars;
 import org.apache.jena.sparql.expr.ExprVar;
 import org.apache.jena.sparql.expr.NodeValue;
 import org.apache.jena.sparql.syntax.Element;
@@ -43,20 +47,49 @@ import com.github.jsonldjava.shaded.com.google.common.collect.Sets;
  *
  */
 public class BatchQueryRewriter {
-	protected Query rawQuery;
-	protected Op rawOp;
-	protected Map<Var, Var> renames;
-
+	protected OpServiceInfo serviceInfo;
 	protected Var idxVar;
-	protected Set<Var> serviceVars;
 
-	public BatchQueryRewriter(Query rawQuery, Op rawOp, Map<Var, Var> renames, Var idxVar, Set<Var> serviceVars) {
+	public BatchQueryRewriter(OpServiceInfo serviceInfo, Var idxVar) {
 		super();
-		this.rawQuery = rawQuery;
-		this.rawOp = rawOp;
-		this.renames = renames;
+		this.serviceInfo = serviceInfo;
 		this.idxVar = idxVar;
-		this.serviceVars = serviceVars;
+	}
+
+	public static Set<Var> seenVars(Collection<PartitionRequest> batchRequest) {
+		Set<Var> result = new LinkedHashSet<>();
+		batchRequest.stream().forEach(br -> BindingVars.addAll(result, br.getPartition()));
+		return result;
+	}
+
+	public BatchQueryRewriteResult rewrite(List<PartitionRequest> batchRequest) {
+		// Set<Var> seenVars = seenVars(batchRequest);
+
+		int n = batchRequest.size();
+    	Op newOp = null;
+    	for (int i = n - 1; i >= 0; --i) {
+    		PartitionRequest req = batchRequest.get(i);
+    		Binding b = req.getPartition();
+
+    		Op rawOp = serviceInfo.getRawQueryOp();
+    		Op op = QC.substitute(rawOp, b);
+    		if (n > 1) {
+    			op = OpExtend.create(op, idxVar, NodeValue.makeInteger(i));
+    		}
+
+    		if (req.getOffset() != Query.NOLIMIT || req.getLimit() != Query.NOLIMIT) {
+    			op = new OpSlice(op, req.getOffset(), req.getLimit());
+    		}
+
+    		newOp = newOp == null ? op : OpUnion.create(op, newOp);
+    	}
+
+
+    	Query q = OpAsQuery.asQuery(newOp);
+        System.err.println(q);
+
+        return new BatchQueryRewriteResult(newOp, serviceInfo.getRenames());
+
 	}
 
 	public BatchQueryRewriteResult rewrite(
@@ -64,6 +97,7 @@ public class BatchQueryRewriter {
     		int bulkLen,
     		Set<Var> seenVars) {
 
+		Query rawQuery = serviceInfo.getRawQuery();
 		BatchQueryRewriteResult result = rawQuery.hasLimit() || rawQuery.hasOffset()
 			? rewriteAsUnion(bulk, bulkLen, seenVars)
 			: rewriteAsJoin(bulk, bulkLen, seenVars);
@@ -80,6 +114,7 @@ public class BatchQueryRewriter {
     	for (int i = bulkLen - 1; i >= 0; --i) {
     		Binding b = bulk[i];
 
+    		Op rawOp = serviceInfo.getRawQueryOp();
     		Op op = QC.substitute(rawOp, b);
     		if (bulkLen > 1) {
     			op = OpExtend.create(op, idxVar, NodeValue.makeInteger(i));
@@ -96,14 +131,14 @@ public class BatchQueryRewriter {
         // Op newSubOp = Algebra.compile(q);
         // Op newSubOp = OpJoin.create(OpTable.create(table), subOp);
 
-        return new BatchQueryRewriteResult(newOp, renames);
+        return new BatchQueryRewriteResult(newOp, serviceInfo.getRenames());
 
     }
 
     protected Set<Var> getJoinVars(Set<Var> seenVars) {
 //    	Set<Var> joinVars = new LinkedHashSet<>(serviceVars);
 //    	joinVars.retainAll(seenVars);
-    	Set<Var> joinVars = Sets.intersection(serviceVars, seenVars);
+    	Set<Var> joinVars = Sets.intersection(serviceInfo.getServiceVars(), seenVars);
     	return joinVars;
     }
 
@@ -126,6 +161,7 @@ public class BatchQueryRewriter {
     	}
         List<Binding> bulkList = Arrays.asList(bulk).subList(0, bulkLen);
 
+        Query rawQuery = serviceInfo.getRawQuery();
         boolean wrapAsSubQuery = needsWrappingByFeatures(rawQuery);
         if (wrapAsSubQuery) {
         	q = new Query();
@@ -177,7 +213,7 @@ public class BatchQueryRewriter {
         Op newSubOp = Algebra.compile(q);
         // Op newSubOp = OpJoin.create(OpTable.create(table), subOp);
 
-        return new BatchQueryRewriteResult(newSubOp, renames);
+        return new BatchQueryRewriteResult(newSubOp, serviceInfo.getRenames());
     }
 
 

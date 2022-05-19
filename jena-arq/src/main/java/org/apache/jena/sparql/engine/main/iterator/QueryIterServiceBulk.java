@@ -20,14 +20,18 @@ package org.apache.jena.sparql.engine.main.iterator;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.aksw.commons.util.ref.RefFuture;
 import org.apache.jena.atlas.logging.Log;
+import org.apache.jena.ext.com.google.common.collect.Sets;
 import org.apache.jena.graph.Node;
 import org.apache.jena.query.ARQ;
 import org.apache.jena.query.Query;
@@ -60,11 +64,37 @@ import org.apache.jena.sparql.service.BatchQueryRewriter.BatchQueryRewriteResult
 import org.apache.jena.sparql.service.Finisher;
 import org.apache.jena.sparql.service.PartitionIterator;
 import org.apache.jena.sparql.service.QueryIterOverPartitionIter;
+import org.apache.jena.sparql.service.QueryIterSlottedBase;
 import org.apache.jena.sparql.service.ServiceCacheKey;
+import org.apache.jena.sparql.service.ServiceCacheValue;
 import org.apache.jena.sparql.service.ServiceExecution;
 import org.apache.jena.sparql.service.ServiceExecutorFactory;
 import org.apache.jena.sparql.service.ServiceExecutorRegistry;
+import org.apache.jena.sparql.service.SimpleServiceCache;
 import org.apache.jena.sparql.util.Context;
+
+import com.google.common.collect.Range;
+import com.google.common.collect.RangeSet;
+
+
+
+class RequestExecution
+	extends QueryIterSlottedBase<Binding>
+{
+	protected ServiceRequestMgr requestMgr;
+
+	// The outputId of the binding returned by the next() call
+	// Make sure to call .hasNext() for this field to be correctly initialized
+	protected long nextOutputId;
+
+
+	@Override
+	protected Binding moveToNext() {
+		return null;
+
+	}
+}
+
 
 public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 {
@@ -74,12 +104,28 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 			(partIt, execCxt) -> new QueryIterOverPartitionIter(partIt);
 
     protected OpService opService ;
+
+    protected Query rawQuery; // Query for opService.getSubOp()
+    protected Map<Var, Var> renames = new HashMap<>();
+
     protected Set<Var> serviceVars;
+
+    // Maximum number of bindings to read from the input before being force to execute service requests
+    protected int maxReadAhead;
+
+    // If max read ahead is reached then ensure at least min read ahead items are scheduled for request
+    protected int minScheduleAmount;
+
+
+    // The index of the next binding that will be yeld by this iterator
+    protected long currentIdx = 0;
 
     // The binding the needs to go to the next request
     protected Binding carryBinding = null;
     protected Node carryNode = null;
     protected Finisher finisher;
+
+    protected SimpleServiceCache cache = new SimpleServiceCache();
 
 
     public QueryIterServiceBulk(QueryIterator input, OpService opService, ExecutionContext context)
@@ -94,30 +140,16 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
         this.opService = opService ;
         // Get the variables used in the service clause (excluding the possible one for the service iri)
         Op subOp = opService.getSubOp();
+
         // Handling of a null supOp - can that happen?
         this.serviceVars = subOp == null ? Collections.emptySet() : new LinkedHashSet<>(OpVars.visibleVars(subOp));
 
         this.finisher = context.getContext().get(ARQ.serviceBulkRequestFinisher, DEFAULT_FINISHER);
-    }
 
-    @Override
-    protected QueryIterator nextStage(QueryIterator input) {
-
-        boolean silent = opService.getSilent();
-        ExecutionContext execCxt = getExecContext();
-        Context cxt = execCxt.getContext();
-        ServiceExecutorRegistry registry = ServiceExecutorRegistry.get(cxt);
-        ServiceExecution svcExec = null;
-
-    	int bulkSize = cxt.getInt(ARQ.serviceBulkRequestMaxItemCount, DEFAULT_BULK_SIZE);
-    	int maxByteSize = cxt.getInt(ARQ.serviceBulkRequestMaxByteSize, DEFAULT_MAX_BYTE_SIZE);
-
-        Op subOp = opService.getSubOp();
         subOp = Rename.reverseVarRename(subOp, true);
 
-
-        Query rawQuery = OpAsQuery.asQuery(subOp);
-        Map<Var, Var> renames = new HashMap<>();
+        this.rawQuery = OpAsQuery.asQuery(subOp);
+        // this.renames = new HashMap<>();
 
         VarExprList vel = rawQuery.getProject();
         VarExprList newVel = new VarExprList();
@@ -134,6 +166,20 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
         }
         vel.clear();
         vel.addAll(newVel);
+    }
+
+    @Override
+    protected QueryIterator nextStage(QueryIterator input) {
+
+        boolean silent = opService.getSilent();
+        ExecutionContext execCxt = getExecContext();
+        Context cxt = execCxt.getContext();
+        ServiceExecutorRegistry registry = ServiceExecutorRegistry.get(cxt);
+
+    	int bulkSize = cxt.getInt(ARQ.serviceBulkRequestMaxItemCount, DEFAULT_BULK_SIZE);
+    	int maxByteSize = cxt.getInt(ARQ.serviceBulkRequestMaxByteSize, DEFAULT_MAX_BYTE_SIZE);
+
+        Op subOp = opService.getSubOp();
 
 
         int approxRequestSize = rawQuery.toString().getBytes(StandardCharsets.UTF_8).length;
@@ -149,19 +195,26 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     		bulk[0] = carryBinding;
     	}
 
+
+    	MultiServiceRequestMgr multiRequestMgr = new MultiServiceRequestMgr(opService);
+
+
     	// Retrieve bindings as long as the service node remains the same
     	// If there is a change then the binding is carries over to the next 'nextStage()' call
     	while (i < bulkSize && input.hasNext()) {
-    		Binding b = input.next();
+    		Binding binding = input.next();
 
-    		b.vars().forEachRemaining(seenVars::add);
+    		Set<Var> bindingVars = Sets.newHashSet(binding.vars());
+    		seenVars.addAll(bindingVars);
+
+    		// b.vars().forEachRemaining(seenVars::add);
 
     		if (serviceVar != null) {
-    			Node substServiceNode = b.get(serviceVar);
+    			Node substServiceNode = binding.get(serviceVar);
     			if (carryNode != null) {
     				if (!Objects.equals(carryNode, substServiceNode)) {
     					carryNode = substServiceNode;
-    					carryBinding = b;
+    					carryBinding = binding;
     					break;
     				}
     			} else {
@@ -169,9 +222,23 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     			}
     		}
 
-    		bulk[i++] = b;
 
-			int contribSize = b.toString().getBytes(StandardCharsets.UTF_8).length;
+            ServiceCacheKey cacheKey = new ServiceCacheKey(serviceNode, subOp, binding);
+    		Set<Var> joinVars = Sets.intersection(serviceVars, bindingVars);
+
+            // Claim the cache entry - protects it from concurrent eviction
+            // The ref must be closed eventually
+            try (RefFuture<ServiceCacheValue> serviceCacheRef = cache.claim(cacheKey)) {
+            	RangeSet<Long> fetchRanges = serviceCacheRef.await().getFetchRanges(Range.atLeast(0l));
+
+            	// TODO We need to keep track of which ranges need to be fetched for which binding
+            	// Conversely, we need to ensure to use the cache for available ranges of cached data
+            }
+
+
+    		bulk[i++] = binding;
+
+			int contribSize = binding.toString().getBytes(StandardCharsets.UTF_8).length;
 			approxRequestSize += contribSize;
 
 			if (approxRequestSize > maxByteSize) {
@@ -190,15 +257,20 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 
 
 
-        // Fake the outer binding
+        // Fake the outer binding which is passed to the ServiceExector
+    	// TODO Make ServiceExecutor API bulk request aware
         Binding outerBinding = BindingFactory.root();
+
+        //Set<Var> joinVars = Sets.intersection(serviceVars, seenVars);
+
+
+
 
 
     	Var idxVar = Var.alloc("__idx__");
         BatchQueryRewriteResult rewrite = new BatchQueryRewriter(rawQuery, subOp, renames, idxVar, serviceVars)
         		.rewrite(bulk, n, seenVars);
 
-        // ServiceCacheKey cacheKey = new ServiceCacheKey(serviceNode, subOp, rewrite.getJoinVars());
 
         Op newSubOp = rewrite.getOp();
         // Map<Var, Var> renames = rewrite.renames;
@@ -207,7 +279,19 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
         // OpService substitutedOp = (OpService)QC.substitute(opService, outerBinding);
 
 
-        try {
+        PartitionIterator partIt = execPartition(silent, execCxt, registry, bulkSize, bulk, outerBinding, idxVar, substitutedOp);
+
+        QueryIterator result = finisher.finish(partIt, execCxt);
+
+
+    }
+
+	public  PartitionIterator execPartition(boolean silent, ExecutionContext execCxt, ServiceExecutorRegistry registry,
+			int bulkSize, Binding[] bulk, Binding outerBinding, Var idxVar,
+			OpService substitutedOp) {
+
+        ServiceExecution svcExec = null;
+		try {
             // ---- Find handler
             if ( registry != null ) {
                 for ( ServiceExecutorFactory factory : registry.getFactories() ) {
@@ -233,11 +317,7 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
             // return new QueryIterCommonParent(qIter, outerBinding, getExecContext());
 
 
-            PartitionIterator partIt = new PartitionIterator(opService, serviceVars, qIter, idxVar, bulk, bulkSize, renames);
-
-
-            QueryIterator result = finisher.finish(partIt, execCxt);
-
+            PartitionIterator result = new PartitionIterator(opService, serviceVars, qIter, idxVar, bulk, bulkSize, renames);
 
     		return result;
 
@@ -245,12 +325,12 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
             if ( silent ) {
                 Log.warn(this, "SERVICE " + NodeFmtLib.strTTL(substitutedOp.getService()) + " : " + ex.getMessage());
                 // Return the input
-                return QueryIterSingleton.create(outerBinding, getExecContext());
+                return QueryIterSingleton.create(input, getExecContext());
 
             }
             throw ex;
         }
-    }
+	}
 
     public static void main(String[] args) {
     	Model model;

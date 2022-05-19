@@ -3,15 +3,15 @@ package org.apache.jena.sparql.service;
 import org.apache.jena.sparql.engine.binding.Binding;
 
 public class PartitionItem implements PartitionElt {
-	protected Binding binding;
+	protected Binding outputBinding;
 
 	public PartitionItem(Binding binding) {
 		super();
-		this.binding = binding;
+		this.outputBinding = binding;
 	}
 
-	public Binding getBinding() {
-		return binding;
+	public Binding getOutputBinding() {
+		return outputBinding;
 	}
 
 	@Override public boolean isItem() { return true; }

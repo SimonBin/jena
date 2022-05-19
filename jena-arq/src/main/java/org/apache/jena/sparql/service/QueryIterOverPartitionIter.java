@@ -22,7 +22,7 @@ public class QueryIterOverPartitionIter
 		while (partitionIterator.hasNext()) {
 			PartitionElt elt = partitionIterator.next();
 			if (elt.isItem()) {
-				result = elt.asItem().getBinding();
+				result = elt.asItem().getOutputBinding();
 				break;
 			}
 		}

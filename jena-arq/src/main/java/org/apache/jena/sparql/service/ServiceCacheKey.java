@@ -6,6 +6,7 @@ import java.util.Set;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.engine.binding.Binding;
 
 public class ServiceCacheKey {
 
@@ -15,13 +16,14 @@ public class ServiceCacheKey {
 
 	protected Node serviceNode;
 	protected Op op;
-	protected Set<Var> joinVars;
+	// protected Set<Var> joinVars;
+	protected Binding binding;
 
-	public ServiceCacheKey(Node serviceNode, Op op, Set<Var> joinVars) {
+	public ServiceCacheKey(Node serviceNode, Op op, Binding binding) {
 		super();
 		this.serviceNode = serviceNode;
 		this.op = op;
-		this.joinVars = joinVars;
+		this.binding = binding;
 	}
 
 	public Node getServiceNode() {
@@ -32,13 +34,13 @@ public class ServiceCacheKey {
 		return op;
 	}
 
-	public Set<Var> getJoinVars() {
-		return joinVars;
+	public Binding getBinding() {
+		return binding;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(joinVars, op, serviceNode);
+		return Objects.hash(serviceNode, op, binding);
 	}
 
 	@Override
@@ -50,7 +52,7 @@ public class ServiceCacheKey {
 		if (getClass() != obj.getClass())
 			return false;
 		ServiceCacheKey other = (ServiceCacheKey) obj;
-		return Objects.equals(joinVars, other.joinVars) && Objects.equals(op, other.op)
+		return Objects.equals(binding, other.binding) && Objects.equals(op, other.op)
 				&& Objects.equals(serviceNode, other.serviceNode);
 	}
 }

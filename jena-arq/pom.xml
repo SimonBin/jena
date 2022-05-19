@@ -36,6 +36,16 @@
   </properties>
 
   <dependencies>
+      <dependency>
+        <groupId>org.aksw.commons</groupId>
+        <artifactId>aksw-commons-io-buffers</artifactId>
+        <version>0.9.4-SNAPSHOT</version>
+      </dependency>
+      <dependency>
+        <groupId>org.aksw.commons</groupId>
+        <artifactId>aksw-commons-claimingcache</artifactId>
+        <version>0.9.4-SNAPSHOT</version>
+      </dependency>
 
     <dependency>
       <groupId>org.apache.jena</groupId>
@@ -69,7 +79,7 @@
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
-    </dependency>    
+    </dependency>
 
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
@@ -117,12 +127,12 @@
       <artifactId>jakarta.json</artifactId>
     </dependency>
     <!-- End Titanium JSON-LD 1.1 -->
-    
+
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
     </dependency>
-      
+
     <dependency>
       <groupId>org.apache.thrift</groupId>
       <artifactId>libthrift</artifactId>
