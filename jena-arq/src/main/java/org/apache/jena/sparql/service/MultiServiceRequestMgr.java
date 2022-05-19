@@ -15,9 +15,10 @@ import org.apache.jena.graph.Node;
 import org.apache.jena.query.Query;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
-import org.apache.jena.sparql.function.library.pi;
 
+import com.esotericsoftware.kryo.NotNull;
 import com.esotericsoftware.minlog.Log;
+
 
 public class MultiServiceRequestMgr
 // implements some iterator
