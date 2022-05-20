@@ -77,8 +77,15 @@ public class BatchQueryRewriter {
     			op = OpExtend.create(op, idxVar, NodeValue.makeInteger(i));
     		}
 
-    		if (req.getOffset() != Query.NOLIMIT || req.getLimit() != Query.NOLIMIT) {
-    			op = new OpSlice(op, req.getOffset(), req.getLimit());
+
+    		long o = req.getOffset();
+    		long l = req.getLimit();
+
+    		if (o == 0) { o = Query.NOLIMIT; }
+    		if (l == Long.MAX_VALUE) { l = Query.NOLIMIT; }
+
+    		if (o != Query.NOLIMIT || l != Query.NOLIMIT) {
+    			op = new OpSlice(op, o, l);
     		}
 
     		newOp = newOp == null ? op : OpUnion.create(op, newOp);

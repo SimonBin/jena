@@ -11,8 +11,8 @@ public class PartitionRequest {
 	public PartitionRequest(
 			Binding partition,
 			long outputId,
-			long start,
-			long end) {
+			long offset,
+			long limit) {
 		super();
 		this.partition = partition;
 		this.outputId = outputId;

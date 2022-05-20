@@ -7,7 +7,8 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
-/** A set of possibly disconnected ranges of items */
+/** A set of possibly disconnected ranges of items.
+ * Consecutive items are managed in lists */
 public class Batch<T> {
 	protected NavigableMap<Long, List<T>> itemRanges;
 	protected int size;

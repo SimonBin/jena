@@ -1,6 +1,6 @@
 package org.apache.jena.sparql.service;
 
-public interface ServiceBatchRequest<I, G> {
+public interface ServiceBatchRequest<G, I> {
 	G getGroupKey();
 	Batch<I> getBatch();
 }

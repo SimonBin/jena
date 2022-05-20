@@ -7,24 +7,29 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.PrimitiveIterator.OfInt;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import org.apache.jena.ext.com.google.common.collect.AbstractIterator;
+import org.apache.jena.graph.Node;
+import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.query.QueryFactory;
+import org.apache.jena.sparql.algebra.Algebra;
+import org.apache.jena.sparql.algebra.Op;
+import org.apache.jena.sparql.algebra.op.OpService;
+import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.binding.BindingFactory;
+import org.apache.jena.sparql.expr.NodeValue;
 
-class RequestScheduler<I, G> {
-
-	/**  Ensure that at least there are active requests to serve the next n input bindings */
-	protected int fetchAhead = 5;
+public class RequestScheduler<G, I> {
 
 	/** Allow reading at most this number of items ahead for the input iterator to completely fill
 	 *  the batch request for the next response */
 	protected int maxReadAhead = 300;
 
 	protected int maxBulkSize = 30;
-	protected int maxRequestSize = 2000;
 
 	/** Do not group inputs into the same batch if their ids are this (or more) of that amount apart */
 	protected int maxInputDistance = 50;
@@ -39,12 +44,12 @@ class RequestScheduler<I, G> {
 	}
 
 
-	public Iterator<ServiceBatchRequest<I, G>> group(Iterator<I> inputIterator) {
+	public Iterator<ServiceBatchRequest<G, I>> group(Iterator<I> inputIterator) {
 		return new Grouper(inputIterator);
 	}
 
 	class Grouper
-		extends AbstractIterator<ServiceBatchRequest<I, G>>
+		extends AbstractIterator<ServiceBatchRequest<G, I>>
 	{
 		protected Iterator<I> inputIterator;
 
@@ -76,7 +81,7 @@ class RequestScheduler<I, G> {
 		}
 
 		@Override
-		protected ServiceBatchRequest<I, G> computeNext() {
+		protected ServiceBatchRequest<G, I> computeNext() {
 			G resultGroupKey = Optional.ofNullable(nextGroup.firstEntry()).map(Entry::getValue).orElse(null);
 
 			G lastGroupKey = null;
@@ -128,7 +133,7 @@ class RequestScheduler<I, G> {
 
 			// Return and remove the first batch from our data structures
 
-			ServiceBatchRequest<I, G> result;
+			ServiceBatchRequest<G, I> result;
 			Iterator<Entry<Long, G>> nextGroupIt = nextGroup.entrySet().iterator();
 			if (nextGroupIt.hasNext()) {
 				Entry<Long, G> e = nextGroupIt.next();
@@ -152,15 +157,26 @@ class RequestScheduler<I, G> {
 
 
 	public static void main(String[] args) {
-		OfInt individualIt = IntStream.range(0, 10).iterator();
+		Var v = Var.alloc("v");
+		Iterator<Binding> individualIt = IntStream.range(0, 10)
+				.mapToObj(x -> BindingFactory.binding(v, NodeValue.makeInteger(x).asNode()))
+				.iterator();
+
+		Op op = Algebra.compile(QueryFactory.create("SELECT * { ?v ?p ?o }"));
+		OpService opService = new OpService(v, op, false);
+		OpServiceInfo serviceInfo = new OpServiceInfo(opService);
 
 
-		RequestScheduler<Integer, String> scheduler = new RequestScheduler<>(v -> "group" + (v % 3), 2);
-		Iterator<ServiceBatchRequest<Integer, String>> batchIt = scheduler.group(individualIt);
+		RequestScheduler<Node, Binding> scheduler = new RequestScheduler<>(b ->
+			NodeFactory.createLiteral("group" + (NodeValue.makeNode(b.get(v)).getInteger().intValue() % 3)), 2);
+		Iterator<ServiceBatchRequest<Node, Binding>> batchIt = scheduler.group(individualIt);
 
-		while (batchIt.hasNext()) {
-			System.out.println(batchIt.next());
-		}
+		RequestExecutor executor = new RequestExecutor(serviceInfo, batchIt);
+		executor.exec();
+
+//		while (batchIt.hasNext()) {
+//			System.out.println(batchIt.next());
+//		}
 
 
 	}
