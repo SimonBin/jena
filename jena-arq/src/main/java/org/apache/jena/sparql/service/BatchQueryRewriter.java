@@ -56,19 +56,19 @@ public class BatchQueryRewriter {
 		this.idxVar = idxVar;
 	}
 
-	public static Set<Var> seenVars(Collection<PartitionRequest> batchRequest) {
+	public static Set<Var> seenVars(Collection<PartitionRequest<Binding>> batchRequest) {
 		Set<Var> result = new LinkedHashSet<>();
 		batchRequest.stream().forEach(br -> BindingVars.addAll(result, br.getPartition()));
 		return result;
 	}
 
-	public BatchQueryRewriteResult rewrite(List<PartitionRequest> batchRequest) {
+	public BatchQueryRewriteResult rewrite(List<PartitionRequest<Binding>> batchRequest) {
 		// Set<Var> seenVars = seenVars(batchRequest);
 
 		int n = batchRequest.size();
     	Op newOp = null;
     	for (int i = n - 1; i >= 0; --i) {
-    		PartitionRequest req = batchRequest.get(i);
+    		PartitionRequest<Binding> req = batchRequest.get(i);
     		Binding b = req.getPartition();
 
     		Op rawOp = serviceInfo.getRawQueryOp();
@@ -76,7 +76,6 @@ public class BatchQueryRewriter {
     		if (n > 1) {
     			op = OpExtend.create(op, idxVar, NodeValue.makeInteger(i));
     		}
-
 
     		long o = req.getOffset();
     		long l = req.getLimit();

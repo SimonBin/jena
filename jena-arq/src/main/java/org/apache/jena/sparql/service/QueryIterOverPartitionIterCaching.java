@@ -62,7 +62,8 @@ public class QueryIterOverPartitionIterCaching
 		Binding result = null;
 		int n = 50;
 
-		List<Binding> batch = new ArrayList<>();
+		// List<Binding> batch = new ArrayList<>();
+		Batch<Binding> batch = new Batch
 
 
 		long cacheBatchOffset = -1;

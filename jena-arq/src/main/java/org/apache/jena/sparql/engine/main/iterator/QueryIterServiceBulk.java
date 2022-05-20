@@ -77,25 +77,6 @@ import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 
 
-
-class RequestExecution
-	extends QueryIterSlottedBase<Binding>
-{
-	protected ServiceRequestMgr requestMgr;
-
-	// The outputId of the binding returned by the next() call
-	// Make sure to call .hasNext() for this field to be correctly initialized
-	protected long nextOutputId;
-
-
-	@Override
-	protected Binding moveToNext() {
-		return null;
-
-	}
-}
-
-
 public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 {
 	public static final int DEFAULT_BULK_SIZE = 30;

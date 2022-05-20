@@ -3,12 +3,13 @@ package org.apache.jena.sparql.service;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.NavigableMap;
 import java.util.concurrent.locks.Lock;
 
 import org.aksw.commons.io.slice.Slice;
 import org.aksw.commons.io.slice.SliceAccessor;
 import org.aksw.commons.util.ref.RefFuture;
-import org.apache.jena.ext.com.google.common.math.LongMath;
 import org.apache.jena.graph.Node;
 import org.apache.jena.query.Query;
 import org.apache.jena.sparql.core.Var;
@@ -16,8 +17,10 @@ import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.service.BatchQueryRewriter.BatchQueryRewriteResult;
 
 import com.google.common.collect.Range;
+import com.google.common.collect.RangeMap;
 import com.google.common.collect.RangeSet;
-import com.google.common.collect.TreeRangeSet;
+import com.google.common.collect.TreeRangeMap;
+import com.google.common.math.LongMath;
 
 public class RequestExecutor {
 
@@ -30,8 +33,9 @@ public class RequestExecutor {
 	protected Iterator<ServiceBatchRequest<Node, Binding>> batchIterator;
 	protected SimpleServiceCache cache;
 
-
 	protected long nextOutputId = 0;
+
+	protected NavigableMap<Long, PartitionIterator> nextOutputIdToIterator;
 
 	public RequestExecutor(OpServiceInfo serviceInfo, Iterator<ServiceBatchRequest<Node, Binding>> batchIterator) {
 		this.serviceInfo = serviceInfo;
@@ -51,8 +55,12 @@ public class RequestExecutor {
 
 		Var idxVar = Var.alloc("__idx__");
 		BatchQueryRewriter rewriter = new BatchQueryRewriter(serviceInfo, idxVar);
-		List<PartitionRequest> requests = new ArrayList<>();
 
+
+		List<PartitionRequest<Binding>> backendRequests = new ArrayList<>();
+
+		// List<CacheRequest<>>
+		List<Object> cacheRequests = null;
 
 
 		// long nextOutputId;
@@ -68,6 +76,7 @@ public class RequestExecutor {
 
 			SliceAccessor<Binding[]> accessor = slice.newSliceAccessor();
 			lock.lock();
+
 
 			RangeSet<Long> loadedRanges;
 			long knownSize;
@@ -92,26 +101,38 @@ public class RequestExecutor {
 			end = Math.min(end, max);
 
 
-			RangeSet<Long> missingRanges = TreeRangeSet.create();
 			Range<Long> initialRange = knownSize < 0
 				? Range.atLeast(start)
 				: Range.closedOpen(start, end);
-			missingRanges.add(initialRange);
-			missingRanges.removeAll(loadedRanges);
 
+			RangeSet<Long> missingRanges = loadedRanges.complement().subRangeSet(initialRange);
 
-			for (Range<Long> range : missingRanges.asRanges()) {
-				long s = range.lowerEndpoint();
-				long e = range.hasUpperBound() ? range.upperEndpoint() : Long.MAX_VALUE;
+			RangeMap<Long, Boolean> allRanges = TreeRangeMap.create();
+			loadedRanges.asRanges().forEach(r -> allRanges.put(r, true));
+			missingRanges.asRanges().forEach(r -> allRanges.put(r, false));
 
-				PartitionRequest request = new PartitionRequest(binding, nextOutputId, s, e);
-				requests.add(request);
+			for (Entry<Range<Long>, Boolean> e : allRanges.asMapOfRanges().entrySet()) {
+				Range<Long> range = e.getKey();
+				boolean isLoaded = e.getValue();
+
+				long lo = range.lowerEndpoint();
+				long hi = range.hasUpperBound() ? range.upperEndpoint() : Long.MAX_VALUE;
+
+				if (isLoaded) {
+					PartitionRequest<Binding> request = new PartitionRequest<>(nextOutputId, binding, lo, hi);
+					backendRequests.add(request);
+				} else {
+					// TODO Declare the current 'nextOutputId' to be served from the cache
+					// TODO Claim the range the avoid eviction
+					// ISSUE The cache currently does not support claiming without loading
+					//   This can load to out-of-memory issues
+				}
 				++nextOutputId;
 				// mgr.add(request);
 			}
 		}
 
-		BatchQueryRewriteResult rewrite = rewriter.rewrite(requests);
+		BatchQueryRewriteResult rewrite = rewriter.rewrite(backendRequests);
 		System.out.println(rewrite);
 
 
@@ -131,6 +152,7 @@ public class RequestExecutor {
 
 
 	}
+
 
 
 }
