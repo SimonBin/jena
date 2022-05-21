@@ -7,12 +7,20 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.concurrent.locks.Lock;
 
+import org.aksw.commons.collections.CloseableIterator;
+import org.aksw.commons.io.input.ReadableChannel;
+import org.aksw.commons.io.input.ReadableChannelWithLimit;
+import org.aksw.commons.io.input.ReadableChannels;
+import org.aksw.commons.io.slice.ReadableChannelOverSliceAccessor;
 import org.aksw.commons.io.slice.Slice;
 import org.aksw.commons.io.slice.SliceAccessor;
 import org.aksw.commons.util.ref.RefFuture;
 import org.apache.jena.graph.Node;
 import org.apache.jena.query.Query;
+import org.apache.jena.sparql.algebra.Op;
+import org.apache.jena.sparql.algebra.op.OpService;
 import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.service.BatchQueryRewriter.BatchQueryRewriteResult;
 
@@ -30,14 +38,16 @@ public class RequestExecutor {
 	protected int fetchAhead = 5;
 	protected int maxRequestSize = 2000;
 
+
+	protected OpServiceExecutor opExecutor;
 	protected Iterator<ServiceBatchRequest<Node, Binding>> batchIterator;
 	protected SimpleServiceCache cache;
 
 	protected long nextOutputId = 0;
 
-	protected NavigableMap<Long, PartitionIterator> nextOutputIdToIterator;
+	protected NavigableMap<Long, CloseableIterator<Binding>> nextOutputIdToIterator;
 
-	public RequestExecutor(OpServiceInfo serviceInfo, Iterator<ServiceBatchRequest<Node, Binding>> batchIterator) {
+	public RequestExecutor(OpServiceExecutor opExector, OpServiceInfo serviceInfo, Iterator<ServiceBatchRequest<Node, Binding>> batchIterator) {
 		this.serviceInfo = serviceInfo;
 		this.batchIterator = batchIterator;
 		this.cache = new SimpleServiceCache();
@@ -71,10 +81,10 @@ public class RequestExecutor {
 			RefFuture<ServiceCacheValue> cacheValueRef = cache.getCache().claim(cacheKey);
 			ServiceCacheValue serviceCacheValue = cacheValueRef.await();
 
+
+			// Lock an existing cache entry
 			Slice<Binding[]> slice = serviceCacheValue.getSlice();
 			Lock lock = slice.getReadWriteLock().readLock();
-
-			SliceAccessor<Binding[]> accessor = slice.newSliceAccessor();
 			lock.lock();
 
 
@@ -83,57 +93,66 @@ public class RequestExecutor {
 			try {
 				loadedRanges = slice.getLoadedRanges();
 				knownSize = slice.getKnownSize();
-				accessor.claimByOffsetRange(0, Long.MAX_VALUE);
+
+				// Iterate the present/absent ranges
+				long start = serviceInfo.getOffset();
+				if (start == Query.NOLIMIT) {
+					start = 0;
+				}
+
+				long limit = serviceInfo.getLimit();
+
+				long max = knownSize < 0 ? Long.MAX_VALUE : knownSize;
+				long end = limit == Query.NOLIMIT ? max : LongMath.saturatedAdd(start, limit);
+				end = Math.min(end, max);
+
+
+				Range<Long> initialRange = knownSize < 0
+					? Range.atLeast(start)
+					: Range.closedOpen(start, end);
+
+				RangeSet<Long> missingRanges = loadedRanges.complement().subRangeSet(initialRange);
+
+				RangeMap<Long, Boolean> allRanges = TreeRangeMap.create();
+				loadedRanges.asRanges().forEach(r -> allRanges.put(r, true));
+				missingRanges.asRanges().forEach(r -> allRanges.put(r, false));
+
+				for (Entry<Range<Long>, Boolean> e : allRanges.asMapOfRanges().entrySet()) {
+					Range<Long> range = e.getKey();
+					boolean isLoaded = e.getValue();
+
+					long lo = range.lowerEndpoint();
+					long hi = range.hasUpperBound() ? range.upperEndpoint() : Long.MAX_VALUE;
+
+					if (isLoaded) {
+						PartitionRequest<Binding> request = new PartitionRequest<>(nextOutputId, binding, lo, hi);
+						backendRequests.add(request);
+					} else {
+						SliceAccessor<Binding[]> accessor = slice.newSliceAccessor();
+						ReadableChannel<Binding[]> channel =
+								new ReadableChannelWithLimit<>(
+										new ReadableChannelOverSliceAccessor<>(accessor, lo),
+										hi);
+
+						CloseableIterator<Binding> it = ReadableChannels.newIterator(channel);
+
+						nextOutputIdToIterator.put(nextOutputId, it);
+					}
+					++nextOutputId;
+				}
 			} finally {
 				lock.unlock();
 			}
 
-			// Iterate the present/absent ranges
-			long start = serviceInfo.getOffset();
-			if (start == Query.NOLIMIT) {
-				start = 0;
-			}
-
-			long limit = serviceInfo.getLimit();
-
-			long max = knownSize < 0 ? Long.MAX_VALUE : knownSize;
-			long end = limit == Query.NOLIMIT ? max : LongMath.saturatedAdd(start, limit);
-			end = Math.min(end, max);
-
-
-			Range<Long> initialRange = knownSize < 0
-				? Range.atLeast(start)
-				: Range.closedOpen(start, end);
-
-			RangeSet<Long> missingRanges = loadedRanges.complement().subRangeSet(initialRange);
-
-			RangeMap<Long, Boolean> allRanges = TreeRangeMap.create();
-			loadedRanges.asRanges().forEach(r -> allRanges.put(r, true));
-			missingRanges.asRanges().forEach(r -> allRanges.put(r, false));
-
-			for (Entry<Range<Long>, Boolean> e : allRanges.asMapOfRanges().entrySet()) {
-				Range<Long> range = e.getKey();
-				boolean isLoaded = e.getValue();
-
-				long lo = range.lowerEndpoint();
-				long hi = range.hasUpperBound() ? range.upperEndpoint() : Long.MAX_VALUE;
-
-				if (isLoaded) {
-					PartitionRequest<Binding> request = new PartitionRequest<>(nextOutputId, binding, lo, hi);
-					backendRequests.add(request);
-				} else {
-					// TODO Declare the current 'nextOutputId' to be served from the cache
-					// TODO Claim the range the avoid eviction
-					// ISSUE The cache currently does not support claiming without loading
-					//   This can load to out-of-memory issues
-				}
-				++nextOutputId;
-				// mgr.add(request);
-			}
 		}
 
 		BatchQueryRewriteResult rewrite = rewriter.rewrite(backendRequests);
 		System.out.println(rewrite);
+
+        Op newSubOp = rewrite.getOp();
+        OpService substitutedOp = new OpService(substServiceNode, newSubOp, serviceInfo.getOpService().getSilent());
+
+        QueryIterator qIter = opExecutor.exec(substitutedOp);
 
 
 
