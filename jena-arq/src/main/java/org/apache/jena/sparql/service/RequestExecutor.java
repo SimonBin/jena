@@ -1,10 +1,12 @@
 package org.apache.jena.sparql.service;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 
 import org.aksw.commons.collections.CloseableIterator;
@@ -14,7 +16,10 @@ import org.aksw.commons.io.input.ReadableChannels;
 import org.aksw.commons.io.slice.ReadableChannelOverSliceAccessor;
 import org.aksw.commons.io.slice.Slice;
 import org.aksw.commons.io.slice.SliceAccessor;
+import org.aksw.commons.util.closeable.AutoCloseables;
 import org.aksw.commons.util.ref.RefFuture;
+import org.apache.jena.ext.com.google.common.collect.ArrayListMultimap;
+import org.apache.jena.ext.com.google.common.collect.Multimap;
 import org.apache.jena.graph.Node;
 import org.apache.jena.query.Query;
 import org.apache.jena.sparql.algebra.Op;
@@ -22,6 +27,10 @@ import org.apache.jena.sparql.algebra.op.OpService;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.iterator.QueryIter;
+import org.apache.jena.sparql.engine.iterator.QueryIterPeek;
+import org.apache.jena.sparql.engine.iterator.QueryIterPlainWrapper;
+import org.apache.jena.sparql.expr.ExprEvalException;
 import org.apache.jena.sparql.service.BatchQueryRewriter.BatchQueryRewriteResult;
 
 import com.google.common.collect.Range;
@@ -30,7 +39,27 @@ import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeMap;
 import com.google.common.math.LongMath;
 
-public class RequestExecutor {
+
+/** Bridge between jena's and aksw-commons iterator */
+class ClosableIteratorAdapter
+	extends QueryIterPlainWrapper
+{
+	protected CloseableIterator<Binding> delegate;
+
+	public ClosableIteratorAdapter(CloseableIterator<Binding> delegate) {
+		super(delegate);
+		this.delegate = delegate;
+	}
+
+	@Override
+	protected void closeIterator() {
+		AutoCloseables.close(((AutoCloseable)delegate));
+	}
+}
+
+public class RequestExecutor
+	extends QueryIterSlottedBase<Binding>
+{
 
 	protected OpServiceInfo serviceInfo;
 
@@ -39,21 +68,124 @@ public class RequestExecutor {
 	protected int maxRequestSize = 2000;
 
 
-	protected OpServiceExecutor opExecutor;
+	protected OpServiceExecutorImpl opExecutor;
 	protected Iterator<ServiceBatchRequest<Node, Binding>> batchIterator;
 	protected SimpleServiceCache cache;
 
+	protected Var idxVar;
+	// The index of the next allocation
 	protected long nextOutputId = 0;
 
-	protected NavigableMap<Long, CloseableIterator<Binding>> nextOutputIdToIterator;
 
-	public RequestExecutor(OpServiceExecutor opExector, OpServiceInfo serviceInfo, Iterator<ServiceBatchRequest<Node, Binding>> batchIterator) {
+	// The current read marker - never greater than the allocation
+	protected long currentOutputId = 0;
+
+	protected NavigableMap<Long, QueryIterPeek> nextOutputIdToIterator;
+
+	// Map an iterator to the last idx it can supply - once this index is passed the iterator can be closed
+	protected Multimap<Long, QueryIterPeek> closeByIdx = ArrayListMultimap.create();
+
+	public RequestExecutor(OpServiceExecutorImpl opExector, OpServiceInfo serviceInfo, Iterator<ServiceBatchRequest<Node, Binding>> batchIterator) {
+		this.opExecutor = opExector;
 		this.serviceInfo = serviceInfo;
 		this.batchIterator = batchIterator;
 		this.cache = new SimpleServiceCache();
+
+		this.idxVar = Var.alloc("__idx__");
 	}
 
-	public void exec() {
+
+//	public static long getIndex(Binding b, Var idxVar) {
+//		int idx;
+//		if (bulkSize > 1) {
+//			Node idxNode = rawChild.get(idxVar);
+//			Object obj = idxNode.getLiteralValue();
+//			if (!(obj instanceof Number)) {
+//				throw new ExprEvalException("Index was not returned as a number");
+//			}
+//			idx = ((Number)obj).intValue();
+//
+//			if (idx < 0 || idx > bulkSize) {
+//				throw new QueryExecException("Returned index out of range");
+//			}
+//		} else {
+//			idx = 0;
+//		}
+//	}
+
+	public static Number getNumberNullable(Binding binding, Var var) {
+		Node node = binding.get(var);
+		Number result = null;
+		if (node != null) {
+			Object obj = node.getLiteralValue();
+			if (!(obj instanceof Number)) {
+				throw new ExprEvalException("Value is not returned as a number");
+			}
+			result = ((Number)obj);
+		}
+
+		return result;
+	}
+
+	public static Number getNumber(Binding binding, Var var) {
+		return Objects.requireNonNull(getNumber(binding, var), "Number must not be null");
+	}
+
+	public static long getLong(Binding binding, Var var) {
+		return getNumber(binding, var).longValue();
+	}
+
+
+	protected void incrementOutputId() {
+		Collection<QueryIterPeek> iters = closeByIdx.get(currentOutputId);
+		for (QueryIterPeek it : iters) {
+			it.close();
+		}
+
+		++currentOutputId;
+
+	}
+
+	@Override
+	protected Binding moveToNext() {
+
+
+
+		if (currentOutputId > nextOutputId) {
+			execNextBatch();
+		}
+
+		while (true) {
+
+
+			QueryIterPeek iter = nextOutputIdToIterator.get(currentOutputId);
+			Binding peek = iter.peek();
+			long bindingIdx = getLong(peek, idxVar);
+			if (bindingIdx != currentOutputId) {
+				nextOutputIdToIterator
+
+				++currentOutputId;
+				continue;
+			}
+
+			if (iter == null) {
+				execNextBatch();
+			}
+
+
+		nextOutputIdToIterator.get(batchIterator)
+		}
+		QueryIter it = null;
+
+
+
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+	/** Execute the next batch and register all iterators with {@link #nextOutputIdToIterator} */
+	public void execNextBatch() {
 
 		ServiceBatchRequest<Node, Binding> batchRequest = batchIterator.next();
 		Node substServiceNode = batchRequest.getGroupKey();
@@ -61,9 +193,9 @@ public class RequestExecutor {
 
 		// Refine the request w.r.t. the cache
 		Batch<Binding> batch = batchRequest.getBatch();
-		Iterator<Binding> itBindings = batch.getItemRanges().values().stream().flatMap(List::stream).iterator();
 
-		Var idxVar = Var.alloc("__idx__");
+		Iterator<Binding> itBindings = batch.getItems().values().iterator();// .stream().flatMap(List::stream).iterator();
+
 		BatchQueryRewriter rewriter = new BatchQueryRewriter(serviceInfo, idxVar);
 
 
@@ -134,8 +266,9 @@ public class RequestExecutor {
 										new ReadableChannelOverSliceAccessor<>(accessor, lo),
 										hi);
 
-						CloseableIterator<Binding> it = ReadableChannels.newIterator(channel);
-
+						CloseableIterator<Binding> baseIt = ReadableChannels.newIterator(channel);
+						// TODO Wrap as QueryIterPeek
+						QueryIterPeek it = QueryIterPeek.create(new ClosableIteratorAdapter(baseIt), opExecutor.getExecCxt());
 						nextOutputIdToIterator.put(nextOutputId, it);
 					}
 					++nextOutputId;
@@ -152,26 +285,29 @@ public class RequestExecutor {
         Op newSubOp = rewrite.getOp();
         OpService substitutedOp = new OpService(substServiceNode, newSubOp, serviceInfo.getOpService().getSilent());
 
+
+        // Execute the batch request and wrap it such that ...
+        // (1) we can merge it with other backend and cache requests in the right order
+        // (2) responses are written to the cache
         QueryIterator qIter = opExecutor.exec(substitutedOp);
 
-
-
-//
-//
-//		// TODO Check if there is any scheduled request that would add more ranges to data
-//
-//
-//		Query rawQuery = serviceInfo.getRawQuery();
-//		Range<Long> range = RangeUtils.toRange(serviceInfo.getOffset(), serviceInfo.getLimit());
-//		RangeSet<Long> fetchRanges = serviceCacheValue.getFetchRanges(range);
-//
-//		SingleServiceRequestMgr mgr = requestMgr.computeIfAbsent(substServiceNode, k -> new SingleServiceRequestMgr());
-//
+        // Wrap the interator such that the items are cached
 
 
 
+
+
+        // Wrap the query iter such that we can peek the next binding in order
+        // to decide from which iterator to take the next element
+        QueryIterPeek iter = QueryIterPeek.create(qIter, opExecutor.getExecCxt());
+
+
+        for (long offset : batch.getItems().keySet()) {
+            nextOutputIdToIterator.put(offset, iter);
+        }
 	}
 
 
 
 }
+

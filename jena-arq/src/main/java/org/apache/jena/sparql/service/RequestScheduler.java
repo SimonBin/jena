@@ -21,6 +21,7 @@ import org.apache.jena.sparql.algebra.op.OpService;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.binding.BindingFactory;
+import org.apache.jena.sparql.engine.main.OpExecutor;
 import org.apache.jena.sparql.expr.NodeValue;
 
 public class RequestScheduler<G, I> {
@@ -103,7 +104,7 @@ public class RequestScheduler<G, I> {
 
 					batches = groupToBatches.computeIfAbsent(groupKey, x -> new TreeMap<>());
 					if (batches.isEmpty()) {
-						batch = new Batch<>();
+						batch = new BatchFlat<>();
 						batches.put(inputIteratorOffset, batch);
 						nextGroup.put(inputIteratorOffset, groupKey);
 					} else {
@@ -119,7 +120,7 @@ public class RequestScheduler<G, I> {
 				// If the item is consecutive add it to the list
 				int batchSize = batch.size();
 				if (distance > maxInputDistance || batchSize >= maxBulkSize) {
-					batch = new Batch<>();
+					batch = new BatchFlat<>();
 					batches.put(inputIteratorOffset, batch);
 				}
 				batch.put(inputIteratorOffset, input);
@@ -171,7 +172,9 @@ public class RequestScheduler<G, I> {
 			NodeFactory.createLiteral("group" + (NodeValue.makeNode(b.get(v)).getInteger().intValue() % 3)), 2);
 		Iterator<ServiceBatchRequest<Node, Binding>> batchIt = scheduler.group(individualIt);
 
-		RequestExecutor executor = new RequestExecutor(serviceInfo, batchIt);
+		OpServiceExecutorImpl opExecutor = null;
+
+		RequestExecutor executor = new RequestExecutor(opExecutor, serviceInfo, batchIt);
 		executor.exec();
 
 //		while (batchIt.hasNext()) {

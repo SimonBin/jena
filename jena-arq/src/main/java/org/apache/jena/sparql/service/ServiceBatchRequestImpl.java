@@ -3,7 +3,7 @@ package org.apache.jena.sparql.service;
 // Execution of the returned request is guaranteed to cover at least the next fetchAhead inputs
 // Usually it will cover more than that; when getting close to the getFirstMissId()
 // the driver may decide to send a further request
-class ServiceBatchRequestImpl<G, I>
+public class ServiceBatchRequestImpl<G, I>
 	implements ServiceBatchRequest<G, I>
 {
 	protected G groupKey;

@@ -17,9 +17,9 @@ import org.apache.jena.sparql.util.Context;
 public class OpServiceExecutorImpl
 	implements OpServiceExecutor
 {
-	// protected boolean isSilent;
 	protected OpService originalOp;
 
+	// Cached attributes
 	protected boolean silent;
 	protected ExecutionContext execCxt;
 	protected Context cxt;
@@ -31,6 +31,10 @@ public class OpServiceExecutorImpl
 		this.execCxt = execCxt;
         this.cxt = execCxt.getContext();
         this.registry = ServiceExecutorRegistry.get(cxt);
+	}
+
+	public ExecutionContext getExecCxt() {
+		return execCxt;
 	}
 
 	public QueryIterator exec(OpService substitutedOp) {
