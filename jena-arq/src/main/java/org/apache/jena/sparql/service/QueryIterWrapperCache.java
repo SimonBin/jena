@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NavigableMap;
+import java.util.Set;
 
 import org.aksw.commons.io.slice.Slice;
 import org.aksw.commons.io.slice.SliceAccessor;
@@ -13,6 +14,7 @@ import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.binding.BindingProject;
 
 
 public class QueryIterWrapperCache
@@ -24,6 +26,7 @@ public class QueryIterWrapperCache
 	protected Var idxVar; // CacheKeyAccessor cacheKeyAccessor;
 	protected Node serviceNode;
 
+	protected Set<Var> joinVars;
 	protected long prevInputIdx = -1;
 	protected PartitionRequest<Binding> inputPart; // Value stored here for debugging
 	protected long currentOffset = 0;
@@ -37,12 +40,14 @@ public class QueryIterWrapperCache
 	public QueryIterWrapperCache(
 			QueryIterator qIter, int batchSize,
 			SimpleServiceCache cache,
+			Set<Var> joinVars,
 			Batch<PartitionRequest<Binding>> inputBatch,
 			Var idxVar,
 			Node serviceNode,
 			Op op) {
 		super(qIter, batchSize);
 		this.cache = cache;
+		this.joinVars = joinVars;
 		this.inputBatch = inputBatch;
 		this.idxVar = idxVar;
 		this.serviceNode = serviceNode;
@@ -84,7 +89,12 @@ public class QueryIterWrapperCache
 
 					closeCurrentCacheResources();
 
-					ServiceCacheKey cacheKey = new ServiceCacheKey(serviceNode, op, input);
+					Binding joinBinding = new BindingProject(joinVars, input);
+
+					ServiceCacheKey cacheKey = new ServiceCacheKey(serviceNode, op, joinBinding);
+
+					System.out.println("Writing to cache key " + cacheKey);
+
 					claimedCacheEntry = cache.getCache().claim(cacheKey);
 					ServiceCacheValue c = claimedCacheEntry.await();
 

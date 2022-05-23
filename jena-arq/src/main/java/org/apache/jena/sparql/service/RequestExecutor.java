@@ -1,12 +1,15 @@
 package org.apache.jena.sparql.service;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.concurrent.locks.Lock;
 
@@ -19,6 +22,7 @@ import org.aksw.commons.io.slice.Slice;
 import org.aksw.commons.io.slice.SliceAccessor;
 import org.aksw.commons.util.closeable.AutoCloseables;
 import org.aksw.commons.util.ref.RefFuture;
+import org.apache.jena.ext.com.google.common.collect.Sets;
 import org.apache.jena.ext.com.google.common.collect.TreeBasedTable;
 import org.apache.jena.graph.Node;
 import org.apache.jena.query.Query;
@@ -29,6 +33,7 @@ import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.binding.BindingFactory;
+import org.apache.jena.sparql.engine.binding.BindingProject;
 import org.apache.jena.sparql.engine.iterator.QueryIterPeek;
 import org.apache.jena.sparql.engine.iterator.QueryIterPlainWrapper;
 import org.apache.jena.sparql.expr.ExprEvalException;
@@ -231,6 +236,29 @@ public class RequestExecutor
 	}
 
 
+	public static <T, C extends Collection<T>> C addAll(C out, Iterator<T> it) {
+		while (it.hasNext()) {
+			T item = it.next();
+			out.add(item);
+		}
+		return out;
+	}
+
+	public static <C extends Collection<Var>> C varsMentioned(C out, Iterator<Binding> it) {
+		while (it.hasNext()) {
+			Binding b = it.next();
+			addAll(out, b.vars());
+		}
+		return out;
+	}
+
+	public static Set<Var> varsMentioned(Iterable<Binding> bindings) {
+		Set<Var> result = new LinkedHashSet<>();
+		return varsMentioned(result, bindings.iterator());
+	}
+
+
+
 	/** Execute the next batch and register all iterators with {@link #nextOutputIdToIterator} */
 	// seqId = sequential number injected into the request
 	// inputId = id (index) of the input binding
@@ -244,6 +272,10 @@ public class RequestExecutor
 
 		// Refine the request w.r.t. the cache
 		Batch<Binding> batch = batchRequest.getBatch();
+		Set<Var> varsMentioned = varsMentioned(batch.getItems().values());
+
+		Set<Var> joinVars = Sets.intersection(serviceInfo.getServiceVars(), varsMentioned);
+
 
 
 		// Iterator<Binding> itBindings = batch.getItems().values().iterator();// .stream().flatMap(List::stream).iterator();
@@ -263,11 +295,13 @@ public class RequestExecutor
 		for (Entry<Long, Binding> e : batchItems.entrySet()) {
 		// while (itBindings.hasNext()) {
 
-
 			long inputId = e.getKey();
-			Binding binding = e.getValue();// itBindings.next();
+			Binding inputBinding = e.getValue();// itBindings.next();
+			Binding joinBinding = new BindingProject(joinVars, inputBinding);
 
-			ServiceCacheKey cacheKey = new ServiceCacheKey(substServiceNode, serviceInfo.getRawQueryOp(), binding);
+			ServiceCacheKey cacheKey = new ServiceCacheKey(substServiceNode, serviceInfo.getRawQueryOp(), joinBinding);
+			System.out.println("Lookup with cache key " + cacheKey);
+
 
 			// TODO Elegantly handle case where cache is null
 
@@ -333,7 +367,7 @@ public class RequestExecutor
 						outputToIter.put(nextAllocOutputId, it);
 						outputToClose.put(nextAllocOutputId, it);
 					} else {
-						PartitionRequest<Binding> request = new PartitionRequest<>(nextAllocOutputId, binding, lo, hi);
+						PartitionRequest<Binding> request = new PartitionRequest<>(nextAllocOutputId, inputBinding, lo, hi);
 						backendRequests.put(nextAllocOutputId, request);
 					}
 
@@ -349,32 +383,35 @@ public class RequestExecutor
 			++nextAllocInputId;
 		}
 
-		BatchQueryRewriteResult rewrite = rewriter.rewrite(backendRequests);
-		System.out.println(rewrite);
+		// Create a remote execution if needed
+		if (!backendRequests.isEmpty()) {
+			BatchQueryRewriteResult rewrite = rewriter.rewrite(backendRequests);
+			System.out.println(rewrite);
 
-        Op newSubOp = rewrite.getOp();
-        OpService substitutedOp = new OpService(substServiceNode, newSubOp, serviceInfo.getOpService().getSilent());
-
-
-        // Execute the batch request and wrap it such that ...
-        // (1) we can merge it with other backend and cache requests in the right order
-        // (2) responses are written to the cache
-        QueryIterator qIter = opExecutor.exec(substitutedOp);
-
-        // Wrap the interator such that the items are cached
-        if (cache != null) {
-        	qIter = new QueryIterWrapperCache(qIter, 128, cache, backendRequests, idxVar, substServiceNode, substitutedOp);
-        }
+	        Op newSubOp = rewrite.getOp();
+	        OpService substitutedOp = new OpService(substServiceNode, newSubOp, serviceInfo.getOpService().getSilent());
 
 
-        // Wrap the query iter such that we can peek the next binding in order
-        // to decide from which iterator to take the next element
-        QueryIterPeek iter = QueryIterPeek.create(qIter, opExecutor.getExecCxt());
+	        // Execute the batch request and wrap it such that ...
+	        // (1) we can merge it with other backend and cache requests in the right order
+	        // (2) responses are written to the cache
+	        QueryIterator qIter = opExecutor.exec(substitutedOp);
 
-        for (long offset : batch.getItems().keySet()) {
-        	outputToIter.put(offset, iter);
-        }
-        outputToClose.put(batch.getItems().lastKey(), iter);
+	        // Wrap the interator such that the items are cached
+	        if (cache != null) {
+	        	qIter = new QueryIterWrapperCache(qIter, 128, cache, joinVars, backendRequests, idxVar, substServiceNode, serviceInfo.getRawQueryOp());
+	        }
+
+
+	        // Wrap the query iter such that we can peek the next binding in order
+	        // to decide from which iterator to take the next element
+	        QueryIterPeek iter = QueryIterPeek.create(qIter, opExecutor.getExecCxt());
+
+	        for (long offset : batch.getItems().keySet()) {
+	        	outputToIter.put(offset, iter);
+	        }
+	        outputToClose.put(batch.getItems().lastKey(), iter);
+		}
 	}
 
 

@@ -1,11 +1,9 @@
 package org.apache.jena.sparql.service;
 
 import java.util.Objects;
-import java.util.Set;
 
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.algebra.Op;
-import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.Binding;
 
 public class ServiceCacheKey {
@@ -54,5 +52,10 @@ public class ServiceCacheKey {
 		ServiceCacheKey other = (ServiceCacheKey) obj;
 		return Objects.equals(binding, other.binding) && Objects.equals(op, other.op)
 				&& Objects.equals(serviceNode, other.serviceNode);
+	}
+
+	@Override
+	public String toString() {
+		return "ServiceCacheKey [serviceNode=" + serviceNode + ", op=" + op + ", binding=" + binding + "]";
 	}
 }
