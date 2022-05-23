@@ -95,7 +95,7 @@ public class QueryIterWrapperCache
 					try {
 						cacheDataAccessor.write(start, arr, 0, arrLen);
 
-						if (output.isEmpty() && inputPart.getLimit() < 0) {
+						if (!inputPart.hasLimit() && (output.isEmpty() || inputIdx != Long.MAX_VALUE)) {
 							slice.setKnownSize(end);
 						}
 

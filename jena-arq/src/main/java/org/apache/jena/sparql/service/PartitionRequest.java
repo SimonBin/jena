@@ -35,4 +35,12 @@ public class PartitionRequest<I>
 	public long getLimit() {
 		return limit;
 	}
+
+	public boolean hasOffset() {
+		return offset > 0;
+	}
+
+	public boolean hasLimit() {
+		return limit >= 0 && limit < Long.MAX_VALUE;
+	}
 }
