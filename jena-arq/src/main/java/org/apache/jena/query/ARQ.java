@@ -251,6 +251,7 @@ public class ARQ
 
     /** Maximum number of bindings to group into a single bulk request */
     public static final Symbol serviceBulkRequestMaxItemCount = SystemARQ.allocSymbol("serviceBulkRequestMaxBindingCount") ;
+    public static final Symbol serviceCache = SystemARQ.allocSymbol("serviceCache") ;
 
     /**
      * A guide number to limit bulk SERVICE requests to roughly this byte size.

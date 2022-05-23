@@ -108,11 +108,15 @@ public class RequestExecutor
 	// protected Table<Long, Long, QueryIterPeek> closeByPartKey = HashBasedTable.create();
 
 
-	public RequestExecutor(OpServiceExecutorImpl opExector, OpServiceInfo serviceInfo, Iterator<ServiceBatchRequest<Node, Binding>> batchIterator) {
+	public RequestExecutor(
+			OpServiceExecutorImpl opExector,
+			OpServiceInfo serviceInfo,
+			SimpleServiceCache cache,
+			Iterator<ServiceBatchRequest<Node, Binding>> batchIterator) {
 		this.opExecutor = opExector;
 		this.serviceInfo = serviceInfo;
 		this.batchIterator = batchIterator;
-		this.cache = new SimpleServiceCache();
+		this.cache = cache;
 
 		this.idxVar = Var.alloc("__idx__");
 		ExecutionContext execCxt = opExector.getExecCxt();
@@ -264,6 +268,9 @@ public class RequestExecutor
 			Binding binding = e.getValue();// itBindings.next();
 
 			ServiceCacheKey cacheKey = new ServiceCacheKey(substServiceNode, serviceInfo.getRawQueryOp(), binding);
+
+			// TODO Elegantly handle case where cache is null
+
 			RefFuture<ServiceCacheValue> cacheValueRef = cache.getCache().claim(cacheKey);
 			ServiceCacheValue serviceCacheValue = cacheValueRef.await();
 
@@ -355,7 +362,9 @@ public class RequestExecutor
         QueryIterator qIter = opExecutor.exec(substitutedOp);
 
         // Wrap the interator such that the items are cached
-        qIter = new QueryIterWrapperCache(qIter, 128, cache, backendRequests, idxVar, substServiceNode, substitutedOp);
+        if (cache != null) {
+        	qIter = new QueryIterWrapperCache(qIter, 128, cache, backendRequests, idxVar, substServiceNode, substitutedOp);
+        }
 
 
         // Wrap the query iter such that we can peek the next binding in order

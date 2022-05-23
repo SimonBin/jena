@@ -18,24 +18,26 @@ import org.apache.jena.sparql.engine.iterator.QueryIteratorWrapper;
  * single item.
  */
 public class QueryIterWrapperBulk
-	extends QueryIteratorWrapper
+	extends QueryIterSlottedBase<Binding>
 {
 	protected Iterator<Binding> activeBatchIt = Collections.<Binding>emptyList().iterator();
 	protected int batchSize;
+	protected QueryIterator delegate;
 
 	public QueryIterWrapperBulk(QueryIterator qIter, int batchSize) {
-		super(qIter);
+		super();
 		this.batchSize = batchSize;
+		this.delegate = qIter;
 	}
 
 	@Override
-	protected Binding moveToNextBinding() {
+	protected Binding moveToNext() {
 		Binding result;
 		if (!activeBatchIt.hasNext()) {
 			List<Binding> newBatch = new ArrayList<>(batchSize);
 
-			for (int i = 0; i < batchSize && super.hasNext(); ++i) {
-				Binding binding = super.moveToNextBinding();
+			for (int i = 0; i < batchSize && delegate.hasNext(); ++i) {
+				Binding binding = delegate.next();
 				newBatch.add(binding);
 			}
 
@@ -48,6 +50,11 @@ public class QueryIterWrapperBulk
 			result = activeBatchIt.next();
 		}
 		return result;
+	}
+
+	@Override
+	protected void closeIterator() {
+		delegate.close();
 	}
 
 	protected void onBatch(List<Binding> batch) {}

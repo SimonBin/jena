@@ -81,11 +81,13 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 
     	int bulkSize = cxt.getInt(ARQ.serviceBulkRequestMaxItemCount, DEFAULT_BULK_SIZE);
 
+    	SimpleServiceCache serviceCache = cxt.get(ARQ.serviceCache);
+
     	OpServiceExecutorImpl opExecutor = new OpServiceExecutorImpl(serviceInfo.getOpService(), execCxt);
 
 		RequestScheduler<Node, Binding> scheduler = new RequestScheduler<>(serviceInfo::getSubstServiceNode, bulkSize);
 		Iterator<ServiceBatchRequest<Node, Binding>> inputBatchIterator = scheduler.group(input);
-    	RequestExecutor exec = new RequestExecutor(opExecutor, serviceInfo, inputBatchIterator);
+    	RequestExecutor exec = new RequestExecutor(opExecutor, serviceInfo, serviceCache, inputBatchIterator);
 
     	return exec;
     }
@@ -93,6 +95,10 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
 
     public static void main(String[] args) {
     	Model model;
+
+    	SimpleServiceCache serviceCache = new SimpleServiceCache();
+    	ARQ.getContext().set(ARQ.serviceCache, serviceCache);
+
 
     	try (QueryExecution qe = QueryExecutionHTTP.newBuilder()
     		.endpoint("https://dbpedia.org/sparql")
@@ -104,7 +110,16 @@ public class QueryIterServiceBulk extends QueryIterRepeatApplyBulk
     	//		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT ?s (COUNT(*) AS ?c) { ?s ?p ?o } GROUP BY ?s } } }",
 
     	try (QueryExecution qe = QueryExecutionFactory.create(
-        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT ?s ?p { ?s <http://www.w3.org/2000/01/rdf-schema#label> ?o } ORDER BY ?p } } }",
+        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT ?s ?p { ?s ?p ?o . FILTER(?p = <http://www.w3.org/2000/01/rdf-schema#label>) } ORDER BY ?p } } }",
+    			model)) {
+    		// qe.getContext().set(ARQ.serviceBulkRequestMaxItemCount, 1);
+    		qe.getContext().set(ARQ.serviceBulkRequestMaxByteSize, 1500);
+    		ResultSetMgr.write(System.out, qe.execSelect(), ResultSetLang.RS_JSON);
+        }
+
+
+    	try (QueryExecution qe = QueryExecutionFactory.create(
+        		"SELECT * { ?s a <http://dbpedia.org/ontology/Person> SERVICE <https://dbpedia.org/sparql> { { SELECT ?s ?p { ?s ?p ?o . FILTER(?p = <http://www.w3.org/2000/01/rdf-schema#label>) } ORDER BY ?p } } }",
     			model)) {
     		// qe.getContext().set(ARQ.serviceBulkRequestMaxItemCount, 1);
     		qe.getContext().set(ARQ.serviceBulkRequestMaxByteSize, 1500);

@@ -64,7 +64,8 @@ public class QueryIterWrapperCache
 		// whose execution yields these bindings
 
 		long inputIdx = 0;
-		while (inputIdx != Long.MAX_VALUE) {
+		// while (inputIdx != Long.MAX_VALUE) {
+		while (true) {
 			Binding outputBinding = it.hasNext() ? it.next() : null;
 
 			inputIdx = outputBinding == null
@@ -108,6 +109,10 @@ public class QueryIterWrapperCache
 					prevInputIdx = inputIdx;
 					currentOffset = 0;
 				}
+			}
+
+			if (inputIdx == Long.MAX_VALUE) {
+				break;
 			}
 
 			arr[arrLen++] = outputBinding;

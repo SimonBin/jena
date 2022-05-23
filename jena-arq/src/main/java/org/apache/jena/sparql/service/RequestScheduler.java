@@ -9,20 +9,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Function;
-import java.util.stream.IntStream;
 
 import org.apache.jena.ext.com.google.common.collect.AbstractIterator;
-import org.apache.jena.graph.Node;
-import org.apache.jena.graph.NodeFactory;
-import org.apache.jena.query.QueryFactory;
-import org.apache.jena.sparql.algebra.Algebra;
-import org.apache.jena.sparql.algebra.Op;
-import org.apache.jena.sparql.algebra.op.OpService;
-import org.apache.jena.sparql.core.Var;
-import org.apache.jena.sparql.engine.binding.Binding;
-import org.apache.jena.sparql.engine.binding.BindingFactory;
-import org.apache.jena.sparql.engine.main.OpExecutor;
-import org.apache.jena.sparql.expr.NodeValue;
 
 public class RequestScheduler<G, I> {
 
@@ -156,34 +144,34 @@ public class RequestScheduler<G, I> {
 		}
 	}
 
-
-	public static void main(String[] args) {
-		Var v = Var.alloc("v");
-		Iterator<Binding> individualIt = IntStream.range(0, 10)
-				.mapToObj(x -> BindingFactory.binding(v, NodeValue.makeInteger(x).asNode()))
-				.iterator();
-
-		Op op = Algebra.compile(QueryFactory.create("SELECT * { ?v ?p ?o }"));
-		OpService opService = new OpService(v, op, false);
-		OpServiceInfo serviceInfo = new OpServiceInfo(opService);
-
-
-		RequestScheduler<Node, Binding> scheduler = new RequestScheduler<>(b ->
-			NodeFactory.createLiteral("group" + (NodeValue.makeNode(b.get(v)).getInteger().intValue() % 3)), 2);
-		Iterator<ServiceBatchRequest<Node, Binding>> batchIt = scheduler.group(individualIt);
-
-		OpServiceExecutorImpl opExecutor = null;
-
-		RequestExecutor executor = new RequestExecutor(opExecutor, serviceInfo, batchIt);
-		// executor.exec();
-
-//		while (batchIt.hasNext()) {
-//			System.out.println(batchIt.next());
-//		}
-
-
-	}
-
+//
+//	public static void main(String[] args) {
+//		Var v = Var.alloc("v");
+//		Iterator<Binding> individualIt = IntStream.range(0, 10)
+//				.mapToObj(x -> BindingFactory.binding(v, NodeValue.makeInteger(x).asNode()))
+//				.iterator();
+//
+//		Op op = Algebra.compile(QueryFactory.create("SELECT * { ?v ?p ?o }"));
+//		OpService opService = new OpService(v, op, false);
+//		OpServiceInfo serviceInfo = new OpServiceInfo(opService);
+//
+//
+//		RequestScheduler<Node, Binding> scheduler = new RequestScheduler<>(b ->
+//			NodeFactory.createLiteral("group" + (NodeValue.makeNode(b.get(v)).getInteger().intValue() % 3)), 2);
+//		Iterator<ServiceBatchRequest<Node, Binding>> batchIt = scheduler.group(individualIt);
+//
+//		OpServiceExecutorImpl opExecutor = null;
+//
+//		RequestExecutor executor = new RequestExecutor(opExecutor, serviceInfo, batchIt);
+//		// executor.exec();
+//
+////		while (batchIt.hasNext()) {
+////			System.out.println(batchIt.next());
+////		}
+//
+//
+//	}
+//
 
 
 
