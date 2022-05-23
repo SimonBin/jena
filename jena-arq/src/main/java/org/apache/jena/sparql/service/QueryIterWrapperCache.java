@@ -38,11 +38,13 @@ public class QueryIterWrapperCache
 			QueryIterator qIter, int batchSize,
 			SimpleServiceCache cache,
 			Batch<PartitionRequest<Binding>> inputBatch,
+			Var idxVar,
 			Node serviceNode,
 			Op op) {
 		super(qIter, batchSize);
 		this.cache = cache;
 		this.inputBatch = inputBatch;
+		this.idxVar = idxVar;
 		this.serviceNode = serviceNode;
 		this.op = op;
 	}
@@ -65,12 +67,14 @@ public class QueryIterWrapperCache
 		while (inputIdx != Long.MAX_VALUE) {
 			Binding outputBinding = it.hasNext() ? it.next() : null;
 
-			inputIdx = outputBinding == null ? Long.MAX_VALUE : RequestExecutor.getLong(outputBinding, idxVar);
-			PartitionRequest<Binding> inputPart = inputs.get(inputIdx);
+			inputIdx = outputBinding == null
+					? Long.MAX_VALUE
+					: RequestExecutor.getLong(outputBinding, idxVar);
+			// PartitionRequest<Binding> inputPart = inputs.get(inputIdx);
 
 			if (inputIdx != prevInputIdx) {
 				if (prevInputIdx != -1) {
-					inputPart = inputs.get(inputIdx);
+					inputPart = inputs.get(prevInputIdx);
 					// Submit batch so far
 					Binding input = inputPart.getPartition();
 					long start = inputPart.getOffset() + currentOffset;
@@ -89,14 +93,21 @@ public class QueryIterWrapperCache
 
 					try {
 						cacheDataAccessor.write(start, arr, 0, arrLen);
+
+						if (output.isEmpty() && inputPart.getLimit() < 0) {
+							slice.setKnownSize(end);
+						}
+
 					} catch (IOException e) {
 						throw new RuntimeException(e);
 					}
 				}
 
 				arrLen = 0;
-				prevInputIdx = inputIdx;
-				currentOffset = 0;
+				if (inputIdx != Long.MAX_VALUE) {
+					prevInputIdx = inputIdx;
+					currentOffset = 0;
+				}
 			}
 
 			arr[arrLen++] = outputBinding;
@@ -108,10 +119,12 @@ public class QueryIterWrapperCache
 	protected void closeCurrentCacheResources() {
 		if (cacheDataAccessor != null) {
 			cacheDataAccessor.close();
+			cacheDataAccessor = null;
 		}
 
 		if (claimedCacheEntry != null) {
 			claimedCacheEntry.close();
+			claimedCacheEntry = null;
 		}
 	}
 

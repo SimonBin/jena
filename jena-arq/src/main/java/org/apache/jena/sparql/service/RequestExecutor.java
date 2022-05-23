@@ -28,6 +28,7 @@ import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.binding.BindingFactory;
 import org.apache.jena.sparql.engine.iterator.QueryIterPeek;
 import org.apache.jena.sparql.engine.iterator.QueryIterPlainWrapper;
 import org.apache.jena.sparql.expr.ExprEvalException;
@@ -91,6 +92,7 @@ public class RequestExecutor
 	protected long nextAllocOutputId = 0;
 	protected long nextAllocInputId = 0;
 
+	protected Map<Long, Binding> inputToBinding = new HashMap<>();
 	protected TreeBasedTable<Long, Long, Long> inputToRangeToOutput = TreeBasedTable.create();
 	protected HashMap<Long, PartitionKey> outputToPartKey = new HashMap<>();
 	protected Map<Long, QueryIterPeek> outputToIter = new HashMap<>();
@@ -151,7 +153,7 @@ public class RequestExecutor
 	}
 
 	public static Number getNumber(Binding binding, Var var) {
-		return Objects.requireNonNull(getNumber(binding, var), "Number must not be null");
+		return Objects.requireNonNull(getNumberNullable(binding, var), "Number must not be null");
 	}
 
 	public static long getLong(Binding binding, Var var) {
@@ -161,7 +163,8 @@ public class RequestExecutor
 	@Override
 	protected Binding moveToNext() {
 
-		Binding result = null;
+		Binding parentBinding = null;
+		Binding childBinding = null;
 
 		// Peek the next binding on the active iterator and verify that it maps to the current
 		// partition key
@@ -175,7 +178,8 @@ public class RequestExecutor
 						partKey.getRangeId() == currentRangeId;
 
 				if (matchesCurrentPartition) {
-					result = activeIter.next();
+					parentBinding = inputToBinding.get(currentInputId);
+					childBinding = activeIter.next();
 					break;
 				}
 			}
@@ -194,6 +198,7 @@ public class RequestExecutor
 			++currentRangeId;
 			SortedMap<Long, Long> row = inputToRangeToOutput.row(currentInputId);
 			if (!row.containsKey(currentRangeId)) {
+				inputToBinding.remove(currentInputId);
 				++currentInputId;
 				currentRangeId = 0;
 			}
@@ -209,7 +214,14 @@ public class RequestExecutor
 			if (!inputToRangeToOutput.containsRow(currentInputId)) {
 				break;
 			}
+
+			outputId = inputToRangeToOutput.get(currentInputId, currentRangeId);
+			activeIter = outputToIter.get(outputId);
 		}
+
+		Binding result = childBinding == null
+				? null
+				: BindingFactory.builder(parentBinding).addAll(childBinding).build();
 
 		return result;
 	}
@@ -240,6 +252,8 @@ public class RequestExecutor
 
 		// List<PartitionRequest<Binding>> backendRequests = new ArrayList<>();
 		Batch<PartitionRequest<Binding>> backendRequests = new BatchFlat<>();
+
+		inputToBinding.putAll(batchItems);
 
 		// long nextOutputId;
 		for (Entry<Long, Binding> e : batchItems.entrySet()) {
@@ -341,7 +355,7 @@ public class RequestExecutor
         QueryIterator qIter = opExecutor.exec(substitutedOp);
 
         // Wrap the interator such that the items are cached
-        qIter = new QueryIterWrapperCache(qIter, 128, cache, backendRequests, substServiceNode, substitutedOp);
+        qIter = new QueryIterWrapperCache(qIter, 128, cache, backendRequests, idxVar, substServiceNode, substitutedOp);
 
 
         // Wrap the query iter such that we can peek the next binding in order
