@@ -8,6 +8,7 @@ import java.util.NavigableMap;
 import org.aksw.commons.io.slice.Slice;
 import org.aksw.commons.io.slice.SliceAccessor;
 import org.aksw.commons.util.ref.RefFuture;
+import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.QueryIterator;
@@ -21,7 +22,7 @@ public class QueryIterWrapperCache
 	protected Batch<PartitionRequest<Binding>> inputBatch;
 	protected Op op; // The operation that was executed
 	protected Var idxVar; // CacheKeyAccessor cacheKeyAccessor;
-
+	protected Node serviceNode;
 
 	protected long prevInputIdx = -1;
 	protected PartitionRequest<Binding> inputPart; // Value stored here for debugging
@@ -37,9 +38,13 @@ public class QueryIterWrapperCache
 			QueryIterator qIter, int batchSize,
 			SimpleServiceCache cache,
 			Batch<PartitionRequest<Binding>> inputBatch,
+			Node serviceNode,
 			Op op) {
 		super(qIter, batchSize);
+		this.cache = cache;
 		this.inputBatch = inputBatch;
+		this.serviceNode = serviceNode;
+		this.op = op;
 	}
 
 	@Override
@@ -48,26 +53,33 @@ public class QueryIterWrapperCache
 		NavigableMap<Long, PartitionRequest<Binding>> inputs = inputBatch.getItems();
 		Iterator<Binding> it = output.iterator();
 
-
 		Binding[] arr = new Binding[output.size()];
 		int arrLen = 0;
 
-		for (int i = 0; it.hasNext(); ++i) {
-			Binding outputBinding = it.next();
+		// Collect consecutive binding that refer to the same inputIdx into an array
+		// and then write that array into the cache
+		// The assumption is that inputIdx is monotonous - this should be guaranteed by the query construction
+		// whose execution yields these bindings
 
-			long inputIdx = RequestExecutor.getLong(null, idxVar);
+		long inputIdx = 0;
+		while (inputIdx != Long.MAX_VALUE) {
+			Binding outputBinding = it.hasNext() ? it.next() : null;
+
+			inputIdx = outputBinding == null ? Long.MAX_VALUE : RequestExecutor.getLong(outputBinding, idxVar);
 			PartitionRequest<Binding> inputPart = inputs.get(inputIdx);
 
 			if (inputIdx != prevInputIdx) {
 				if (prevInputIdx != -1) {
 					inputPart = inputs.get(inputIdx);
 					// Submit batch so far
+					Binding input = inputPart.getPartition();
 					long start = inputPart.getOffset() + currentOffset;
 					long end = start + arrLen;
 
+
 					closeCurrentCacheResources();
 
-					ServiceCacheKey cacheKey = null;
+					ServiceCacheKey cacheKey = new ServiceCacheKey(serviceNode, op, input);
 					claimedCacheEntry = cache.getCache().claim(cacheKey);
 					ServiceCacheValue c = claimedCacheEntry.await();
 

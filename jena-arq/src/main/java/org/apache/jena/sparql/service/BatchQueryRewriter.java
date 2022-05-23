@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.jena.query.Query;
@@ -62,19 +63,22 @@ public class BatchQueryRewriter {
 		return result;
 	}
 
-	public BatchQueryRewriteResult rewrite(List<PartitionRequest<Binding>> batchRequest) {
+	public BatchQueryRewriteResult rewrite(Batch<PartitionRequest<Binding>> batchRequest) {
 		// Set<Var> seenVars = seenVars(batchRequest);
 
 		int n = batchRequest.size();
     	Op newOp = null;
-    	for (int i = n - 1; i >= 0; --i) {
-    		PartitionRequest<Binding> req = batchRequest.get(i);
+    	// for (int i = n - 1; i >= 0; --i) {
+    	for (Entry<Long, PartitionRequest<Binding>> e : batchRequest.getItems().entrySet()) {
+
+    		PartitionRequest<Binding> req = e.getValue(); // batchRequest.get(i);
+    		long idx = e.getKey();
     		Binding b = req.getPartition();
 
     		Op rawOp = serviceInfo.getRawQueryOp();
     		Op op = QC.substitute(rawOp, b);
     		if (n > 1) {
-    			op = OpExtend.create(op, idxVar, NodeValue.makeInteger(i));
+    			op = OpExtend.create(op, idxVar, NodeValue.makeInteger(idx));
     		}
 
     		long o = req.getOffset();

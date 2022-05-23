@@ -1,12 +1,13 @@
 package org.apache.jena.sparql.service;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.SortedMap;
 import java.util.concurrent.locks.Lock;
 
 import org.aksw.commons.collections.CloseableIterator;
@@ -18,16 +19,15 @@ import org.aksw.commons.io.slice.Slice;
 import org.aksw.commons.io.slice.SliceAccessor;
 import org.aksw.commons.util.closeable.AutoCloseables;
 import org.aksw.commons.util.ref.RefFuture;
-import org.apache.jena.ext.com.google.common.collect.ArrayListMultimap;
-import org.apache.jena.ext.com.google.common.collect.Multimap;
+import org.apache.jena.ext.com.google.common.collect.TreeBasedTable;
 import org.apache.jena.graph.Node;
 import org.apache.jena.query.Query;
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.algebra.op.OpService;
 import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
-import org.apache.jena.sparql.engine.iterator.QueryIter;
 import org.apache.jena.sparql.engine.iterator.QueryIterPeek;
 import org.apache.jena.sparql.engine.iterator.QueryIterPlainWrapper;
 import org.apache.jena.sparql.expr.ExprEvalException;
@@ -74,16 +74,37 @@ public class RequestExecutor
 
 	protected Var idxVar;
 	// The index of the next allocation
-	protected long nextOutputId = 0;
+	// protected long nextOutputId = 0;
 
 
 	// The current read marker - never greater than the allocation
-	protected long currentOutputId = 0;
+	// protected PartitionKey currentPartitionKey;
 
-	protected NavigableMap<Long, QueryIterPeek> nextOutputIdToIterator;
+
+	// Result iteration
+	protected long currentInputId = 0;
+	protected long currentRangeId = -1;
+	protected QueryIterPeek activeIter;
+
+
+	// Request allocation
+	protected long nextAllocOutputId = 0;
+	protected long nextAllocInputId = 0;
+
+	protected TreeBasedTable<Long, Long, Long> inputToRangeToOutput = TreeBasedTable.create();
+	protected HashMap<Long, PartitionKey> outputToPartKey = new HashMap<>();
+	protected Map<Long, QueryIterPeek> outputToIter = new HashMap<>();
+
+	// Map for when an iterator can be closed
+	protected Map<Long, QueryIterPeek> outputToClose = new HashMap<>();
+
+	// protected TreeBasedTable<Long, Long, QueryIterPeek> inputIdToRangeIdToIterator = TreeBasedTable.create();
+	// protected NavigableMap<PartitionKey, QueryIterPeek> partitionKeyToIterator;
 
 	// Map an iterator to the last idx it can supply - once this index is passed the iterator can be closed
-	protected Multimap<Long, QueryIterPeek> closeByIdx = ArrayListMultimap.create();
+	// protected Multimap<PartitionKey, QueryIterPeek> closeByIdx = ArrayListMultimap.create();
+	// protected Table<Long, Long, QueryIterPeek> closeByPartKey = HashBasedTable.create();
+
 
 	public RequestExecutor(OpServiceExecutorImpl opExector, OpServiceInfo serviceInfo, Iterator<ServiceBatchRequest<Node, Binding>> batchIterator) {
 		this.opExecutor = opExector;
@@ -92,6 +113,8 @@ public class RequestExecutor
 		this.cache = new SimpleServiceCache();
 
 		this.idxVar = Var.alloc("__idx__");
+		ExecutionContext execCxt = opExector.getExecCxt();
+		this.activeIter = QueryIterPeek.create(QueryIterPlainWrapper.create(Collections.<Binding>emptyList().iterator(), execCxt), execCxt);
 	}
 
 
@@ -135,56 +158,66 @@ public class RequestExecutor
 		return getNumber(binding, var).longValue();
 	}
 
-
-	protected void incrementOutputId() {
-		Collection<QueryIterPeek> iters = closeByIdx.get(currentOutputId);
-		for (QueryIterPeek it : iters) {
-			it.close();
-		}
-
-		++currentOutputId;
-
-	}
-
 	@Override
 	protected Binding moveToNext() {
 
+		Binding result = null;
 
-
-		if (currentOutputId > nextOutputId) {
-			execNextBatch();
-		}
-
+		// Peek the next binding on the active iterator and verify that it maps to the current
+		// partition key
 		while (true) {
+			if (activeIter.hasNext()) {
+				Binding peek = activeIter.peek();
+				long peekOutputId = getLong(peek, idxVar);
+				PartitionKey partKey = outputToPartKey.get(peekOutputId);
 
+				boolean matchesCurrentPartition = partKey.getInputId() == currentInputId &&
+						partKey.getRangeId() == currentRangeId;
 
-			QueryIterPeek iter = nextOutputIdToIterator.get(currentOutputId);
-			Binding peek = iter.peek();
-			long bindingIdx = getLong(peek, idxVar);
-			if (bindingIdx != currentOutputId) {
-				nextOutputIdToIterator
-
-				++currentOutputId;
-				continue;
+				if (matchesCurrentPartition) {
+					result = activeIter.next();
+					break;
+				}
 			}
 
-			if (iter == null) {
+			// Cleanup of no longer needed resources
+			long outputId = inputToRangeToOutput.get(currentInputId, currentRangeId);
+			QueryIterPeek toClose = outputToClose.get(outputId);
+			if (toClose != null) {
+				toClose.close();
+				outputToClose.remove(outputId);
+			}
+			inputToRangeToOutput.remove(currentInputId, currentRangeId);
+			outputToIter.remove(outputId);
+
+			// Increment rangeId/inputId until we reach the end
+			++currentRangeId;
+			SortedMap<Long, Long> row = inputToRangeToOutput.row(currentInputId);
+			if (!row.containsKey(currentRangeId)) {
+				++currentInputId;
+				currentRangeId = 0;
+			}
+
+			// Check if we need to lead the next batch
+			if (!inputToRangeToOutput.containsRow(currentInputId)) {
 				execNextBatch();
 			}
 
-
-		nextOutputIdToIterator.get(batchIterator)
+			// If there is still no further batch then we assume we reached the end
+			if (!inputToRangeToOutput.containsRow(currentInputId)) {
+				break;
+			}
 		}
-		QueryIter it = null;
 
-
-
-		// TODO Auto-generated method stub
-		return null;
+		return result;
 	}
 
 
 	/** Execute the next batch and register all iterators with {@link #nextOutputIdToIterator} */
+	// seqId = sequential number injected into the request
+	// inputId = id (index) of the input binding
+	// rangeId = id of the range w.r.t. to the input binding
+	// partitionKey = (inputId, rangeId)
 	public void execNextBatch() {
 
 		ServiceBatchRequest<Node, Binding> batchRequest = batchIterator.next();
@@ -194,31 +227,34 @@ public class RequestExecutor
 		// Refine the request w.r.t. the cache
 		Batch<Binding> batch = batchRequest.getBatch();
 
-		Iterator<Binding> itBindings = batch.getItems().values().iterator();// .stream().flatMap(List::stream).iterator();
+
+		// Iterator<Binding> itBindings = batch.getItems().values().iterator();// .stream().flatMap(List::stream).iterator();
+
+		NavigableMap<Long, Binding> batchItems = batch.getItems();
+
 
 		BatchQueryRewriter rewriter = new BatchQueryRewriter(serviceInfo, idxVar);
 
 
-		List<PartitionRequest<Binding>> backendRequests = new ArrayList<>();
-
-		// List<CacheRequest<>>
-		List<Object> cacheRequests = null;
-
+		// List<PartitionRequest<Binding>> backendRequests = new ArrayList<>();
+		Batch<PartitionRequest<Binding>> backendRequests = new BatchFlat<>();
 
 		// long nextOutputId;
-		while (itBindings.hasNext()) {
-			Binding binding = itBindings.next();
+		for (Entry<Long, Binding> e : batchItems.entrySet()) {
+		// while (itBindings.hasNext()) {
+
+
+			long inputId = e.getKey();
+			Binding binding = e.getValue();// itBindings.next();
 
 			ServiceCacheKey cacheKey = new ServiceCacheKey(substServiceNode, serviceInfo.getRawQueryOp(), binding);
 			RefFuture<ServiceCacheValue> cacheValueRef = cache.getCache().claim(cacheKey);
 			ServiceCacheValue serviceCacheValue = cacheValueRef.await();
 
-
-			// Lock an existing cache entry
+			// Lock an existing cache entry so we can read out the loaded ranges
 			Slice<Binding[]> slice = serviceCacheValue.getSlice();
 			Lock lock = slice.getReadWriteLock().readLock();
 			lock.lock();
-
 
 			RangeSet<Long> loadedRanges;
 			long knownSize;
@@ -238,7 +274,6 @@ public class RequestExecutor
 				long end = limit == Query.NOLIMIT ? max : LongMath.saturatedAdd(start, limit);
 				end = Math.min(end, max);
 
-
 				Range<Long> initialRange = knownSize < 0
 					? Range.atLeast(start)
 					: Range.closedOpen(start, end);
@@ -249,16 +284,20 @@ public class RequestExecutor
 				loadedRanges.asRanges().forEach(r -> allRanges.put(r, true));
 				missingRanges.asRanges().forEach(r -> allRanges.put(r, false));
 
-				for (Entry<Range<Long>, Boolean> e : allRanges.asMapOfRanges().entrySet()) {
-					Range<Long> range = e.getKey();
-					boolean isLoaded = e.getValue();
+
+				long rangeId = 0;
+				for (Entry<Range<Long>, Boolean> f : allRanges.asMapOfRanges().entrySet()) {
+					// PartitionKey partitionKey = new PartitionKey(inputId, rangeId);
+
+					Range<Long> range = f.getKey();
+					boolean isLoaded = f.getValue();
 
 					long lo = range.lowerEndpoint();
 					long hi = range.hasUpperBound() ? range.upperEndpoint() : Long.MAX_VALUE;
 
 					if (isLoaded) {
-						PartitionRequest<Binding> request = new PartitionRequest<>(nextOutputId, binding, lo, hi);
-						backendRequests.add(request);
+						PartitionRequest<Binding> request = new PartitionRequest<>(nextAllocOutputId, binding, lo, hi);
+						backendRequests.put(nextAllocOutputId, request);
 					} else {
 						SliceAccessor<Binding[]> accessor = slice.newSliceAccessor();
 						ReadableChannel<Binding[]> channel =
@@ -269,14 +308,22 @@ public class RequestExecutor
 						CloseableIterator<Binding> baseIt = ReadableChannels.newIterator(channel);
 						// TODO Wrap as QueryIterPeek
 						QueryIterPeek it = QueryIterPeek.create(new ClosableIteratorAdapter(baseIt), opExecutor.getExecCxt());
-						nextOutputIdToIterator.put(nextOutputId, it);
+						//partitionKeyToIterator.put(partitionKey, it);
+
+						outputToIter.put(nextAllocOutputId, it);
+						outputToClose.put(nextAllocOutputId, it);
 					}
-					++nextOutputId;
+
+					inputToRangeToOutput.put(inputId, rangeId, nextAllocOutputId);
+					outputToPartKey.put(nextAllocOutputId, new PartitionKey(nextAllocInputId, rangeId));
+
+					++rangeId;
+					++nextAllocOutputId;
 				}
 			} finally {
 				lock.unlock();
 			}
-
+			++nextAllocInputId;
 		}
 
 		BatchQueryRewriteResult rewrite = rewriter.rewrite(backendRequests);
@@ -292,19 +339,17 @@ public class RequestExecutor
         QueryIterator qIter = opExecutor.exec(substitutedOp);
 
         // Wrap the interator such that the items are cached
-
-
-
+        qIter = new QueryIterWrapperCache(qIter, 128, cache, backendRequests, substServiceNode, substitutedOp);
 
 
         // Wrap the query iter such that we can peek the next binding in order
         // to decide from which iterator to take the next element
         QueryIterPeek iter = QueryIterPeek.create(qIter, opExecutor.getExecCxt());
 
-
         for (long offset : batch.getItems().keySet()) {
-            nextOutputIdToIterator.put(offset, iter);
+        	outputToIter.put(offset, iter);
         }
+        outputToClose.put(batch.getItems().lastKey(), iter);
 	}
 
 
