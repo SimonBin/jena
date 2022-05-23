@@ -23,15 +23,15 @@ public class ServiceCacheValue {
 	}
 
 	/** Get the ranges which need to be fetched from the backend for the given request range */
-	public RangeSet<Long> getFetchRanges(Range<Long> requestRange) {
-		RangeSet<Long> gaps = RangeUtils.gaps(requestRange, slice.getGaps(requestRange));
-
-		// TODO Move some of the request scheduling from AdvancedRangeCache to RangeUtils:
-		// (a) skipOverAvailableDataThreshold (do not make new requests if there are only few items between gaps)
-		// (b) makeRequestSizeThreshold (schedule multiple requests if a gap is too large)
-		// well, (b) has to be resolved at a completely different layer anyway, and (a) should be a post processing of this method's
-		// return value
-
-		return gaps;
-	}
+//	public RangeSet<Long> getFetchRanges(Range<Long> requestRange) {
+//		RangeSet<Long> gaps = RangeUtils.gaps(requestRange, slice.getGaps(requestRange));
+//
+//		// TODO Move some of the request scheduling from AdvancedRangeCache to RangeUtils:
+//		// (a) skipOverAvailableDataThreshold (do not make new requests if there are only few items between gaps)
+//		// (b) makeRequestSizeThreshold (schedule multiple requests if a gap is too large)
+//		// well, (b) has to be resolved at a completely different layer anyway, and (a) should be a post processing of this method's
+//		// return value
+//
+//		return gaps;
+//	}
 }

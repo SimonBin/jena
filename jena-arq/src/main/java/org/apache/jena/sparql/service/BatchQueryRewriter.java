@@ -3,6 +3,7 @@ package org.apache.jena.sparql.service;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +70,10 @@ public class BatchQueryRewriter {
 		int n = batchRequest.size();
     	Op newOp = null;
     	// for (int i = n - 1; i >= 0; --i) {
-    	for (Entry<Long, PartitionRequest<Binding>> e : batchRequest.getItems().entrySet()) {
+    	List<Entry<Long, PartitionRequest<Binding>>> es = new ArrayList<>(batchRequest.getItems().entrySet());
+    	Collections.reverse(es);
+
+    	for (Entry<Long, PartitionRequest<Binding>> e : es) { // batchRequest.getItems().entrySet()) {
 
     		PartitionRequest<Binding> req = e.getValue(); // batchRequest.get(i);
     		long idx = e.getKey();

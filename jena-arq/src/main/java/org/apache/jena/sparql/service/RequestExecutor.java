@@ -82,7 +82,7 @@ public class RequestExecutor
 
 
 	// Result iteration
-	protected long currentInputId = 0;
+	protected long currentInputId = -1;
 	protected long currentRangeId = -1;
 	protected QueryIterPeek activeIter;
 
@@ -181,7 +181,7 @@ public class RequestExecutor
 			}
 
 			// Cleanup of no longer needed resources
-			long outputId = inputToRangeToOutput.get(currentInputId, currentRangeId);
+			Long outputId = inputToRangeToOutput.get(currentInputId, currentRangeId);
 			QueryIterPeek toClose = outputToClose.get(outputId);
 			if (toClose != null) {
 				toClose.close();
@@ -200,7 +200,9 @@ public class RequestExecutor
 
 			// Check if we need to lead the next batch
 			if (!inputToRangeToOutput.containsRow(currentInputId)) {
-				execNextBatch();
+				if (batchIterator.hasNext()) {
+					execNextBatch();
+				}
 			}
 
 			// If there is still no further batch then we assume we reached the end
@@ -296,9 +298,6 @@ public class RequestExecutor
 					long hi = range.hasUpperBound() ? range.upperEndpoint() : Long.MAX_VALUE;
 
 					if (isLoaded) {
-						PartitionRequest<Binding> request = new PartitionRequest<>(nextAllocOutputId, binding, lo, hi);
-						backendRequests.put(nextAllocOutputId, request);
-					} else {
 						SliceAccessor<Binding[]> accessor = slice.newSliceAccessor();
 						ReadableChannel<Binding[]> channel =
 								new ReadableChannelWithLimit<>(
@@ -312,6 +311,9 @@ public class RequestExecutor
 
 						outputToIter.put(nextAllocOutputId, it);
 						outputToClose.put(nextAllocOutputId, it);
+					} else {
+						PartitionRequest<Binding> request = new PartitionRequest<>(nextAllocOutputId, binding, lo, hi);
+						backendRequests.put(nextAllocOutputId, request);
 					}
 
 					inputToRangeToOutput.put(inputId, rangeId, nextAllocOutputId);

@@ -175,7 +175,7 @@ public class RequestScheduler<G, I> {
 		OpServiceExecutorImpl opExecutor = null;
 
 		RequestExecutor executor = new RequestExecutor(opExecutor, serviceInfo, batchIt);
-		executor.exec();
+		// executor.exec();
 
 //		while (batchIt.hasNext()) {
 //			System.out.println(batchIt.next());
