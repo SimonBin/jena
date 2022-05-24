@@ -49,7 +49,13 @@ public class OpServiceInfo {
         Op subOp = opService.getSubOp();
 
         // Handling of a null supOp - can that happen?
-        this.serviceVars = subOp == null ? Collections.emptySet() : new LinkedHashSet<>(OpVars.visibleVars(subOp));
+        this.serviceVars = subOp == null ? Collections.emptySet() : new LinkedHashSet<>(
+        		OpVars.visibleVars(subOp)
+        		// ISSUE For "BIND(?in AS ?out)" we want ?in to appear as a service / substitution variable
+        		// Workaround is a dummy union: SERVICE <> { ... UNION { ?s <urn:dummy> ?s} }
+        		//OpVars.mentionedVars(subOp)
+
+        	);
 
 
         subOp = Rename.reverseVarRename(subOp, true);

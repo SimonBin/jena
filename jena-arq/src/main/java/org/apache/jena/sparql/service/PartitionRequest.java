@@ -14,7 +14,6 @@ public class PartitionRequest<I>
 			long limit) {
 		super();
 		this.outputId = outputId;
-		// this.rangeId = rangeId;
 		this.partition = partition;
 		this.offset = offset;
 		this.limit = limit;

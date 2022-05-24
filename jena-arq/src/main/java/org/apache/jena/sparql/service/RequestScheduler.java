@@ -12,13 +12,30 @@ import java.util.function.Function;
 
 import org.apache.jena.ext.com.google.common.collect.AbstractIterator;
 
+/**
+ * Accumulates items from an input iterator into batches.
+ * Every returned batch will start with the first item index not covered by any prior batch.
+ *
+ * Parameters are:
+ * <ul>
+ * <li>maxBulkSize: The maximum number of items allowed in a batch returned by a call to next()</li>
+ * <li>maxeReadAhead: The maximum number of items allowed to read from the input iterator in order to fill a batch</li>
+ * <li>maxInputDistance: The index of items w.r.t. to the input iterator in a batch must not be farther apart than this distance</li>
+ * </ul>
+ *
+ * A batch is guaranteed to have at least one item.
+ * If any of the thresholds is exceeded a batch will have fewer items that its maximum allowed size.
+ *
+ *
+ * @param <G> group key type (e.g. service IRI)
+ * @param <I> item type (e.g. Binding)
+ */
 public class RequestScheduler<G, I> {
+	protected int maxBulkSize = 30;
 
 	/** Allow reading at most this number of items ahead for the input iterator to completely fill
 	 *  the batch request for the next response */
 	protected int maxReadAhead = 300;
-
-	protected int maxBulkSize = 30;
 
 	/** Do not group inputs into the same batch if their ids are this (or more) of that amount apart */
 	protected int maxInputDistance = 50;

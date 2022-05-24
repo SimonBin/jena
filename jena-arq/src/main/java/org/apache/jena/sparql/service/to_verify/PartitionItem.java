@@ -1,4 +1,4 @@
-package org.apache.jena.sparql.service;
+package org.apache.jena.sparql.service.to_verify;
 
 import org.apache.jena.sparql.engine.binding.Binding;
 

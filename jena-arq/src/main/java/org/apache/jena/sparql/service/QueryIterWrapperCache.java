@@ -20,7 +20,7 @@ import org.apache.jena.sparql.engine.binding.BindingProject;
 public class QueryIterWrapperCache
 	extends QueryIterWrapperBulk
 {
-	protected SimpleServiceCache cache;
+	protected ServiceResponseCache cache;
 	protected Batch<PartitionRequest<Binding>> inputBatch;
 	protected Op op; // The operation that was executed
 	protected Var idxVar; // CacheKeyAccessor cacheKeyAccessor;
@@ -38,8 +38,9 @@ public class QueryIterWrapperCache
 	protected SliceAccessor<Binding[]> cacheDataAccessor = null;
 
 	public QueryIterWrapperCache(
-			QueryIterator qIter, int batchSize,
-			SimpleServiceCache cache,
+			QueryIterator qIter,
+			int batchSize,
+			ServiceResponseCache cache,
 			Set<Var> joinVars,
 			Batch<PartitionRequest<Binding>> inputBatch,
 			Var idxVar,
@@ -93,7 +94,7 @@ public class QueryIterWrapperCache
 
 					ServiceCacheKey cacheKey = new ServiceCacheKey(serviceNode, op, joinBinding);
 
-					System.out.println("Writing to cache key " + cacheKey);
+					// System.out.println("Writing to cache key " + cacheKey);
 
 					claimedCacheEntry = cache.getCache().claim(cacheKey);
 					ServiceCacheValue c = claimedCacheEntry.await();
@@ -125,7 +126,12 @@ public class QueryIterWrapperCache
 				break;
 			}
 
-			arr[arrLen++] = outputBinding;
+
+			// Hide the idxVar of binding being written to the cache
+			Set<Var> visibleVars = BindingUtils.varsMentioned(outputBinding);
+			visibleVars.remove(idxVar);
+
+			arr[arrLen++] = new BindingProject(visibleVars, outputBinding);
 		}
 
 		super.onBatch(output);

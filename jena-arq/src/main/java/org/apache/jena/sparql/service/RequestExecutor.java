@@ -34,34 +34,18 @@ import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.binding.BindingFactory;
 import org.apache.jena.sparql.engine.binding.BindingProject;
+import org.apache.jena.sparql.engine.iterator.QueryIterConvert;
 import org.apache.jena.sparql.engine.iterator.QueryIterPeek;
 import org.apache.jena.sparql.engine.iterator.QueryIterPlainWrapper;
+import org.apache.jena.sparql.engine.iterator.QueryIteratorMapped;
 import org.apache.jena.sparql.expr.ExprEvalException;
-import org.apache.jena.sparql.service.BatchQueryRewriter.BatchQueryRewriteResult;
+import org.apache.jena.sparql.util.NodeFactoryExtra;
 
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeMap;
 import com.google.common.math.LongMath;
-
-
-/** Bridge between jena's and aksw-commons iterator */
-class ClosableIteratorAdapter
-	extends QueryIterPlainWrapper
-{
-	protected CloseableIterator<Binding> delegate;
-
-	public ClosableIteratorAdapter(CloseableIterator<Binding> delegate) {
-		super(delegate);
-		this.delegate = delegate;
-	}
-
-	@Override
-	protected void closeIterator() {
-		AutoCloseables.close(((AutoCloseable)delegate));
-	}
-}
 
 public class RequestExecutor
 	extends QueryIterSlottedBase<Binding>
@@ -76,7 +60,7 @@ public class RequestExecutor
 
 	protected OpServiceExecutorImpl opExecutor;
 	protected Iterator<ServiceBatchRequest<Node, Binding>> batchIterator;
-	protected SimpleServiceCache cache;
+	protected ServiceResponseCache cache;
 
 	protected Var idxVar;
 	// The index of the next allocation
@@ -116,7 +100,7 @@ public class RequestExecutor
 	public RequestExecutor(
 			OpServiceExecutorImpl opExector,
 			OpServiceInfo serviceInfo,
-			SimpleServiceCache cache,
+			ServiceResponseCache cache,
 			Iterator<ServiceBatchRequest<Node, Binding>> batchIterator) {
 		this.opExecutor = opExector;
 		this.serviceInfo = serviceInfo;
@@ -183,6 +167,11 @@ public class RequestExecutor
 				long peekOutputId = getLong(peek, idxVar);
 				PartitionKey partKey = outputToPartKey.get(peekOutputId);
 
+				if (partKey == null) {
+					throw new IllegalStateException(
+							String.format("An output binding referred to an input id without corresponding input binding. Referenced input id %1$d, Output binding: %2$s", peekOutputId, peek));
+				}
+
 				boolean matchesCurrentPartition = partKey.getInputId() == currentInputId &&
 						partKey.getRangeId() == currentRangeId;
 
@@ -212,7 +201,7 @@ public class RequestExecutor
 				currentRangeId = 0;
 			}
 
-			// Check if we need to lead the next batch
+			// Check if we need to load the next batch
 			if (!inputToRangeToOutput.containsRow(currentInputId)) {
 				if (batchIterator.hasNext()) {
 					execNextBatch();
@@ -236,28 +225,6 @@ public class RequestExecutor
 	}
 
 
-	public static <T, C extends Collection<T>> C addAll(C out, Iterator<T> it) {
-		while (it.hasNext()) {
-			T item = it.next();
-			out.add(item);
-		}
-		return out;
-	}
-
-	public static <C extends Collection<Var>> C varsMentioned(C out, Iterator<Binding> it) {
-		while (it.hasNext()) {
-			Binding b = it.next();
-			addAll(out, b.vars());
-		}
-		return out;
-	}
-
-	public static Set<Var> varsMentioned(Iterable<Binding> bindings) {
-		Set<Var> result = new LinkedHashSet<>();
-		return varsMentioned(result, bindings.iterator());
-	}
-
-
 
 	/** Execute the next batch and register all iterators with {@link #nextOutputIdToIterator} */
 	// seqId = sequential number injected into the request
@@ -272,7 +239,7 @@ public class RequestExecutor
 
 		// Refine the request w.r.t. the cache
 		Batch<Binding> batch = batchRequest.getBatch();
-		Set<Var> varsMentioned = varsMentioned(batch.getItems().values());
+		Set<Var> varsMentioned = BindingUtils.varsMentioned(batch.getItems().values());
 
 		Set<Var> joinVars = Sets.intersection(serviceInfo.getServiceVars(), varsMentioned);
 
@@ -300,7 +267,7 @@ public class RequestExecutor
 			Binding joinBinding = new BindingProject(joinVars, inputBinding);
 
 			ServiceCacheKey cacheKey = new ServiceCacheKey(substServiceNode, serviceInfo.getRawQueryOp(), joinBinding);
-			System.out.println("Lookup with cache key " + cacheKey);
+			// System.out.println("Lookup with cache key " + cacheKey);
 
 
 			// TODO Elegantly handle case where cache is null
@@ -331,7 +298,7 @@ public class RequestExecutor
 				long end = limit == Query.NOLIMIT ? max : LongMath.saturatedAdd(start, limit);
 				end = Math.min(end, max);
 
-				Range<Long> initialRange = knownSize < 0
+				Range<Long> initialRange = end == Long.MAX_VALUE
 					? Range.atLeast(start)
 					: Range.closedOpen(start, end);
 
@@ -360,8 +327,17 @@ public class RequestExecutor
 										hi);
 
 						CloseableIterator<Binding> baseIt = ReadableChannels.newIterator(channel);
+
+						QueryIterator qIterA = new ClosableIteratorAdapter(baseIt);
+
+						// Add a pseudo idxVar mapping
+						ExecutionContext execCxt = opExecutor.getExecCxt();
+						final long idxVarValue = nextAllocOutputId;
+						QueryIterConvert qIterB = new QueryIterConvert(qIterA, b ->
+							BindingFactory.binding(b, idxVar, NodeFactoryExtra.intToNode(idxVarValue)), execCxt);
+
 						// TODO Wrap as QueryIterPeek
-						QueryIterPeek it = QueryIterPeek.create(new ClosableIteratorAdapter(baseIt), opExecutor.getExecCxt());
+						QueryIterPeek it = QueryIterPeek.create(qIterB, execCxt);
 						//partitionKeyToIterator.put(partitionKey, it);
 
 						outputToIter.put(nextAllocOutputId, it);
@@ -414,7 +390,21 @@ public class RequestExecutor
 		}
 	}
 
+	/** Bridge between jena's and aksw-commons iterator */
+	private static final class ClosableIteratorAdapter
+		extends QueryIterPlainWrapper
+	{
+		protected CloseableIterator<Binding> delegate;
 
+		public ClosableIteratorAdapter(CloseableIterator<Binding> delegate) {
+			super(delegate);
+			this.delegate = delegate;
+		}
 
+		@Override
+		protected void closeIterator() {
+			AutoCloseables.close(((AutoCloseable)delegate));
+		}
+	}
 }
 

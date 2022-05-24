@@ -6,12 +6,12 @@ import org.aksw.commons.util.ref.RefFuture;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 
-public class SimpleServiceCache {
+public class ServiceResponseCache {
 	// service / op / joinVars / binding / idx
 	protected AsyncClaimingCache<ServiceCacheKey, ServiceCacheValue> cache;
 
 
-	public SimpleServiceCache() {
+	public ServiceResponseCache() {
 		//super();
 		AsyncClaimingCacheImpl.Builder<ServiceCacheKey, ServiceCacheValue> builder =
 				AsyncClaimingCacheImpl.newBuilder(Caffeine.newBuilder());

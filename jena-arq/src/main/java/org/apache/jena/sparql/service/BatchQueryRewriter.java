@@ -6,7 +6,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -80,16 +79,16 @@ public class BatchQueryRewriter {
     		Binding b = req.getPartition();
 
     		Op rawOp = serviceInfo.getRawQueryOp();
+
+    		// TODO QC.substitute does not remove variables being substituted from projections
+    		//   This may cause unbound variables to be projected
     		Op op = QC.substitute(rawOp, b);
-    		if (n > 1) {
+    		// if (n > 1) {
     			op = OpExtend.create(op, idxVar, NodeValue.makeInteger(idx));
-    		}
+    		// }
 
-    		long o = req.getOffset();
-    		long l = req.getLimit();
-
-    		if (o == 0) { o = Query.NOLIMIT; }
-    		if (l == Long.MAX_VALUE) { l = Query.NOLIMIT; }
+    		long o = req.hasOffset() ? req.getOffset() : Query.NOLIMIT;
+    		long l = req.hasLimit() ? req.getLimit() : Query.NOLIMIT;
 
     		if (o != Query.NOLIMIT || l != Query.NOLIMIT) {
     			op = new OpSlice(op, o, l);
@@ -106,196 +105,172 @@ public class BatchQueryRewriter {
 
 	}
 
-	public BatchQueryRewriteResult rewrite(
-    		Binding[] bulk,
-    		int bulkLen,
-    		Set<Var> seenVars) {
-
-		Query rawQuery = serviceInfo.getRawQuery();
-		BatchQueryRewriteResult result = rawQuery.hasLimit() || rawQuery.hasOffset()
-			? rewriteAsUnion(bulk, bulkLen, seenVars)
-			: rewriteAsJoin(bulk, bulkLen, seenVars);
-
-		return result;
-	}
-
-    public BatchQueryRewriteResult rewriteAsUnion(
-    		Binding[] bulk,
-    		int bulkLen,
-    		Set<Var> seenVars) {
-
-    	Op newOp = null;
-    	for (int i = bulkLen - 1; i >= 0; --i) {
-    		Binding b = bulk[i];
-
-    		Op rawOp = serviceInfo.getRawQueryOp();
-    		Op op = QC.substitute(rawOp, b);
-    		if (bulkLen > 1) {
-    			op = OpExtend.create(op, idxVar, NodeValue.makeInteger(i));
-    		}
-
-    		newOp = newOp == null ? op : OpUnion.create(op, newOp);
-    	}
 
 
-    	Query q = OpAsQuery.asQuery(newOp);
-        System.err.println(q);
+//	public BatchQueryRewriteResult rewrite(
+//    		Binding[] bulk,
+//    		int bulkLen,
+//    		Set<Var> seenVars) {
+//
+//		Query rawQuery = serviceInfo.getRawQuery();
+//		BatchQueryRewriteResult result = rawQuery.hasLimit() || rawQuery.hasOffset()
+//			? rewriteAsUnion(bulk, bulkLen, seenVars)
+//			: rewriteAsJoin(bulk, bulkLen, seenVars);
+//
+//		return result;
+//	}
+//
+//    public BatchQueryRewriteResult rewriteAsUnion(
+//    		Binding[] bulk,
+//    		int bulkLen,
+//    		Set<Var> seenVars) {
+//
+//    	Op newOp = null;
+//    	for (int i = bulkLen - 1; i >= 0; --i) {
+//    		Binding b = bulk[i];
+//
+//    		Op rawOp = serviceInfo.getRawQueryOp();
+//    		Op op = QC.substitute(rawOp, b);
+//    		// if (bulkLen > 1) {
+//    		op = OpExtend.create(op, idxVar, NodeValue.makeInteger(i));
+//    		//}
+//
+//    		newOp = newOp == null ? op : OpUnion.create(op, newOp);
+//    	}
+//
+//
+//    	Query q = OpAsQuery.asQuery(newOp);
+//        System.err.println(q);
+//
+//
+//        // Op newSubOp = Algebra.compile(q);
+//        // Op newSubOp = OpJoin.create(OpTable.create(table), subOp);
+//
+//        return new BatchQueryRewriteResult(newOp, serviceInfo.getRenames());
+//
+//    }
+//
+//    protected Set<Var> getJoinVars(Set<Var> seenVars) {
+////    	Set<Var> joinVars = new LinkedHashSet<>(serviceVars);
+////    	joinVars.retainAll(seenVars);
+//    	Set<Var> joinVars = Sets.intersection(serviceInfo.getServiceVars(), seenVars);
+//    	return joinVars;
+//    }
+//
+//    public BatchQueryRewriteResult rewriteAsJoin(
+//    		Binding[] bulk,
+//    		int bulkLen,
+//    		Set<Var> seenVars) {
+//        Query q;
+//
+//
+//    	Set<Var> joinVars = getJoinVars(seenVars);
+//
+//
+//    	// Project the bindings to those variables that are also visible
+//    	// in the service cause
+//    	for (int i = 0; i < bulkLen; ++i) {
+//    		bulk[i] = BindingFactory.binding(
+//    				new BindingProject(joinVars, bulk[i]),
+//    				idxVar, NodeValue.makeInteger(i).asNode());
+//    	}
+//        List<Binding> bulkList = Arrays.asList(bulk).subList(0, bulkLen);
+//
+//        Query rawQuery = serviceInfo.getRawQuery();
+//        boolean wrapAsSubQuery = needsWrappingByFeatures(rawQuery);
+//        if (wrapAsSubQuery) {
+//        	q = new Query();
+//        	q.setQuerySelectType();
+//        	q.setQueryPattern(new ElementSubQuery(rawQuery));
+//        	q.getProjectVars().addAll(rawQuery.getProjectVars());
+//        	if (rawQuery.hasOrderBy()) {
+//        		q.getOrderBy().addAll(rawQuery.getOrderBy());
+//            	rawQuery.getOrderBy().clear();
+//        	}
+//        } else {
+//        	q = rawQuery;
+//        }
+//
+//        boolean injectIdx = true;
+//
+//        if (injectIdx) {
+//        	SortCondition sc = new SortCondition(new ExprVar(idxVar), Query.ORDER_ASCENDING);
+//        	if (q.hasOrderBy()) {
+//        		q.getOrderBy().add(0, sc);
+//        	} else {
+//        		q.addOrderBy(sc);
+//        	}
+//        }
+//
+//        q.resetResultVars();
+//        q.setQueryResultStar(false);
+//        q.getProjectVars().removeAll(joinVars);
+//        q.getProjectVars().add(0, idxVar);
+//        q.resetResultVars();
+//
+//        List<Var> remoteVars = new ArrayList<>(1 + joinVars.size());
+//        remoteVars.add(idxVar);
+//        remoteVars.addAll(joinVars);
+//        ElementData dataBlock = new ElementData(remoteVars, bulkList);
+//        Element before = q.getQueryPattern();
+//        ElementGroup after = new ElementGroup();
+//    	after.addElement(dataBlock);
+//        if (before instanceof ElementGroup) {
+//        	((ElementGroup)before).getElements().forEach(after::addElement);
+//        } else {
+//        	after.addElement(before);
+//        }
+//        q.setQueryPattern(after);
+//
+//        // LOG.
+//        System.err.println(q);
+//
+//        Op newSubOp = Algebra.compile(q);
+//        // Op newSubOp = OpJoin.create(OpTable.create(table), subOp);
+//
+//        return new BatchQueryRewriteResult(newSubOp, serviceInfo.getRenames());
+//    }
+//
+//
+//
+//    /**
+//     * Returns true if the query uses features that prevents it from being
+//     * represented as a pair of graph pattern + projection
+//     *
+//     * @param query
+//     * @return
+//     */
+//    public static boolean needsWrappingByFeatures(Query query) {
+//        return needsWrappingByFeatures(query, true) || !query.getProject().getExprs().isEmpty();
+//    }
+//
+//
+//    /**
+//     * Similar to {@link #needsWrapping(Query)} but includes a flag
+//     * whether to include slice information (limit / offset).
+//     *
+//     * @param query
+//     * @return
+//     */
+//    public static boolean needsWrappingByFeatures(Query query, boolean includeSlice) {
+//        boolean result
+//             = query.hasGroupBy()
+//            || query.hasAggregators()
+//            || query.hasHaving()
+//            || query.hasValues();
+//
+//        if (includeSlice) {
+//            result = result
+//                || query.hasLimit()
+//                || query.hasOffset()
+//                ;
+//        }
+//
+//        // Order is ignored
+//
+//        return result;
+//    }
 
-
-        // Op newSubOp = Algebra.compile(q);
-        // Op newSubOp = OpJoin.create(OpTable.create(table), subOp);
-
-        return new BatchQueryRewriteResult(newOp, serviceInfo.getRenames());
-
-    }
-
-    protected Set<Var> getJoinVars(Set<Var> seenVars) {
-//    	Set<Var> joinVars = new LinkedHashSet<>(serviceVars);
-//    	joinVars.retainAll(seenVars);
-    	Set<Var> joinVars = Sets.intersection(serviceInfo.getServiceVars(), seenVars);
-    	return joinVars;
-    }
-
-    public BatchQueryRewriteResult rewriteAsJoin(
-    		Binding[] bulk,
-    		int bulkLen,
-    		Set<Var> seenVars) {
-        Query q;
-
-
-    	Set<Var> joinVars = getJoinVars(seenVars);
-
-
-    	// Project the bindings to those variables that are also visible
-    	// in the service cause
-    	for (int i = 0; i < bulkLen; ++i) {
-    		bulk[i] = BindingFactory.binding(
-    				new BindingProject(joinVars, bulk[i]),
-    				idxVar, NodeValue.makeInteger(i).asNode());
-    	}
-        List<Binding> bulkList = Arrays.asList(bulk).subList(0, bulkLen);
-
-        Query rawQuery = serviceInfo.getRawQuery();
-        boolean wrapAsSubQuery = needsWrappingByFeatures(rawQuery);
-        if (wrapAsSubQuery) {
-        	q = new Query();
-        	q.setQuerySelectType();
-        	q.setQueryPattern(new ElementSubQuery(rawQuery));
-        	q.getProjectVars().addAll(rawQuery.getProjectVars());
-        	if (rawQuery.hasOrderBy()) {
-        		q.getOrderBy().addAll(rawQuery.getOrderBy());
-            	rawQuery.getOrderBy().clear();
-        	}
-        } else {
-        	q = rawQuery;
-        }
-
-        boolean injectIdx = true;
-
-        if (injectIdx) {
-        	SortCondition sc = new SortCondition(new ExprVar(idxVar), Query.ORDER_ASCENDING);
-        	if (q.hasOrderBy()) {
-        		q.getOrderBy().add(0, sc);
-        	} else {
-        		q.addOrderBy(sc);
-        	}
-        }
-
-        q.resetResultVars();
-        q.setQueryResultStar(false);
-        q.getProjectVars().removeAll(joinVars);
-        q.getProjectVars().add(0, idxVar);
-        q.resetResultVars();
-
-        List<Var> remoteVars = new ArrayList<>(1 + joinVars.size());
-        remoteVars.add(idxVar);
-        remoteVars.addAll(joinVars);
-        ElementData dataBlock = new ElementData(remoteVars, bulkList);
-        Element before = q.getQueryPattern();
-        ElementGroup after = new ElementGroup();
-    	after.addElement(dataBlock);
-        if (before instanceof ElementGroup) {
-        	((ElementGroup)before).getElements().forEach(after::addElement);
-        } else {
-        	after.addElement(before);
-        }
-        q.setQueryPattern(after);
-
-        // LOG.
-        System.err.println(q);
-
-        Op newSubOp = Algebra.compile(q);
-        // Op newSubOp = OpJoin.create(OpTable.create(table), subOp);
-
-        return new BatchQueryRewriteResult(newSubOp, serviceInfo.getRenames());
-    }
-
-
-
-    /**
-     * Returns true if the query uses features that prevents it from being
-     * represented as a pair of graph pattern + projection
-     *
-     * @param query
-     * @return
-     */
-    public static boolean needsWrappingByFeatures(Query query) {
-        return needsWrappingByFeatures(query, true) || !query.getProject().getExprs().isEmpty();
-    }
-
-
-    /**
-     * Similar to {@link #needsWrapping(Query)} but includes a flag
-     * whether to include slice information (limit / offset).
-     *
-     * @param query
-     * @return
-     */
-    public static boolean needsWrappingByFeatures(Query query, boolean includeSlice) {
-        boolean result
-             = query.hasGroupBy()
-            || query.hasAggregators()
-            || query.hasHaving()
-            || query.hasValues();
-
-        if (includeSlice) {
-            result = result
-                || query.hasLimit()
-                || query.hasOffset()
-                ;
-        }
-
-        // Order is ignored
-
-        return result;
-    }
-
-
-    public static class BatchQueryRewriteResult {
-    	protected Op op;
-    	protected Map<Var, Var> renames;
-
-//    	protected Set<Var> joinVars;
-
-    	public BatchQueryRewriteResult(Op op, Map<Var, Var> renames) { //  Set<Var> joinVars
-			super();
-			this.op = op;
-			this.renames = renames;
-//			this.joinVars = joinVars;
-		}
-
-    	public Op getOp() {
-			return op;
-		}
-
-    	public Map<Var, Var> getRenames() {
-			return renames;
-		}
-
-//    	public Set<Var> getJoinVars() {
-//			return joinVars;
-//		}
-    }
 
 
 }

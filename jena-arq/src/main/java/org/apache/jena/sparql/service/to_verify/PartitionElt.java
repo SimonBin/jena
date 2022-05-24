@@ -1,4 +1,4 @@
-package org.apache.jena.sparql.service;
+package org.apache.jena.sparql.service.to_verify;
 
 /**
  * A partition element (event) can be either a marker for the start of a partition
