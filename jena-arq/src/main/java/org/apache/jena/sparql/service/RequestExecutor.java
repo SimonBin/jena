@@ -362,7 +362,7 @@ public class RequestExecutor
 		// Create a remote execution if needed
 		if (!backendRequests.isEmpty()) {
 			BatchQueryRewriteResult rewrite = rewriter.rewrite(backendRequests);
-			System.out.println(rewrite);
+			// System.out.println(rewrite);
 
 	        Op newSubOp = rewrite.getOp();
 	        OpService substitutedOp = new OpService(substServiceNode, newSubOp, serviceInfo.getOpService().getSilent());

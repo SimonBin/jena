@@ -39,12 +39,12 @@
       <dependency>
         <groupId>org.aksw.commons</groupId>
         <artifactId>aksw-commons-io-buffers</artifactId>
-        <version>0.9.4-SNAPSHOT</version>
+        <version>0.9.4</version>
       </dependency>
       <dependency>
         <groupId>org.aksw.commons</groupId>
         <artifactId>aksw-commons-claimingcache</artifactId>
-        <version>0.9.4-SNAPSHOT</version>
+        <version>0.9.4</version>
       </dependency>
 
     <dependency>
