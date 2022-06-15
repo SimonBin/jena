@@ -435,11 +435,16 @@ public class NodeFunctions {
         try {
             IRIx iri = IRIx.create(iriStr);
             IRIx base = ( baseIRI != null ) ? IRIx.create(baseIRI) : IRIs.getSystemBase();
-            if ( base.isRelative() )
-                throw new ExprEvalException("Relative IRI for base: " + iriStr) ;
+
+            // if ( base.isRelative() )
+            //     throw new ExprEvalException("Relative IRI for base: " + iriStr) ;
+
             IRIx result = base.resolve(iri);
-            if ( ! result.isReference() )
+
+            // The result of resolving against a non-relative base must be a reference
+            if ( ! base.isRelative() && ! result.isReference() )
                 throw new IRIException("Not suitable: "+result.str());
+
             return result.str();
         } catch (IRIException ex) {
             throw new ExprEvalException("Bad IRI: " + iriStr) ;

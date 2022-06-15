@@ -21,13 +21,20 @@ package org.apache.jena.sparql.expr;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.jena.graph.Node;
+import org.apache.jena.irix.IRIxResolver;
+import org.apache.jena.query.Query;
+import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QueryParseException ;
 import org.apache.jena.shared.PrefixMapping;
+import org.apache.jena.sparql.core.DatasetGraphFactory;
+import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.BindingFactory;
 import org.apache.jena.sparql.expr.nodevalue.XSDFuncOp ;
 import org.apache.jena.sparql.function.FunctionEnvBase;
 import org.apache.jena.sparql.sse.SSE;
+import org.apache.jena.sparql.syntax.ElementGroup;
 import org.apache.jena.sparql.util.ExprUtils ;
+import org.apache.jena.sparql.util.QueryExecUtils;
 import org.junit.Test ;
 
 /** Break expression testing suite into parts
@@ -138,6 +145,24 @@ public class TestExpressions2
     @Test public void iri_base_22() {
         evalTest("http://example/", "IRI(<http://host/x>)", "<http://host/x>");
     }
+
+    // Relative base
+    @Test public void rel_iri_base_10() {
+        IRIxResolver resolver = IRIxResolver.create().allowRelative(true).noBase().build();
+        Query query = QueryFactory.create();
+        query.setQuerySelectType();
+        // query.setBase(resolver.getBase());
+        query.addResultVar(Var.alloc("s"), new E_IRI("", NodeValue.makeString("..")));
+        query.setQueryPattern(new ElementGroup());
+        QueryExecUtils.exec(query, DatasetGraphFactory.create());
+        //System.out.println(resolver.resolve(".."));
+
+        //return ExprUtils.parse(exprStr, (PrefixMapping)null, parserBase);
+
+        //evalTest("", "IRI('..')", "<..>");
+    }
+
+
     // 2 arg foirm.
     @Test public void iri_base_30() {
         evalTest("http://example/", "IRI(<base>, 'x')",         "<http://example/x>");
